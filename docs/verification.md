@@ -3,9 +3,22 @@
 This file supersedes the historical Windows/RTK/interactive-subagents evidence in Git history.
 Target: Linux, Node 22.23.2, Pi 0.85.1. Verified and activated on 2026-09-14.
 
-## Increased concurrency (current)
+## Compact history baseline (current)
 
-`h-95489bca5f1d-s-e955e29c51b7-m-c78b5148b110` is verified, sealed and active.
+`h-fd27acfa7a6d-s-e955e29c51b7-m-c78b5148b110` is verified, sealed and active.
+The root commit has exactly the same tracked tree as the previous main tip. No runtime
+functionality was removed. The previous Git refs are preserved in a verified private
+external bundle. The second commit updates the recipe and recovery documentation.
+Fresh-home bootstrap fetched the pinned external sources, passed all fourteen package
+checks and five official-runtime checks, and activated the new baseline release.
+Root tests and all six local verification groups passed. Real-home activation preserved
+other parent settings and private MCP content. Doctor and repeat bootstrap passed with
+zero further changes. Earlier release evidence below is historical; its commits are in
+the external archive, not ancestors of the compact main branch.
+
+## Previous increased concurrency release
+
+`h-95489bca5f1d-s-e955e29c51b7-m-c78b5148b110` remains verified and sealed.
 Background concurrency is six; foreground concurrency is two. These are independent
 pools, not a workflow-wide quota. Nested delegation, child MCP restrictions, model
 and turn defaults are unchanged. Fresh-home bootstrap passed full release verification

@@ -253,6 +253,13 @@ from exact commits, then `deps`, `verify`, `plan` and `apply` with `--release <i
 Commit source changes before preparing, update the recipe after verification, and publish
 only reviewed commits. Do not update Pi or floating package branches blindly.
 
+The published history starts from the current harness baseline. The next commit pins its
+verified release; both commits are required because the recipe references the baseline's
+exact hash. Earlier Git history is retained in a private external recovery bundle, not
+in published `main`. Existing clones must not merge the previous history back into this
+branch; use a fresh clone and preserve any local work separately. Historical commit links
+in migration notes refer to that archive.
+
 Old sealed releases remain untouched. This migration is not a promise of automatic reverse
 migration to the retired runtime; retain backups and the corresponding historical installer
 and Node/Pi versions when recovery to an older base is required.
