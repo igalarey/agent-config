@@ -1,0 +1,20 @@
+{
+  "name": "imanol-agent-config",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "keywords": ["pi-package"],
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "bootstrap": "node scripts/bootstrap.mjs",
+    "plan": "node scripts/install.mjs",
+    "apply": "node scripts/install.mjs --apply",
+    "doctor": "node scripts/doctor.mjs",
+    "deps": "node scripts/dependencies.mjs",
+    "release": "node scripts/releases.mjs",
+    "verify": "node scripts/verify.mjs"
+  },
+  "pi": { "extensions": [], "skills": ["./skills"] }
+}

@@ -1,0 +1,18 @@
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+auth.json
+sessions/
+.memory/
+.agent-config/
+sources.local.json
+.mcp.json
+.pi/mcp.json
+mcp-cache.json
+*.log
+# Local Pi runtime state
+.atl/
