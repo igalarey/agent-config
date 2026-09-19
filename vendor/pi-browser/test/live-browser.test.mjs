@@ -53,7 +53,7 @@ async function invoke(tool, params = {}, signal) {
 
 test('opt-in real Chromium exercises automatic link following, sensitive-action gating, navigation, read, screenshot, and close', {
   skip: !enabled || !executable || !fs.existsSync(executable)
-    ? 'set PI_RUN_BROWSER_TESTS=1 with installed Chrome/Edge or PI_BROWSER_EXECUTABLE_PATH'
+    ? 'set PI_RUN_BROWSER_TESTS=1 with installed Chrome/Edge, Playwright Chromium, or PI_BROWSER_EXECUTABLE_PATH'
     : false,
   timeout: 60_000,
 }, async t => {

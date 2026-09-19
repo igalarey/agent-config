@@ -215,6 +215,16 @@ test('text bounds and installed-browser discovery are portable and explicit-path
   fs.writeFileSync(discovered, 'fixture');
   assert.ok(executableCandidates({ ProgramFiles: programFiles }, 'win32').includes(discovered));
   assert.equal(await resolveExecutablePath(undefined, { ProgramFiles: programFiles }, 'win32'), discovered);
+
+  const playwrightRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-browser-playwright-'));
+  t.after(() => fs.rmSync(playwrightRoot, { recursive: true, force: true }));
+  const playwrightExecutable = path.join(playwrightRoot, 'chromium-1243', 'chrome-linux64', 'chrome');
+  fs.mkdirSync(path.dirname(playwrightExecutable), { recursive: true });
+  fs.writeFileSync(playwrightExecutable, 'fixture');
+  assert.equal(
+    await resolveExecutablePath(undefined, { HOME: '/unused', PLAYWRIGHT_BROWSERS_PATH: playwrightRoot }, 'linux'),
+    playwrightExecutable,
+  );
 });
 
 test('session startup automatically enables only public read/navigation tools and rejects local access before browser discovery', async () => {

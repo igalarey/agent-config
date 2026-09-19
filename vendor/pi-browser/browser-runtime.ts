@@ -1,4 +1,4 @@
-import { stat } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { chromium, type Browser, type BrowserContext, type ElementHandle, type Page } from "playwright-core";
 import { createBrowserProxy, type LocalBrowserProxy } from "./browser-proxy.ts";
@@ -80,6 +80,43 @@ export function executableCandidates(
   return [...new Set(candidates)];
 }
 
+function playwrightBrowserRoot(env: NodeJS.ProcessEnv, platform: NodeJS.Platform): string | undefined {
+  const configured = envValue(env, "PLAYWRIGHT_BROWSERS_PATH");
+  if (configured?.trim() && configured.trim() !== "0") return configured.trim();
+  const home = envValue(env, "HOME");
+  if (platform === "linux") return home && join(home, ".cache", "ms-playwright");
+  if (platform === "darwin") return home && join(home, "Library", "Caches", "ms-playwright");
+  if (platform === "win32") {
+    const local = envValue(env, "LOCALAPPDATA") ?? (home && join(home, "AppData", "Local"));
+    return local && join(local, "ms-playwright");
+  }
+  return undefined;
+}
+
+async function playwrightExecutableCandidates(
+  env: NodeJS.ProcessEnv,
+  platform: NodeJS.Platform,
+): Promise<string[]> {
+  const root = playwrightBrowserRoot(env, platform);
+  if (!root) return [];
+  let entries;
+  try {
+    entries = await readdir(root, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const browsers = entries
+    .filter(entry => entry.isDirectory() && /^chromium-\d/.test(entry.name))
+    .map(entry => entry.name)
+    .sort((left, right) => right.localeCompare(left, undefined, { numeric: true }));
+  const executable = platform === "win32"
+    ? ["chrome-win", "chrome-win64"].map(folder => [folder, "chrome.exe"])
+    : platform === "darwin"
+      ? [["chrome-mac", "Chromium.app", "Contents", "MacOS", "Chromium"], ["chrome-mac", "Google Chrome for Testing.app", "Contents", "MacOS", "Google Chrome for Testing"]]
+      : [["chrome-linux", "chrome"], ["chrome-linux64", "chrome"]];
+  return browsers.flatMap(browser => executable.map(parts => join(root, browser, ...parts)));
+}
+
 export async function resolveExecutablePath(
   explicit?: string,
   env: NodeJS.ProcessEnv = process.env,
@@ -87,14 +124,16 @@ export async function resolveExecutablePath(
 ): Promise<string> {
   const configured = explicit ?? envValue(env, "PI_BROWSER_EXECUTABLE_PATH");
   if (configured?.trim()) return validateExecutablePath(configured);
-  for (const candidate of executableCandidates(env, platform)) {
+  const candidates = [...executableCandidates(env, platform), ...(await playwrightExecutableCandidates(env, platform))];
+  for (const candidate of candidates) {
     try {
       return await validateExecutablePath(candidate);
     } catch {}
   }
   throw new Error(
-    "No installed Chrome or Edge executable was found. pi-browser never downloads a browser; " +
-    "install one separately or set PI_BROWSER_EXECUTABLE_PATH to an absolute executable path.",
+    "No installed Chrome, Edge, or Playwright-managed Chromium executable was found. " +
+    "pi-browser never downloads a browser; install one separately or set " +
+    "PI_BROWSER_EXECUTABLE_PATH to an absolute executable path.",
   );
 }
 

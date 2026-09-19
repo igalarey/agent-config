@@ -180,8 +180,9 @@ Only the user can stop active supervision through `/supervise stop`.
   PDF extraction uses local unpdf. Search still contacts a search provider and may use
   Codex authentication. YouTube understanding has different provider/cost requirements
   from actual caption extraction. These defaults are not an OS sandbox.
-- Browser uses an existing Chrome/Edge, ephemeral context and public destinations;
-  sensitive interaction requires a separate grant. It never downloads the browser.
+- Browser uses an existing Chrome/Edge or Playwright Chromium, an ephemeral context and
+  public destinations; sensitive interaction requires a separate grant. It never downloads
+  the browser.
 - MCP uses the unmodified npm adapter, not our retired wrapper. Its persistent footer is
   disabled with `settings.mcpFooterStatus: "off"`; `/mcp status` remains available.
   It includes no servers or credentials. Server configurations are trusted executable

@@ -120,8 +120,8 @@ efectiva y sus commits siguen siendo los indicados por
 ## Capacidades independientes del terminal
 
 - `web_fetch` procesa URLs públicas conocidas sin JavaScript, autenticación ni búsqueda.
-- `pi-browser` usa un Chrome/Edge externo con perfil temporal y no hereda cookies
-  personales. Su política completa está en
+- `pi-browser` usa un Chrome/Edge o Chromium de Playwright ya instalado, con perfil
+  temporal y sin heredar cookies personales. Su política completa está en
   [`vendor/pi-browser/README.md`](../vendor/pi-browser/README.md).
 - Las skills PDF y YouTube requieren runtimes opcionales ya instalados; el harness no los
   descarga automáticamente.

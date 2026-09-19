@@ -29,7 +29,7 @@ Commands:
 
 ## Browser executable and ephemeral state
 
-`pi-browser` uses `playwright-core` and never downloads or installs a browser. On first browser use it looks for an already installed Chrome or Edge in conventional Windows, macOS, and Linux locations and on `PATH`. An explicit absolute path remains available when discovery is unsuitable:
+`pi-browser` uses `playwright-core` and never downloads or installs a browser. On first browser use it looks for an already installed Chrome or Edge in conventional Windows, macOS, and Linux locations and on `PATH`. It also discovers a locally installed Playwright Chromium under the standard `ms-playwright` cache or `PLAYWRIGHT_BROWSERS_PATH`. An explicit absolute path remains available when discovery is unsuitable:
 
 ```text
 PI_BROWSER_EXECUTABLE_PATH=/absolute/path/to/chrome

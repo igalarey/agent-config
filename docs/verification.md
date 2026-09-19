@@ -295,8 +295,9 @@ After a full Pi restart, manual smoke:
 3. `/supervise status` works. Start a user-chosen goal and stop with `/supervise stop`.
 4. `/om:status` retains memory configuration; `/subscription-refresh` shows the account's
    actual result, which may be unsupported/error rather than guessed quota.
-5. `/browser` reports availability; use installed Chrome/Edge for a separately approved
-   public navigation smoke. MCP service configuration remains private and explicit.
+5. `/browser` reports availability; use installed Chrome/Edge or Playwright Chromium for a
+   separately approved public navigation smoke. MCP service configuration remains private
+   and explicit.
 
 `npm run doctor` validates the active release and pending managed configuration. It does
 not authenticate or certify these manual checks. Never retest or reinstall a sealed runtime.

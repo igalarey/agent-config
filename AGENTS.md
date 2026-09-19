@@ -76,8 +76,9 @@ Portable Pi configuration. Node 22.23.2, Pi 0.85.1, dependency-free ESM installe
   local unpdf. Search can reuse Codex auth and contacts providers. Keep pdf-reader for local
   rendering and youtube-transcript for actual captions. analyze-sessions is our local code.
 - Browser retains public-network restrictions and never downloads Chromium,
-  uses no personal profile, and needs an installed Chrome/Edge. Its interactive/mouse smoke
-  is separate from offline verification. MCP has no inherited browser network sandbox.
+  uses no personal profile, and needs an installed Chrome/Edge or Playwright Chromium.
+  Its interactive/mouse smoke is separate from offline verification. MCP has no inherited
+  browser network sandbox.
 - pi-ollama discovers models at load time even with PI_OFFLINE. Verification strips
   inherited OLLAMA settings and uses a fetch-blocked port; it checks command registration,
   not inference or an authenticated Ollama server. Runtime keeps the user's Ollama settings.
