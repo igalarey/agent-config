@@ -30,12 +30,21 @@ RTK is no longer distributed or installed.
 
 [nicobailon/pi-mcp-adapter](https://github.com/nicobailon/pi-mcp-adapter) 2.33.0,
 [nicobailon/pi-web-access](https://github.com/nicobailon/pi-web-access) 0.29.0 and
-[danielvm-git/bigpowers](https://github.com/danielvm-git/bigpowers) 2.88.6 are installed
+[CaptCanadaMan/pi-ollama](https://github.com/CaptCanadaMan/pi-ollama) 0.1.7 are installed
 unmodified from npm, with their upstream MIT notices. `native/package-lock.json` fixes
 versions and integrity hashes, including transitive dependencies and their own licenses.
 The local MCP wrapper and web-fetch implementation have been retired. No MCP server
-configuration or credentials are bundled. Bigpowers is unmodified; settings load only
-14 named skills and disable its prompts and extension.
+configuration or credentials are bundled. The Bigpowers npm package is no longer installed.
+
+## Curated Bigpowers skills
+
+`pi-skills/` contains the 14 curated skill directories copied from the local Bigpowers
+2.88.6 deployment. The source package is [danielvm-git/bigpowers](https://github.com/danielvm-git/bigpowers)
+and is distributed under MIT. `pi-skills/LICENSE.bigpowers` retains the complete upstream
+license text; `manifests/curated-skills.json` records the npm integrity and SHA-256 hash
+for every retained asset. The copies match the package's canonical `skills/` files,
+including references, scripts and fixtures. They do not use the generated `.pi/skills/`
+variants. No Bigpowers hooks, prompt templates or extension are installed.
 
 ## Other release sources and dependencies
 
