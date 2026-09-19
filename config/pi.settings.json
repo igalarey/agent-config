@@ -24,6 +24,12 @@
       "prompts": []
     }
   ],
+  "theme": "carbon-violet",
+  "editorPaddingX": 2,
+  "outputPad": 1,
+  "hideThinkingBlock": true,
+  "quietStartup": false,
+  "collapseChangelog": true,
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-6-astra",
   "defaultThinkingLevel": "medium",

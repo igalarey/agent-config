@@ -76,6 +76,11 @@ Portable Pi configuration. Node 22.23.2, Pi 0.85.1, dependency-free ESM installe
 - Subscription usage polls only in TUI, uses Pi OAuth APIs, and never reads auth.json itself.
   Offline checks do not establish authenticated quota or footer clicks. Memory retains its
   existing Luna-high model configuration and incurs model usage when it observes/compacts.
+- Carbon UI sources live in `extensions/` and `themes/`; see `docs/carbon-ui.md`.
+  `npm run test:carbon` runs rendering and execution-parity tests after vendor dependencies
+  are prepared. Keep the original task entrypoint disabled when the Carbon task adapter
+  is loaded; duplicate registration loses the custom rendering. Do not hardcode release
+  paths in extensions or change the execution functions to alter presentation.
 - Never version secrets, sessions, generated memories, caches, source maps or backups.
   Publication uses reviewed refs and noreply identity; never push --all/--mirror. Source
   checkouts may retain private historical branches. Leave external worktrees alone.

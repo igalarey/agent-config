@@ -144,6 +144,19 @@ test('legacy planner fixture is idempotent and preserves profiles and source', t
   assert.deepEqual(installedSettings.compaction, { enabled: true, reserveTokens: 16384, keepRecentTokens: 20000 });
   assert.equal(installedSettings['observational-memory'].compactAtContextTokens, 150000);
   assert.equal(installedSettings['observational-memory'].tailTokens, 20000);
+  assert.equal(installedSettings.theme, 'carbon-violet');
+  assert.equal(installedSettings.editorPaddingX, 2);
+  assert.equal(installedSettings.outputPad, 1);
+  assert.equal(installedSettings.hideThinkingBlock, true);
+  assert.equal(installedSettings.quietStartup, false);
+  assert.equal(installedSettings.collapseChangelog, true);
+  assert.deepEqual(installedSettings.packages.find(entry => entry.source?.endsWith('/pi-tasks')).extensions, []);
+  for (const relative of [
+    'extensions/carbon-ui/index.ts', 'extensions/carbon-ui/builtin-tools.ts',
+    'extensions/carbon-ui/tool-card.ts', 'extensions/carbon-tasks/index.ts', 'themes/carbon-violet.json',
+  ]) {
+    assert.equal(fs.readFileSync(path.join(home, '.pi/agent', relative), 'utf8'), fs.readFileSync(path.join(root, relative), 'utf8'));
+  }
   const generalPurpose = fs.readFileSync(path.join(home, '.pi/agent/agents/general-purpose.md'), 'utf8');
   const explore = fs.readFileSync(path.join(home, '.pi/agent/agents/Explore.md'), 'utf8');
   assert.match(generalPurpose, /prompt_mode: append/);
@@ -204,9 +217,9 @@ test('legacy package, profiles and RTK require explicit migration and are backed
   assert.equal(readJSON(path.join(home, settings)).packages[0], 'npm:unrelated@1');
   assert.deepEqual(plan({ home }).operations, []);
 });
-test('preserves unrelated settings, APPEND prompt, and AGENTS content; backs up exact originals', t => {
+test('applies managed defaults while preserving unrelated settings, APPEND prompt, and AGENTS content', t => {
   const home = sandbox(t);
-  const original = '{"theme":"custom","defaultThinkingLevel":"low","packages":["npm:unrelated@1.0.0"],"observational-memory":{"custom":42}}';
+  const original = '{"theme":"custom","foreign":"preserve","defaultThinkingLevel":"low","packages":["npm:unrelated@1.0.0"],"observational-memory":{"custom":42}}';
   const originalAppend = 'User append instructions\n';
   const originalAgents = '# User global context\n\nKeep this instruction.\n';
   put(home, settings, original);
@@ -214,7 +227,8 @@ test('preserves unrelated settings, APPEND prompt, and AGENTS content; backs up 
   put(home, '.pi/agent/AGENTS.md', originalAgents);
   const backup = execute(plan({ home }));
   const next = readJSON(path.join(home, settings));
-  assert.equal(next.theme, 'custom');
+  assert.equal(next.theme, 'carbon-violet');
+  assert.equal(next.foreign, 'preserve');
   assert.equal(next['observational-memory'].custom, 42);
   assert.equal(next.packages[0], 'npm:unrelated@1.0.0');
   assert.equal(fs.readFileSync(path.join(backup, settings), 'utf8'), original);

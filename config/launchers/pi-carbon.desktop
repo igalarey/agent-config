@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Pi Carbon
+Comment=Pi con perfil de terminal oscuro y acentos violetas
+Exec=pi-carbon
+Icon=utilities-terminal
+Terminal=false
+Categories=Development;ConsoleOnly;

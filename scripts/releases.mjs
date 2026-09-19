@@ -28,7 +28,7 @@ const SOURCES = {
       'SYSTEM.md', 'config/pi.settings.json', 'manifests/packages.json',
     ],
     optionalEntries: ['config/subagents.json', 'config/tasks-config.json', 'config/SUPERVISOR.md', 'manifests/tintinweb.json', 'manifests/memory-lock-additions.json', 'native/package.json', 'native/package-lock.json', 'config/mcp.json', 'config/web-search.json'],
-    prefixes: ['agents/', 'guides/', 'skills/', 'prompts/', 'vendor/pi-ask-user-question/', 'vendor/pi-web-fetch/', 'vendor/pi-browser/',
+    prefixes: ['agents/', 'guides/', 'skills/', 'prompts/', 'extensions/', 'themes/', 'vendor/pi-ask-user-question/', 'vendor/pi-web-fetch/', 'vendor/pi-browser/',
       'vendor/pi-mcp/', 'vendor/pi-subscription-usage/', 'vendor/pi-tasks/', 'vendor/pi-supervisor/'],
   },
   subagents: {

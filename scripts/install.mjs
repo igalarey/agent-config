@@ -59,6 +59,8 @@ const RESOURCE_PROJECTIONS = [
   { section: 'skills', destination: '.agents/skills' },
   { section: 'agents', destination: '.pi/agent/agents' },
   { section: 'prompts', destination: '.pi/agent/prompts', optional: true },
+  { section: 'extensions', destination: '.pi/agent/extensions', optional: true },
+  { section: 'themes', destination: '.pi/agent/themes', optional: true },
 ];
 function projectedResources(source) {
   return RESOURCE_PROJECTIONS.flatMap(({ section, destination, optional }) => {
@@ -136,17 +138,37 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
         '.agents/skills/orca-cli/SKILL.md',
         '.agents/skills/orchestration/SKILL.md',
       ]);
+      const removedSettings = beforeShape.settingsKeys.filter(key => !nextShape.settingsKeys.includes(key));
+      const addedSettings = nextShape.settingsKeys.filter(key => !beforeShape.settingsKeys.includes(key));
+      const changedSettings = [...removedSettings, ...addedSettings];
+      const changedResources = [...removed, ...added];
       const permittedOrcaShapeChange = retireOrcaSkills
-        && JSON.stringify(beforeShape.settingsKeys) === JSON.stringify(nextShape.settingsKeys)
-        && [...removed, ...added].every(relative => orcaSkills.has(relative));
-      const settingsShapeUnchanged = JSON.stringify(beforeShape.settingsKeys) === JSON.stringify(nextShape.settingsKeys);
+        && changedSettings.length === 0
+        && changedResources.every(relative => orcaSkills.has(relative));
+      const settingsShapeUnchanged = changedSettings.length === 0;
       const permittedWorkflowGuideChange = settingsShapeUnchanged
-        && [...removed, ...added].every(relative => relative === '.agents/guides/task-workflow.md');
+        && changedResources.every(relative => relative === '.agents/guides/task-workflow.md');
       const permittedPromptChange = settingsShapeUnchanged
-        && [...removed, ...added].every(relative => relative.startsWith('.pi/agent/prompts/'));
-      if (permittedOrcaShapeChange || permittedWorkflowGuideChange || permittedPromptChange || (modern && migrateBase
-          && [...removed, ...added].every(relative => relative.startsWith('.pi/agent/agents/')))) retiredResources.push(...removed);
-      else conflicts.push('incompatible release rollback/update: managed resource or settings key set changed');
+        && changedResources.every(relative => relative.startsWith('.pi/agent/prompts/'));
+      const carbonResources = new Set([
+        '.pi/agent/extensions/carbon-ui/index.ts',
+        '.pi/agent/extensions/carbon-ui/builtin-tools.ts',
+        '.pi/agent/extensions/carbon-ui/tool-card.ts',
+        '.pi/agent/extensions/carbon-tasks/index.ts',
+        '.pi/agent/themes/carbon-violet.json',
+      ]);
+      const carbonSettings = new Set([
+        'theme', 'editorPaddingX', 'outputPad', 'hideThinkingBlock', 'quietStartup', 'collapseChangelog',
+      ]);
+      const carbonFeaturePresent = beforeResources.has('.pi/agent/extensions/carbon-tasks/index.ts')
+        || nextResources.has('.pi/agent/extensions/carbon-tasks/index.ts');
+      const permittedCarbonShapeChange = carbonFeaturePresent
+        && changedResources.every(relative => carbonResources.has(relative))
+        && changedSettings.every(key => carbonSettings.has(key));
+      if (permittedOrcaShapeChange || permittedWorkflowGuideChange || permittedPromptChange || permittedCarbonShapeChange
+          || (modern && migrateBase && changedResources.every(relative => relative.startsWith('.pi/agent/agents/')))) {
+        retiredResources.push(...removed);
+      } else conflicts.push('incompatible release rollback/update: managed resource or settings key set changed');
     }
   }
   function add(relative, content, managed = true) {
@@ -270,6 +292,32 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
       packages.push(absolute.replaceAll('\\', '/'));
     }
   }
+  const hasCarbonTasks = releaseRoot => fs.existsSync(path.join(releaseRoot, 'extensions/carbon-tasks/index.ts'));
+  const carbonTasksPresent = hasCarbonTasks(source);
+  const priorCarbonTasksPresent = priorRelease ? hasCarbonTasks(priorRelease.path) : false;
+  const taskPackage = manifest.packages.find(pkg => pkg.name === '@tintinweb/pi-tasks');
+  if (carbonTasksPresent && !taskPackage) throw new Error('Carbon tasks requires @tintinweb/pi-tasks in the package inventory');
+  if (taskPackage && (carbonTasksPresent || priorCarbonTasksPresent)) {
+    const taskPath = path.resolve(source, taskPackage.path);
+    const indexes = packages.map((entry, index) =>
+      path.resolve(path.dirname(settingsPath), packageSource(entry).replaceAll('\\', '/')) === taskPath ? index : -1)
+      .filter(index => index !== -1);
+    if (indexes.length === 1) {
+      const index = indexes[0], before = packages[index];
+      const retained = object(before) ? { ...before } : { source: packageSource(before) };
+      const hasExtensions = Object.hasOwn(retained, 'extensions');
+      const managedFilterChanged = priorCarbonTasksPresent
+        ? !hasExtensions || !isDeepStrictEqual(retained.extensions, [])
+        : hasExtensions && !isDeepStrictEqual(retained.extensions, []);
+      if (managedFilterChanged) {
+        conflicts.push('managed package setting changed: @tintinweb/pi-tasks.extensions');
+      } else if (!carbonTasksPresent && hasExtensions) {
+        delete retained.extensions;
+      }
+      if (carbonTasksPresent) retained.extensions = [];
+      packages[index] = retained;
+    }
+  }
   for (const entry of defaults.packages ?? []) {
     const spec = packageSource(entry), match = /^npm:((?:@[^/]+\/)?[^@]+)@(\d+\.\d+\.\d+)$/.exec(spec);
     if (!match) throw new Error('Default npm packages must use exact versions');
@@ -312,7 +360,19 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
     noSymlinks(target);
     add(relative, json(merge(fs.existsSync(target) ? readJSON(target) : {}, readJSON(defaultPath))), false);
   }
-  const next = merge(settings, defaults);
+  const settingsBase = { ...settings };
+  if (priorDefaults && priorCarbonTasksPresent) {
+    const carbonSettings = new Set([
+      'theme', 'editorPaddingX', 'outputPad', 'hideThinkingBlock', 'quietStartup', 'collapseChangelog',
+    ]);
+    for (const key of carbonSettings) {
+      if (!Object.hasOwn(priorDefaults, key) || Object.hasOwn(defaults, key)) continue;
+      if (!Object.hasOwn(settingsBase, key) || !isDeepStrictEqual(settingsBase[key], priorDefaults[key])) {
+        conflicts.push(`managed setting changed: ${key}`);
+      } else delete settingsBase[key];
+    }
+  }
+  const next = merge(settingsBase, defaults);
   next.packages = packages;
   add('.pi/agent/settings.json', json(next), false);
   const adapterBody = `Antes de empezar cualquier tarea, lee completamente con read:\n${path.join(home, '.agents/SYSTEM.md').replaceAll('\\', '/')}\nEs la fuente compartida de instrucciones del usuario.`;

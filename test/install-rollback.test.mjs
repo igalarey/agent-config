@@ -147,6 +147,98 @@ const newPolicy = {
 };
 const settingsPath = '.pi/agent/settings.json';
 
+test('Carbon resources, UI defaults, and task filtering upgrade and roll back together', t => {
+  const home = temporary(t, 'installer-carbon-home-');
+  const source = releaseSources(t, oldPolicy);
+  const harness = source.repositories.harness;
+  const tasksRoot = path.join(harness, 'vendor/pi-tasks');
+  packageFiles(tasksRoot, '@tintinweb/pi-tasks');
+  const taskMetadata = readJSON(path.join(tasksRoot, 'package.json'));
+  taskMetadata.pi.extensions = ['./src/index.ts'];
+  put(tasksRoot, 'package.json', JSON.stringify(taskMetadata));
+  put(tasksRoot, 'src/index.ts', fs.readFileSync(path.join(tasksRoot, 'index.ts')));
+  fs.rmSync(path.join(tasksRoot, 'index.ts'));
+  source.commits.harness = commit(harness, 'legacy tasks baseline');
+
+  const legacy = prepareRelease(home, source);
+  const freshLegacy = plan({ home, release: legacy.id });
+  assert.equal(freshLegacy.operations.some(op => op.relative.includes('carbon-')), false);
+  execute(freshLegacy);
+  let installed = readJSON(path.join(home, settingsPath));
+  let tasks = installed.packages.find(entry => String(typeof entry === 'string' ? entry : entry.source).endsWith('/pi-tasks'));
+  assert.equal(typeof tasks, 'string');
+  assert.equal(Object.hasOwn(installed, 'editorPaddingX'), false);
+
+  const carbonFiles = {
+    'extensions/carbon-ui/index.ts': 'export default function carbonUi() {}\n',
+    'extensions/carbon-ui/builtin-tools.ts': 'export const builtins = true;\n',
+    'extensions/carbon-ui/tool-card.ts': 'export const toolCard = true;\n',
+    'extensions/carbon-tasks/index.ts': 'export default function carbonTasks() {}\n',
+    'themes/carbon-violet.json': '{"name":"carbon-violet","colors":{}}\n',
+  };
+  for (const [relative, content] of Object.entries(carbonFiles)) put(harness, relative, content);
+  put(harness, 'config/pi.settings.json', JSON.stringify({
+    packages: [oldPolicy],
+    theme: 'carbon-violet', editorPaddingX: 2, outputPad: 1,
+    hideThinkingBlock: true, quietStartup: false, collapseChangelog: true,
+  }));
+  source.commits.harness = commit(harness, 'add portable Carbon resources');
+  const carbon = prepareRelease(home, source);
+
+  const upgrade = plan({ home, release: carbon.id });
+  assert.deepEqual(upgrade.conflicts, []);
+  for (const relative of Object.keys(carbonFiles)) {
+    assert.ok(upgrade.operations.some(op => op.relative.replaceAll('\\', '/') === `.pi/agent/${relative}`));
+  }
+  execute(upgrade);
+  installed = readJSON(path.join(home, settingsPath));
+  tasks = installed.packages.find(entry => String(typeof entry === 'string' ? entry : entry.source).endsWith('/pi-tasks'));
+  assert.deepEqual(tasks.extensions, []);
+  assert.equal(installed.theme, 'carbon-violet');
+  assert.equal(installed.editorPaddingX, 2);
+  assert.equal(installed.outputPad, 1);
+  assert.equal(installed.hideThinkingBlock, true);
+  assert.equal(installed.quietStartup, false);
+  assert.equal(installed.collapseChangelog, true);
+
+  const rollback = plan({ home, release: legacy.id });
+  assert.deepEqual(rollback.conflicts, []);
+  assert.equal(rollback.operations.filter(op => op.content === null && op.relative.includes('carbon-')).length, 5);
+  execute(rollback);
+  installed = readJSON(path.join(home, settingsPath));
+  tasks = installed.packages.find(entry => String(typeof entry === 'string' ? entry : entry.source).endsWith('/pi-tasks'));
+  assert.equal(Object.hasOwn(tasks, 'extensions'), false);
+  for (const key of ['theme', 'editorPaddingX', 'outputPad', 'hideThinkingBlock', 'quietStartup', 'collapseChangelog']) {
+    assert.equal(Object.hasOwn(installed, key), false, key);
+  }
+  for (const relative of Object.keys(carbonFiles)) assert.equal(fs.existsSync(path.join(home, '.pi/agent', relative)), false);
+  assert.deepEqual(plan({ home }).operations, []);
+
+  execute(plan({ home, release: carbon.id }));
+  installed = readJSON(path.join(home, settingsPath));
+  installed.packages.find(entry => entry.source?.endsWith('/pi-tasks')).extensions = ['./src/index.ts'];
+  put(home, settingsPath, JSON.stringify(installed));
+  const unsafeRollback = plan({ home, release: legacy.id });
+  assert.ok(unsafeRollback.conflicts.some(conflict => /pi-tasks\.extensions/.test(conflict)));
+  assert.throws(() => execute(unsafeRollback), /nothing written/);
+});
+
+test('Carbon shape allowance does not permit the same settings without Carbon resources', t => {
+  const home = temporary(t, 'installer-non-carbon-ui-home-');
+  const source = releaseSources(t, oldPolicy);
+  const previous = prepareRelease(home, source);
+  execute(plan({ home, release: previous.id }));
+
+  put(source.repositories.harness, 'config/pi.settings.json', JSON.stringify({
+    packages: [oldPolicy], editorPaddingX: 2,
+  }));
+  source.commits.harness = commit(source.repositories.harness, 'unrelated UI shape change');
+  const candidate = prepareRelease(home, source);
+  const blocked = plan({ home, release: candidate.id });
+  assert.ok(blocked.conflicts.some(conflict => conflict.includes('incompatible release rollback/update')));
+  assert.throws(() => execute(blocked), /nothing written/);
+});
+
 test('upgrade then rollback removes only unchanged prior-release package filters', t => {
   const home = temporary(t, 'installer-rollback-home-');
   const source = releaseSources(t, oldPolicy);
