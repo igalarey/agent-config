@@ -3,9 +3,44 @@
 This file supersedes the historical Windows/RTK/interactive-subagents evidence in Git history.
 Target: Linux, Node 22.23.2, Pi 0.85.1. Latest activation: 2026-09-19.
 
-## Agent panel placement (current)
+## Consolidated harness inventory (current)
 
-`h-2bedd6f443a0-s-e955e29c51b7-m-c78b5148b110` is verified, sealed and active.
+`h-e2d25ae4dc22-s-e955e29c51b7-m-c78b5148b110` is verified, sealed and active.
+It retains Carbon, the below-editor agents panel, the filtered footer and the three
+native npm packages. Bigpowers remains absent.
+
+The repository now contains the 14 curated skills, their assets, MIT license and
+provenance hashes. Their files match the original package's canonical `skills/` tree.
+The installer generates the inventory from the selected release instead of manual pins.
+The authority map and compatibility command are versioned and deployed together.
+
+Verification passed:
+
+- 133 root regression tests, with three optional tests skipped.
+- All six local package verification groups.
+- All fourteen candidate package checks and five official-runtime checks.
+- All 20 Carbon tests and 39 subscription footer tests.
+- Official Pi registration of all 14 curated skills from isolated local directories.
+- Fresh-home activation followed by 144 installed compatibility checks.
+- Real-home migration followed by the same 144 checks and a successful doctor run.
+- Repeat bootstrap in both homes, with zero planned configuration changes.
+
+Regression cases cover stale inventories, altered agent-panel and footer sources,
+changed native dependencies, duplicate package versions and symlinked parent directories.
+They also cover changed predecessor files, unrelated resources and rollback protections.
+
+Real-home activation applied seven configuration changes. Existing non-package settings
+remained structurally identical. The shared `SYSTEM.md` remained byte-identical.
+The installer backup remains available for recovery. Temporary verification homes and
+source checkouts were removed. Historical sealed releases remain untouched.
+
+These checks used no authenticated model calls. They do not verify screenshots,
+quota refresh, live Ollama inference or external workflows described by individual skills.
+Restart Pi to load the new resource definitions.
+
+## Previous agent panel placement
+
+`h-2bedd6f443a0-s-e955e29c51b7-m-c78b5148b110` remains verified and sealed.
 The agents panel uses the native below-editor slot, above the footer. Subscription
 Usage no longer renders the `subagents` summary; memory and other statuses remain.
 The pinned overlay changes one placement line and the two upstream tests that assert it.
