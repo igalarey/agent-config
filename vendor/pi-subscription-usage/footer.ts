@@ -237,6 +237,7 @@ export function createSubscriptionFooter(options: SubscriptionFooterOptions) {
       const padding = " ".repeat(Math.max(0, width - visibleWidth(statsLeft) - markerWidth));
       const lines = [theme.fg("dim", statsLeft + padding + marker)];
       const statuses = [...footerData.getExtensionStatuses().entries()]
+        .filter(([key]) => key !== "subagents")
         .sort(([left], [rightKey]) => left.localeCompare(rightKey))
         .map(([key, text]) => key === "om" ? theme.fg("dim", sanitizeSingleLine(text)) : sanitizeSingleLine(text));
       const statusText = statuses.join(" ");

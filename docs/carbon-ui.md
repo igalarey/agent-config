@@ -30,7 +30,13 @@ offline installer and release regressions remain available through `npm test`.
 The subscription footer uses two rows. The first shows the project, branch and
 context on the left, with subscription usage on the right. The second shows memory
 indicators on the left and the current model on the right. The refresh button
-remains clickable. Memory indicators use the theme's dim color.
+remains clickable. Memory indicators use the theme's dim color. The agent summary
+is hidden from this footer; other extension statuses remain visible.
+
+The agents panel sits below the editor and above the footer. Release preparation
+applies `manifests/subagents-ui.json` to the pinned subagents source and its placement
+test. The overlay checks the source commit and original file hashes before changing
+only the placement. Agent execution, controls and widget contents remain unchanged.
 
 ## Optional Linux launcher
 

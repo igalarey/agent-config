@@ -27,7 +27,7 @@ const SOURCES = {
     entries: [
       'SYSTEM.md', 'config/pi.settings.json', 'manifests/packages.json',
     ],
-    optionalEntries: ['config/subagents.json', 'config/tasks-config.json', 'config/SUPERVISOR.md', 'manifests/tintinweb.json', 'manifests/memory-lock-additions.json', 'native/package.json', 'native/package-lock.json', 'config/mcp.json', 'config/web-search.json'],
+    optionalEntries: ['config/subagents.json', 'config/tasks-config.json', 'config/SUPERVISOR.md', 'manifests/tintinweb.json', 'manifests/memory-lock-additions.json', 'manifests/subagents-ui.json', 'native/package.json', 'native/package-lock.json', 'config/mcp.json', 'config/web-search.json'],
     prefixes: ['agents/', 'guides/', 'skills/', 'prompts/', 'extensions/', 'themes/', 'vendor/pi-ask-user-question/', 'vendor/pi-web-fetch/', 'vendor/pi-browser/',
       'vendor/pi-mcp/', 'vendor/pi-subscription-usage/', 'vendor/pi-tasks/', 'vendor/pi-supervisor/'],
   },
@@ -230,6 +230,37 @@ function mappedReleaseFiles(records, commits) {
     lock.sha256 = digest(lock.content);
     lock.source = 'generated';
     lock.gitObject = null;
+  }
+  const subagentsOverlayEntry = records.find(entry => entry.sourceKey === 'harness' && entry.sourcePath === 'manifests/subagents-ui.json');
+  if (subagentsOverlayEntry) {
+    const overlay = JSON.parse(subagentsOverlayEntry.content.toString('utf8'));
+    const expectedPaths = new Set([
+      'src/ui/agent-widget.ts',
+      'test/agent-color-surfaces.test.ts',
+    ]);
+    if (overlay.commit !== commits.subagents || !Array.isArray(overlay.files) || overlay.files.length !== expectedPaths.size) {
+      throw new Error('Subagents UI overlay does not match pinned source');
+    }
+    const seen = new Set();
+    for (const patch of overlay.files) {
+      if (!object(patch) || !expectedPaths.has(patch.path) || seen.has(patch.path)
+        || typeof patch.originalSha256 !== 'string' || !validContentHash(patch.originalSha256)
+        || typeof patch.oldText !== 'string' || typeof patch.newText !== 'string' || !patch.oldText || patch.oldText === patch.newText) {
+        throw new Error('Invalid subagents UI overlay');
+      }
+      seen.add(patch.path);
+      const target = files.find(entry => entry.path === `packages/${subagentsName}/${patch.path}`);
+      if (!target || target.sha256 !== patch.originalSha256) throw new Error('Subagents UI overlay does not match pinned source');
+      const text = target.content.toString('utf8');
+      const occurrences = text.split(patch.oldText).length - 1;
+      if (occurrences !== 1) throw new Error(`Subagents UI overlay replacement is not unique: ${patch.path}`);
+      target.content = Buffer.from(text.replace(patch.oldText, patch.newText));
+      target.size = target.content.length;
+      target.sha256 = digest(target.content);
+      target.source = 'generated';
+      target.gitObject = null;
+    }
+    if (seen.size !== expectedPaths.size) throw new Error('Invalid subagents UI overlay');
   }
   const harnessManifest = parseCommittedJSON(records, 'harness', 'manifests/packages.json');
   if (typeof harnessManifest.piVersion !== 'string' || !harnessManifest.piVersion) throw new Error('Harness Pi version is missing');

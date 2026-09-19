@@ -46,6 +46,9 @@ function commit(repo, message) {
   git(repo, ['commit', '-q', '-m', message]);
   return git(repo, ['rev-parse', 'HEAD']);
 }
+function fileHash(file) {
+  return createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+}
 function packageFiles(repo, name, { subagents = false, extension = 'index.ts' } = {}) {
   const scripts = { typecheck: 'fixture', test: 'fixture' };
   if (subagents) Object.assign(scripts, { 'test:integration': 'fixture', 'test:smoke': 'fixture' });
@@ -385,6 +388,70 @@ test('a declared subscription usage package cannot disappear from the committed 
   source.commits.harness = commit(source.repositories.harness, 'missing subscription usage source');
   assert.throws(() => planRelease({ home, ...source }), /Required committed file missing: harness:vendor\/pi-subscription-usage\/package.json/);
   assert.deepEqual(fs.readdirSync(home), []);
+});
+
+test('subagents UI overlay projects its two pinned edits and remains optional', t => {
+  const home = temporary(t);
+  const source = fixture(t);
+  const subagents = source.repositories.subagents;
+  put(subagents, 'src/ui/agent-widget.ts', 'ui.setWidget("agents", factory, { placement: "aboveEditor" });\n');
+  put(subagents, 'test/agent-color-surfaces.test.ts', 'expect(placement).toBe("aboveEditor");\n');
+  source.commits.subagents = commit(subagents, 'subagents UI baseline');
+  put(source.repositories.harness, 'manifests/subagents-ui.json', JSON.stringify({
+    commit: source.commits.subagents,
+    files: [
+      {
+        path: 'src/ui/agent-widget.ts',
+        originalSha256: fileHash(path.join(subagents, 'src/ui/agent-widget.ts')),
+        oldText: 'placement: "aboveEditor"',
+        newText: 'placement: "belowEditor"',
+      },
+      {
+        path: 'test/agent-color-surfaces.test.ts',
+        originalSha256: fileHash(path.join(subagents, 'test/agent-color-surfaces.test.ts')),
+        oldText: 'expect(placement).toBe("aboveEditor")',
+        newText: 'expect(placement).toBe("belowEditor")',
+      },
+    ],
+  }));
+  source.commits.harness = commit(source.repositories.harness, 'subagents UI overlay');
+  const candidate = prepare(t, home, source);
+  assert.equal(candidate.files.find(file => file.path === 'packages/pi-interactive-subagents/src/ui/agent-widget.ts').content.toString(),
+    'ui.setWidget("agents", factory, { placement: "belowEditor" });\n');
+  assert.equal(candidate.files.find(file => file.path === 'packages/pi-interactive-subagents/test/agent-color-surfaces.test.ts').content.toString(),
+    'expect(placement).toBe("belowEditor");\n');
+
+  const absent = fixture(t);
+  assert.doesNotThrow(() => planRelease({ home: temporary(t), ...absent }));
+
+  const mismatch = fixture(t);
+  const mismatchSubagents = mismatch.repositories.subagents;
+  put(mismatchSubagents, 'src/ui/agent-widget.ts', 'ui.setWidget("agents", factory, { placement: "aboveEditor" });\n');
+  put(mismatchSubagents, 'test/agent-color-surfaces.test.ts', 'expect(placement).toBe("aboveEditor");\n');
+  mismatch.commits.subagents = commit(mismatchSubagents, 'subagents UI mismatch baseline');
+  put(mismatch.repositories.harness, 'manifests/subagents-ui.json', JSON.stringify({
+    commit: mismatch.commits.subagents,
+    files: [
+      { path: 'src/ui/agent-widget.ts', originalSha256: 'a'.repeat(64), oldText: 'aboveEditor', newText: 'belowEditor' },
+      { path: 'test/agent-color-surfaces.test.ts', originalSha256: fileHash(path.join(mismatchSubagents, 'test/agent-color-surfaces.test.ts')), oldText: 'aboveEditor', newText: 'belowEditor' },
+    ],
+  }));
+  mismatch.commits.harness = commit(mismatch.repositories.harness, 'subagents UI mismatch overlay');
+  assert.throws(() => planRelease({ home: temporary(t), ...mismatch }), /does not match pinned source/);
+  const overlayPath = path.join(mismatch.repositories.harness, 'manifests/subagents-ui.json');
+  const overlay = JSON.parse(fs.readFileSync(overlayPath, 'utf8'));
+  overlay.files[0].originalSha256 = fileHash(path.join(mismatchSubagents, overlay.files[0].path));
+  overlay.commit = 'f'.repeat(40);
+  put(mismatch.repositories.harness, 'manifests/subagents-ui.json', JSON.stringify(overlay));
+  mismatch.commits.harness = commit(mismatch.repositories.harness, 'wrong overlay commit');
+  assert.throws(() => planRelease({ home: temporary(t), ...mismatch }), /does not match pinned source/);
+  overlay.commit = mismatch.commits.subagents;
+  for (const oldText of ['missing text', 'e']) {
+    overlay.files[0].oldText = oldText;
+    put(mismatch.repositories.harness, 'manifests/subagents-ui.json', JSON.stringify(overlay));
+    mismatch.commits.harness = commit(mismatch.repositories.harness, 'nonunique overlay replacement');
+    assert.throws(() => planRelease({ home: temporary(t), ...mismatch }), /replacement is not unique/);
+  }
 });
 
 test('release CLI accepts a machine-local source map and remains preview-only by default', t => {

@@ -241,6 +241,21 @@ test("quota stays above the model safely at narrow widths", () => {
   assert.ok(refreshes > 0);
 });
 
+test("agent summary is hidden without removing memory or unrelated statuses", () => {
+  const { ctx } = fixtureContext();
+  const statuses = new Map([["om", "MEMORY"], ["subagents", "AGENT_SUMMARY"], ["other", "OTHER_STATUS"]]);
+  const component = createSubscriptionFooter({
+    ctx, footerData: footerData(statuses),
+    controller: { getState: () => ({ kind: "loading", target: { key: "openai-codex", label: "Codex" } }) },
+    tui: { requestRender() {} }, theme, now: () => 0,
+  });
+  const rendered = component.render(160).join("\n");
+  assert.ok(!rendered.includes("AGENT_SUMMARY"));
+  assert.ok(rendered.includes("MEMORY"));
+  assert.ok(rendered.includes("OTHER_STATUS"));
+  assert.equal(statuses.get("subagents"), "AGENT_SUMMARY");
+});
+
 test("memory status uses the theme dim color after sanitization", () => {
   const { ctx } = fixtureContext();
   const component = createSubscriptionFooter({

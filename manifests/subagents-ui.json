@@ -1,0 +1,17 @@
+{
+  "commit": "e955e29c51b7a6cce37e1108cd2d6c57a77e151c",
+  "files": [
+    {
+      "path": "src/ui/agent-widget.ts",
+      "originalSha256": "af98cc35933be3a7d959e616459742e716dc659eff21d0cf003a06fc0644cbe2",
+      "oldText": "}, { placement: \"aboveEditor\" });",
+      "newText": "}, { placement: \"belowEditor\" });"
+    },
+    {
+      "path": "test/agent-color-surfaces.test.ts",
+      "originalSha256": "53ea2ab2f6bf055f63e7f3cc4e23513b2f3c36b09783529f3b4165e123d651cf",
+      "oldText": "expect(placement).toBe(\"aboveEditor\");",
+      "newText": "expect(placement).toBe(\"belowEditor\");"
+    }
+  ]
+}
