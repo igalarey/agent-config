@@ -27,8 +27,8 @@ const SOURCES = {
     entries: [
       'SYSTEM.md', 'config/pi.settings.json', 'manifests/packages.json',
     ],
-    optionalEntries: ['config/subagents.json', 'config/tasks-config.json', 'config/SUPERVISOR.md', 'manifests/tintinweb.json', 'manifests/memory-lock-additions.json', 'manifests/subagents-ui.json', 'native/package.json', 'native/package-lock.json', 'config/mcp.json', 'config/web-search.json'],
-    prefixes: ['agents/', 'guides/', 'skills/', 'prompts/', 'extensions/', 'themes/', 'vendor/pi-ask-user-question/', 'vendor/pi-web-fetch/', 'vendor/pi-browser/',
+    optionalEntries: ['config/subagents.json', 'config/tasks-config.json', 'config/SUPERVISOR.md', 'config/HARNESS-AUTHORITY.md', 'manifests/tintinweb.json', 'manifests/memory-lock-additions.json', 'manifests/subagents-ui.json', 'manifests/curated-skills.json', 'manifests/harness-legacy.json', 'native/package.json', 'native/package-lock.json', 'config/mcp.json', 'config/web-search.json', 'scripts/harness-compatibility.mjs', 'scripts/verify-compatibility.mjs'],
+    prefixes: ['agents/', 'guides/', 'skills/', 'pi-skills/', 'prompts/', 'extensions/', 'themes/', 'vendor/pi-ask-user-question/', 'vendor/pi-web-fetch/', 'vendor/pi-browser/',
       'vendor/pi-mcp/', 'vendor/pi-subscription-usage/', 'vendor/pi-tasks/', 'vendor/pi-supervisor/'],
   },
   subagents: {
@@ -263,6 +263,34 @@ function mappedReleaseFiles(records, commits) {
     }
     if (seen.size !== expectedPaths.size) throw new Error('Invalid subagents UI overlay');
   }
+  const compatibilityPaths = [
+    'config/HARNESS-AUTHORITY.md', 'manifests/curated-skills.json', 'manifests/harness-legacy.json',
+    'scripts/harness-compatibility.mjs', 'scripts/verify-compatibility.mjs',
+  ];
+  const compatibilityPresent = compatibilityPaths.filter(relative => files.some(entry => entry.path === relative));
+  if (compatibilityPresent.length !== 0 && compatibilityPresent.length !== compatibilityPaths.length) {
+    throw new Error('Harness compatibility feature is incomplete');
+  }
+  if (compatibilityPresent.length) {
+    const curated = JSON.parse(files.find(entry => entry.path === 'manifests/curated-skills.json').content.toString('utf8'));
+    if (curated.schemaVersion !== 1 || !object(curated.source) || !Array.isArray(curated.skills) || !object(curated.files)
+        || new Set(curated.skills).size !== curated.skills.length || curated.skills.some(name => typeof name !== 'string' || !name)) {
+      throw new Error('Invalid curated skills manifest');
+    }
+    const snapshot = files.filter(entry => entry.path.startsWith('pi-skills/'));
+    const declared = Object.entries(curated.files);
+    if (snapshot.length !== declared.length) throw new Error('Curated skills file inventory mismatch');
+    for (const [relative, sha256] of declared) {
+      safeRelative(relative);
+      if (!validContentHash(sha256)) throw new Error(`Invalid curated skill hash: ${relative}`);
+      const entry = snapshot.find(candidate => candidate.path === `pi-skills/${relative}`);
+      if (!entry || entry.sha256 !== sha256) throw new Error(`Curated skill hash mismatch: ${relative}`);
+    }
+    for (const name of curated.skills) {
+      safeRelative(name);
+      if (!Object.hasOwn(curated.files, `${name}/SKILL.md`)) throw new Error(`Curated skill is missing SKILL.md: ${name}`);
+    }
+  }
   const harnessManifest = parseCommittedJSON(records, 'harness', 'manifests/packages.json');
   if (typeof harnessManifest.piVersion !== 'string' || !harnessManifest.piVersion) throw new Error('Harness Pi version is missing');
   const packageSpecs = PACKAGE_SOURCES.map(spec => spec.key === 'subagents' ? { ...spec, expectedName: subagentsName } : spec).filter(spec => !spec.optional
@@ -397,6 +425,33 @@ function validateSourceFiles(releasePath, manifest) {
   visit(releasePath);
   for (const relative of actual) if (!seen.has(relative)) throw new Error(`Unexpected release source file: ${relative}`);
   for (const relative of seen) if (!actual.has(relative)) throw new Error(`Release source file missing: ${relative}`);
+  const compatibilityPaths = [
+    'config/HARNESS-AUTHORITY.md', 'manifests/curated-skills.json', 'manifests/harness-legacy.json',
+    'scripts/harness-compatibility.mjs', 'scripts/verify-compatibility.mjs',
+  ];
+  const compatibilityPresent = compatibilityPaths.filter(relative => seen.has(relative));
+  if (compatibilityPresent.length !== 0 && compatibilityPresent.length !== compatibilityPaths.length) {
+    throw new Error('Harness compatibility feature is incomplete');
+  }
+  if (compatibilityPresent.length) {
+    const curated = readJSON(path.join(releasePath, 'manifests/curated-skills.json'));
+    if (curated.schemaVersion !== 1 || !object(curated.source) || !Array.isArray(curated.skills) || !object(curated.files)
+        || new Set(curated.skills).size !== curated.skills.length || curated.skills.some(name => typeof name !== 'string' || !name)) {
+      throw new Error('Invalid curated skills manifest');
+    }
+    const snapshot = manifest.files.filter(entry => entry.path.startsWith('pi-skills/'));
+    if (snapshot.length !== Object.keys(curated.files).length) throw new Error('Curated skills file inventory mismatch');
+    for (const [relative, sha256] of Object.entries(curated.files)) {
+      safeRelative(relative);
+      if (!validContentHash(sha256)) throw new Error(`Invalid curated skill hash: ${relative}`);
+      const entry = snapshot.find(candidate => candidate.path === `pi-skills/${relative}`);
+      if (!entry || entry.sha256 !== sha256) throw new Error(`Curated skill hash mismatch: ${relative}`);
+    }
+    for (const name of curated.skills) {
+      safeRelative(name);
+      if (!Object.hasOwn(curated.files, `${name}/SKILL.md`)) throw new Error(`Curated skill is missing SKILL.md: ${name}`);
+    }
+  }
   if (manifestDigest(manifest) !== manifest.sourceDigest) throw new Error('Release manifest digest mismatch');
 }
 function developmentPackagePath(manifest, pkg) {

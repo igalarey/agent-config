@@ -7,6 +7,7 @@ import { main, planVerification, resolveNpmExecPath, runVerification } from '../
 import { verificationEnvironment } from '../scripts/verify-env.mjs';
 import {
   assertBigpowersResourcePolicy,
+  assertCuratedSkillRegistrations,
   assertOfficialLoaderEvidence,
   assertPromptTemplateRegistrations,
   BIGPOWERS_SKILL_ALLOWLIST,
@@ -15,6 +16,29 @@ import {
   runtimeEnvironment,
   offlineRuntimeStderr,
 } from '../scripts/runtime-smoke.mjs';
+
+test('official loader verifies curated skill paths and rejects missing or duplicate registrations', t => {
+  const release = fs.mkdtempSync(path.join(os.tmpdir(), 'curated-loader-'));
+  t.after(() => fs.rmSync(release, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(release, 'manifests'));
+  fs.writeFileSync(path.join(release, 'manifests/curated-skills.json'), JSON.stringify({ skills: ['alpha', 'beta'] }));
+  const manifest = { files: [{ path: 'manifests/curated-skills.json' }] };
+  const agentDir = path.join(release, 'isolated-agent');
+  const commands = ['alpha', 'beta'].map(name => ({ name: `skill:${name}`, source: 'skill',
+    sourceInfo: { source: 'auto', scope: 'user', path: path.join(agentDir, 'skills', name, 'SKILL.md') },
+  }));
+  const evidence = values => ({ commands: { success: true, data: { commands: values } } });
+  assert.doesNotThrow(() => assertCuratedSkillRegistrations(evidence(commands), release, manifest, agentDir));
+  assert.throws(() => assertCuratedSkillRegistrations(evidence(commands.slice(1)), release, manifest, agentDir), /missing or registered/);
+  assert.throws(() => assertCuratedSkillRegistrations(evidence([...commands, commands[0]]), release, manifest, agentDir), /missing or registered/);
+  const unexpected = { ...commands[0], name: 'skill:extra',
+    sourceInfo: { ...commands[0].sourceInfo, path: path.join(agentDir, 'skills/extra/SKILL.md') } };
+  assert.throws(() => assertCuratedSkillRegistrations(evidence([...commands, unexpected]), release, manifest, agentDir), /unexpected local skill/);
+  const foreign = structuredClone(commands);
+  foreign[0].sourceInfo.path = path.join(release, 'npm/bigpowers/alpha/SKILL.md');
+  assert.throws(() => assertCuratedSkillRegistrations(evidence(foreign), release, manifest, agentDir), /local global directory/);
+  assert.doesNotThrow(() => assertCuratedSkillRegistrations({}, release, { files: [] }));
+});
 
 test('offline runtime accepts only the expected Ollama discovery notice', () => {
   const expected = '[pi-ollama] Ollama not reachable and no cache available (TypeError: fetch failed). Run /ollama-refresh when Ollama is available.';

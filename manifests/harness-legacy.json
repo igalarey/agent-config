@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "files": {
+    ".pi/agent/HARNESS-AUTHORITY.md": [
+      "8a74670f6dbd47391ddf3c4ede9b418842694aafc52e8fab2f97f81891b31a15"
+    ],
+    ".pi/agent/harness-manifest.json": [
+      "aad705b27962010dcc5a3a27d237db9c82743693d0542a6eb823370d30a12341"
+    ],
+    ".pi/agent/scripts/verify-compatibility.mjs": [
+      "82c74108324a80f27c92fae31c10b45ed792a86e0b7e33fe196d68643fe3cc23"
+    ]
+  }
+}

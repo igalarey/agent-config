@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { root, args, plan, readJSON } from './install.mjs';
+import { supportsHarnessInventory, verifyHarnessCompatibility } from './harness-compatibility.mjs';
 
 export function dependencyInstalled(folder, name) {
   try { return readJSON(path.join(folder, 'node_modules', ...name.split('/'), 'package.json')).name === name; }
@@ -31,6 +32,18 @@ export function inspect({ home, source = root, release, checkRuntime = true, wit
     for (const item of pending.conflicts) add(false, item);
     add(pending.operations.length === 0, `Pending configuration writes: ${pending.operations.length}`);
   } catch (error) { add(false, error.message); return checks; }
+  try {
+    const statePath = path.join(home, '.agent-config/state.json');
+    if (fs.existsSync(statePath)) {
+      const active = readJSON(statePath).release;
+      const activeRoot = typeof active === 'string' ? path.join(home, '.agent-config/releases', active) : undefined;
+      if (activeRoot && supportsHarnessInventory(activeRoot)) {
+        const compatibility = verifyHarnessCompatibility({ home, spawn });
+        add(compatibility.ok, `Harness compatibility: ${compatibility.ok ? 'valid' : `${compatibility.failures.length} failure(s)`}`);
+        for (const failure of compatibility.failures) add(false, `Harness compatibility: ${failure}`);
+      }
+    }
+  } catch (error) { add(false, `Harness compatibility: ${error.message}`); }
   const manifest = readJSON(path.join(source, 'manifests/packages.json'));
   let reducedRuntime = false;
   if (release) {

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { sealRelease, validateRelease, directoryDigest } from './releases.mjs';
+import { buildHarnessInventory, inventoryJSON, supportsHarnessInventory } from './harness-compatibility.mjs';
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const digest = text => createHash('sha256').update(text).digest('hex');
@@ -57,13 +58,14 @@ export function noSymlinks(file) {
 const RESOURCE_PROJECTIONS = [
   { section: 'guides', destination: '.agents/guides' },
   { section: 'skills', destination: '.agents/skills' },
+  { section: 'pi-skills', destination: '.pi/agent/skills', optional: true },
   { section: 'agents', destination: '.pi/agent/agents' },
   { section: 'prompts', destination: '.pi/agent/prompts', optional: true },
   { section: 'extensions', destination: '.pi/agent/extensions', optional: true },
   { section: 'themes', destination: '.pi/agent/themes', optional: true },
 ];
 function projectedResources(source) {
-  return RESOURCE_PROJECTIONS.flatMap(({ section, destination, optional }) => {
+  const resources = RESOURCE_PROJECTIONS.flatMap(({ section, destination, optional }) => {
     const sourceRoot = path.join(source, section);
     if (optional && !fs.existsSync(sourceRoot)) return [];
     return files(sourceRoot).map(file => ({
@@ -71,6 +73,44 @@ function projectedResources(source) {
       relative: path.join(destination, path.relative(sourceRoot, file)).replaceAll('\\', '/'),
     }));
   });
+  if (supportsHarnessInventory(source)) {
+    for (const [relative, sourceRelative] of [
+      ['.pi/agent/HARNESS-AUTHORITY.md', 'config/HARNESS-AUTHORITY.md'],
+      ['.pi/agent/scripts/harness-compatibility.mjs', 'scripts/harness-compatibility.mjs'],
+      ['.pi/agent/scripts/verify-compatibility.mjs', 'scripts/verify-compatibility.mjs'],
+    ]) resources.push({ file: path.join(source, ...sourceRelative.split('/')), relative });
+  }
+  return resources;
+}
+
+function compatibilityShapeResources(source) {
+  if (!supportsHarnessInventory(source)) return new Set();
+  return new Set([
+    ...projectedResources(source).filter(resource => resource.relative.startsWith('.pi/agent/skills/')
+      || resource.relative === '.pi/agent/HARNESS-AUTHORITY.md'
+      || resource.relative.startsWith('.pi/agent/scripts/')).map(resource => resource.relative),
+    '.pi/agent/harness-manifest.json',
+  ]);
+}
+
+function legacyCompatibilityHashes(source) {
+  if (!supportsHarnessInventory(source)) return new Map();
+  const catalog = readJSON(path.join(source, 'manifests/harness-legacy.json'));
+  const allowed = new Set([
+    '.pi/agent/HARNESS-AUTHORITY.md', '.pi/agent/harness-manifest.json',
+    '.pi/agent/scripts/verify-compatibility.mjs',
+  ]);
+  if (catalog.schemaVersion !== 1 || !object(catalog.files)
+      || Object.keys(catalog.files).some(relative => !allowed.has(relative))
+      || [...allowed].some(relative => !Array.isArray(catalog.files[relative]) || catalog.files[relative].length === 0)) {
+    throw new Error('Invalid harness legacy compatibility catalog');
+  }
+  return new Map(Object.entries(catalog.files).map(([relative, hashes]) => {
+    if (hashes.some(hash => typeof hash !== 'string' || !/^[0-9a-f]{64}$/.test(hash))) {
+      throw new Error('Invalid harness legacy compatibility hash');
+    }
+    return [relative, new Set(hashes)];
+  }));
 }
 function settingsReleaseIds(home) {
   const settingsPath = path.join(home, '.pi', 'agent', 'settings.json');
@@ -92,6 +132,7 @@ function settingsReleaseIds(home) {
 }
 function managedShape(source) {
   const resources = projectedResources(source).map(resource => resource.relative);
+  if (supportsHarnessInventory(source)) resources.push('.pi/agent/harness-manifest.json');
   resources.push('.agents/SYSTEM.md');
   const keys = [];
   const walk = (value, prefix = '') => {
@@ -107,8 +148,15 @@ function managedShape(source) {
 export function plan({ home, source = root, withRtk = false, migratePackages = false, retireOrcaSkills = false, migrateBase = false, release }) {
   const statePath = path.join(home, '.agent-config', 'state.json');
   noSymlinks(statePath);
-  const previous = fs.existsSync(statePath) ? readJSON(statePath) : { files: {} };
-  if (!object(previous.files) || (previous.release !== undefined && typeof previous.release !== 'string')) throw new Error('Invalid installer state');
+  const stateExists = fs.existsSync(statePath);
+  const previous = stateExists ? readJSON(statePath) : { files: {} };
+  if (!object(previous.files) || (stateExists && previous.version !== 1)
+      || Object.entries(previous.files).some(([relative, hash]) => path.isAbsolute(relative)
+        || relative.split(/[\\/]/).some(part => part === '..') || typeof hash !== 'string' || !/^[0-9a-f]{64}$/.test(hash))
+      || (previous.release !== undefined && (typeof previous.release !== 'string'
+        || !/^h-[0-9a-f]{12}-s-[0-9a-f]{12}-m-[0-9a-f]{12}$/.test(previous.release)))
+      || (previous.nativeDigest !== undefined && (typeof previous.nativeDigest !== 'string'
+        || !/^[0-9a-f]{64}$/.test(previous.nativeDigest)))) throw new Error('Invalid installer state');
   if (!release) {
     const configuredReleases = settingsReleaseIds(home);
     if (typeof previous.release === 'string') {
@@ -124,6 +172,7 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
   const modern = fs.existsSync(path.join(source, 'config/subagents.json'));
   if (withRtk) throw new Error('RTK is retired from this base');
   const operations = [], conflicts = [], tracked = { ...previous.files }, retiredResources = [];
+  const predecessorHashes = legacyCompatibilityHashes(source);
   let priorRelease;
   if (release && typeof previous.release === 'string' && previous.release !== release) {
     priorRelease = validateRelease({ home, id: previous.release });
@@ -165,7 +214,14 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
       const permittedCarbonShapeChange = carbonFeaturePresent
         && changedResources.every(relative => carbonResources.has(relative))
         && changedSettings.every(key => carbonSettings.has(key));
+      const compatibilityResources = new Set([
+        ...compatibilityShapeResources(prior), ...compatibilityShapeResources(source),
+      ]);
+      const permittedCompatibilityShapeChange = changedSettings.length === 0
+        && changedResources.length > 0
+        && changedResources.every(relative => compatibilityResources.has(relative));
       if (permittedOrcaShapeChange || permittedWorkflowGuideChange || permittedPromptChange || permittedCarbonShapeChange
+          || permittedCompatibilityShapeChange
           || (modern && migrateBase && changedResources.every(relative => relative.startsWith('.pi/agent/agents/')))) {
         retiredResources.push(...removed);
       } else conflicts.push('incompatible release rollback/update: managed resource or settings key set changed');
@@ -176,7 +232,8 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
     noSymlinks(target);
     const before = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : null;
     if (modern && before !== null && relative.replaceAll('\\', '/').startsWith('.agents/')) return;
-    if (before !== content && managed && before !== null && previous.files[relative] !== digest(before)) {
+    if (before !== content && managed && before !== null && previous.files[relative] !== digest(before)
+        && !predecessorHashes.get(relative)?.has(digest(before))) {
       conflicts.push(relative);
       return;
     }
@@ -461,6 +518,9 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
         add(appendRelative, nextAppend, false);
       }
     }
+  }
+  if (release && supportsHarnessInventory(source)) {
+    add('.pi/agent/harness-manifest.json', inventoryJSON(buildHarnessInventory(source)));
   }
   add('.agent-config/state.json', json({ version: 1, files: tracked, ...(release ? { release } : {}), ...(nativeDigest ? { nativeDigest } : {}) }), false);
   return { home, source, release, operations, conflicts, migrations };

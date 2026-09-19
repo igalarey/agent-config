@@ -396,6 +396,9 @@ function writeInspectorExtension(file) {
 }
 
 function runRpc({ releasePath, manifest, host, env, agentDir, sessionDir, cwd, temp }) {
+  if (manifest.files?.some(file => file.path === 'manifests/curated-skills.json')) {
+    fs.cpSync(path.join(releasePath, 'pi-skills'), path.join(agentDir, 'skills'), { recursive: true });
+  }
   fs.writeFileSync(path.join(agentDir, 'settings.json'), JSON.stringify({
     packages: [...manifest.packages.map(pkg => path.join(releasePath, pkg.path)), ...nativePackages(releasePath, manifest)],
   }));
@@ -478,7 +481,27 @@ export function assertBigpowersResourcePolicy(commands, releasePath) {
   for (const name of expected) assertInsideRelease(releasePath, commands.get(name)?.sourceInfo, name);
 }
 
-export function assertOfficialLoaderEvidence(evidence, releasePath, manifest) {
+export function assertCuratedSkillRegistrations(evidence, releasePath, manifest, agentDir) {
+  if (!manifest.files?.some(file => file.path === 'manifests/curated-skills.json')) return;
+  assert(typeof agentDir === 'string', 'Curated skills require an isolated agent directory');
+  const { skills } = JSON.parse(fs.readFileSync(path.join(releasePath, 'manifests/curated-skills.json'), 'utf8'));
+  const expected = skills.map(name => `skill:${name}`).sort();
+  assert(evidence.commands?.success === true && Array.isArray(evidence.commands.data?.commands),
+    'Official RPC curated skill evidence is missing');
+  const skillsRoot = path.join(agentDir, 'skills') + path.sep;
+  const commands = evidence.commands.data.commands.filter(command => expected.includes(command.name)
+    || (command.source === 'skill' && command.sourceInfo?.path?.startsWith(skillsRoot)));
+  assert(JSON.stringify(commands.map(command => command.name).sort()) === JSON.stringify(expected),
+    'Curated skills are missing or registered more than once, or an unexpected local skill loaded');
+  for (const command of commands) {
+    const expectedPath = path.join(agentDir, 'skills', command.name.slice('skill:'.length), 'SKILL.md');
+    assert(command.source === 'skill' && command.sourceInfo?.source === 'auto'
+      && command.sourceInfo?.scope === 'user' && command.sourceInfo?.path === expectedPath,
+    `Curated skill did not load from its local global directory: ${command.name}`);
+  }
+}
+
+export function assertOfficialLoaderEvidence(evidence, releasePath, manifest, agentDir) {
   assert(evidence.inspect?.success === true, 'Official loader inspector command failed');
   const allTools = new Map(evidence.inspection.allTools.map(tool => [tool.name, tool]));
   const activeTools = new Set(evidence.inspection.activeTools);
@@ -489,6 +512,7 @@ export function assertOfficialLoaderEvidence(evidence, releasePath, manifest) {
   }
   const commands = new Map(evidence.inspection.commands.map(command => [command.name, command]));
   assertPromptTemplateRegistrations(evidence, manifest);
+  assertCuratedSkillRegistrations(evidence, releasePath, manifest, agentDir);
   if (manifest.packages.some(pkg => pkg.name === 'pi-browser')) {
     const automaticBrowserTools = new Set(['browser_goto', 'browser_read', 'browser_click', 'browser_screenshot', 'browser_close']);
     for (const name of BROWSER_TOOLS) {
@@ -646,7 +670,7 @@ async function runModernSmoke({ releasePath, manifest, parentEnv }) {
     results.push(await check('runtime:loader', async () => {
       assert(host, 'Missing exact Pi host');
       rpcEvidence = runRpc({ releasePath, manifest, host, env, agentDir, sessionDir, cwd, temp });
-      assertOfficialLoaderEvidence(rpcEvidence, releasePath, manifest);
+      assertOfficialLoaderEvidence(rpcEvidence, releasePath, manifest, agentDir);
       for (const name of PACKAGE_TOOLS.filter(name => name.startsWith('subagent'))) {
         assert(!rpcEvidence.inspection.allTools.some(tool => tool.name === name), `Legacy tool still loaded: ${name}`);
       }
@@ -722,7 +746,7 @@ export async function runRuntimeSmoke({ releasePath, developmentPath, manifest, 
     results.push(await check('runtime:loader', async () => {
       assert(host, 'Exact Pi host was not identified');
       rpcEvidence = runRpc({ releasePath, manifest, host, env, agentDir, sessionDir, cwd, temp });
-      assertOfficialLoaderEvidence(rpcEvidence, releasePath, manifest);
+      assertOfficialLoaderEvidence(rpcEvidence, releasePath, manifest, agentDir);
       loaderEvidence = {
         package: host.package,
         version: host.version,
@@ -788,7 +812,7 @@ export async function runInstalledHostSmoke({ releasePath, manifest, parentEnv =
   try {
     const host = identifyInstalledPiHost(manifest.piVersion, { env });
     const evidence = runRpc({ releasePath, manifest, host, env, agentDir, sessionDir, cwd, temp });
-    assertOfficialLoaderEvidence(evidence, releasePath, manifest);
+    assertOfficialLoaderEvidence(evidence, releasePath, manifest, agentDir);
     assertRpcEvidence(evidence, releasePath, sessionDir, manifest);
     return {
       status: 'passed',

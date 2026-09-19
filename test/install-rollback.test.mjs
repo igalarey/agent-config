@@ -259,6 +259,68 @@ test('Carbon shape allowance does not permit the same settings without Carbon re
   assert.throws(() => execute(blocked), /nothing written/);
 });
 
+test('compatibility artifacts adopt only catalogued predecessors and roll back unchanged resources', t => {
+  const home = temporary(t, 'installer-compatibility-home-');
+  const source = releaseSources(t, oldPolicy);
+  const legacyRelease = prepareRelease(home, source);
+  execute(plan({ home, release: legacyRelease.id }));
+
+  const harness = source.repositories.harness;
+  const predecessors = {
+    '.pi/agent/HARNESS-AUTHORITY.md': '# Legacy authority\n',
+    '.pi/agent/harness-manifest.json': '{"legacy":true}\n',
+    '.pi/agent/scripts/verify-compatibility.mjs': 'console.log("legacy");\n',
+  };
+  const skill = '---\nname: fixture-curated\ndescription: fixture\n---\n';
+  put(harness, 'pi-skills/fixture-curated/SKILL.md', skill);
+  put(harness, 'manifests/curated-skills.json', JSON.stringify({
+    schemaVersion: 1,
+    source: { package: 'fixture', version: '1.0.0', repository: 'https://example.invalid', integrity: 'fixture', license: 'MIT' },
+    skills: ['fixture-curated'],
+    files: { 'fixture-curated/SKILL.md': createHash('sha256').update(skill).digest('hex') },
+  }));
+  put(harness, 'config/HARNESS-AUTHORITY.md', '# Current authority\n');
+  for (const name of ['harness-compatibility.mjs', 'verify-compatibility.mjs']) {
+    put(harness, `scripts/${name}`, fs.readFileSync(new URL(`../scripts/${name}`, import.meta.url)));
+  }
+  put(harness, 'manifests/harness-legacy.json', JSON.stringify({
+    schemaVersion: 1,
+    files: Object.fromEntries(Object.entries(predecessors).map(([relative, content]) =>
+      [relative, [createHash('sha256').update(content).digest('hex')]])),
+  }));
+  source.commits.harness = commit(harness, 'add compatibility inventory');
+  const compatible = prepareRelease(home, source);
+  for (const [relative, content] of Object.entries(predecessors)) put(home, relative, content);
+
+  const adoption = plan({ home, release: compatible.id });
+  assert.deepEqual(adoption.conflicts, []);
+  execute(adoption);
+  assert.equal(readJSON(path.join(home, '.pi/agent/harness-manifest.json')).release.id, compatible.id);
+  assert.equal(fs.readFileSync(path.join(home, '.pi/agent/HARNESS-AUTHORITY.md'), 'utf8'), '# Current authority\n');
+  const state = readJSON(path.join(home, '.agent-config/state.json'));
+  assert.equal(typeof state.files['.pi/agent/harness-manifest.json'], 'string');
+  assert.equal(typeof state.files['.pi/agent/skills/fixture-curated/SKILL.md'], 'string');
+  assert.deepEqual(plan({ home }).operations, []);
+
+  const unsafeHome = temporary(t, 'installer-compatibility-unsafe-');
+  const unsafeCandidate = prepareRelease(unsafeHome, source);
+  put(unsafeHome, '.pi/agent/HARNESS-AUTHORITY.md', '# User changed authority\n');
+  const unsafe = plan({ home: unsafeHome, release: unsafeCandidate.id });
+  assert.ok(unsafe.conflicts.includes('.pi/agent/HARNESS-AUTHORITY.md'));
+  assert.throws(() => execute(unsafe), /nothing written/);
+  assert.equal(fs.readFileSync(path.join(unsafeHome, '.pi/agent/HARNESS-AUTHORITY.md'), 'utf8'), '# User changed authority\n');
+
+  const rollback = plan({ home, release: legacyRelease.id });
+  assert.deepEqual(rollback.conflicts, []);
+  execute(rollback);
+  for (const relative of [
+    '.pi/agent/HARNESS-AUTHORITY.md', '.pi/agent/harness-manifest.json',
+    '.pi/agent/scripts/harness-compatibility.mjs', '.pi/agent/scripts/verify-compatibility.mjs',
+    '.pi/agent/skills/fixture-curated/SKILL.md',
+  ]) assert.equal(fs.existsSync(path.join(home, relative)), false, relative);
+  assert.deepEqual(plan({ home }).operations, []);
+});
+
 test('upgrade then rollback removes only unchanged prior-release package filters', t => {
   const home = temporary(t, 'installer-rollback-home-');
   const source = releaseSources(t, oldPolicy);

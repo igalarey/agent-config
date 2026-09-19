@@ -65,6 +65,14 @@ Portable Pi configuration. Node 22.23.2, Pi 0.85.1, dependency-free ESM installe
   rules, but current defaults and native locks exclude it. Do not reinstall it or run
   its setup commands automatically. Native package retirement removes only unchanged
   registrations from the prior release; modified registrations produce a conflict.
+- Curated skills live in `pi-skills/`, not in the native npm prefix. Their provenance and
+  hashes are in `manifests/curated-skills.json`. Keep the MIT notice and required assets.
+  Project them only to `~/.pi/agent/skills` to avoid duplicate registrations.
+- `harness-manifest.json` is generated audit data, not a version authority. Update source
+  and prepare a verified release instead of editing deployed pins. Compatibility checks
+  use `scripts/harness-compatibility.mjs`. Keep its source digest aligned with
+  `releases.mjs:manifestDigest`. Known legacy adoption uses exact hashes only.
+  See `docs/harness-compatibility.md` for the installed verification command.
 - Web-access defaults: no cookies, curator, hosted fetch fallback or GitHub clone; PDF uses
   local unpdf. Search can reuse Codex auth and contacts providers. Keep pdf-reader for local
   rendering and youtube-transcript for actual captions. analyze-sessions is our local code.

@@ -21,12 +21,14 @@ Do not register a second copy of the same package.
 | Codex/Claude subscription footer | `vendor/pi-subscription-usage` |
 | Native Ollama provider | `npm:pi-ollama@0.1.7` |
 | Carbon UI and theme | `extensions/`, `themes/`; [configuration](docs/carbon-ui.md) |
+| Curated local skills | `pi-skills/`, copied from Bigpowers 2.88.6 with its MIT license |
 
 **RTK and pi-interactive-subagents are retired.** The old worker/scout/researcher
 profiles, bridges and external viewer are not part of the new base.
 
-Instructions, guides and skills are projected into `~/.agents`; prompt templates are
-projected into `~/.pi/agent/prompts`. Existing shared files are preserved, especially
+Shared instructions, guides and skills are projected into `~/.agents`. Curated skills
+from `pi-skills/` go to `~/.pi/agent/skills`. Prompt templates go to `~/.pi/agent/prompts`.
+Existing shared files are preserved, especially
 `SYSTEM.md`; the installer does not silently replace shared user policy. Fresh homes receive
 the repository's defaults. Edit shared policy separately.
 
@@ -104,6 +106,9 @@ conversation context. These templates are maintained in this repository.
 | `config/web-search.json` | Direct fetch, local PDF extraction, no browser cookies or curator |
 | `config/herdr/config.toml` | Optional tracked Herdr theme and interface configuration |
 | `native/package*.json` | Exact npm defaults and transitive dependency lock |
+| `manifests/curated-skills.json`, `pi-skills/` | Curated skills, provenance, assets and hashes |
+| `config/HARNESS-AUTHORITY.md` | Component responsibilities and configuration authority |
+| `scripts/verify-compatibility.mjs` | Check the generated inventory against the active release |
 | `agents/` | Five model/tool profiles and a child-only Luna priority hook |
 | `prompts/` | Four global Pi prompt templates installed by filename |
 | `SYSTEM.md`, `guides/`, `skills/` | Defaults for new shared instruction/skill resources |
@@ -185,8 +190,12 @@ Only the user can stop active supervision through `/supervise stop`.
 - PDF/YouTube skills are retained for local page rendering and actual captions; they need
   separately installed Python/PyMuPDF/yt-dlp. `analyze-sessions` is our original local
   implementation, not a third-party skill, and only reads sessions on explicit request.
-- Bigpowers is not installed. Existing local PDF, YouTube and session-analysis skills
-  remain available. Historical release checks preserve compatibility with old releases.
+- Bigpowers is not installed. Its 14 selected skills are versioned as local copies,
+  with their assets and MIT license. PDF, YouTube and session-analysis skills remain
+  available. Historical release checks preserve compatibility with old releases.
+- The installer generates `~/.pi/agent/harness-manifest.json` from the selected release.
+  It is an audit inventory, not another source of version pins. See
+  [harness compatibility](docs/harness-compatibility.md) for verification and migration.
 
 ## Development and releases
 
