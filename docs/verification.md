@@ -1,11 +1,42 @@
 # Verification: tintinweb base
 
 This file supersedes the historical Windows/RTK/interactive-subagents evidence in Git history.
-Target: Linux, Node 22.23.2, Pi 0.85.1. Verified and activated on 2026-09-14.
+Target: Linux, Node 22.23.2, Pi 0.85.1. Latest activation: 2026-09-19.
 
-## Compact history baseline (current)
+## Carbon UI and native package reconciliation (current)
 
-`h-fd27acfa7a6d-s-e955e29c51b7-m-c78b5148b110` is verified, sealed and active.
+`h-c992a2b264e8-s-e955e29c51b7-m-c78b5148b110` is verified, sealed and active.
+The release passed all fourteen package checks and five official-runtime checks.
+Root regressions passed 120 tests with three optional tests skipped. The separate
+Carbon suite passed 20 tests, and subscription footer tests passed 38 tests.
+
+Carbon sources and theme are now versioned and projected by the installer. The task
+adapter resolves its owner from global settings without a fixed release path. The
+editor is transparent, tool cards retain native execution, startup resources are
+visible, and the two-row footer puts subscription usage above the model on the right.
+Memory indicators use the theme color without the Carbon idle/waiting prefix.
+
+The user approved pinning the existing pi-ollama 0.1.7 installation and removing
+Bigpowers. Native dependencies now contain MCP 2.33.0, web access 0.29.0 and Ollama
+0.1.7. Before activation, file comparisons confirmed that the live prefix differed
+only by npm metadata and stale dependencies from the previous release. The verified
+prefix replaced it without changing Ollama source files or private configuration.
+
+Ollama discovers models during extension loading despite PI_OFFLINE. Isolated checks
+use a fetch-blocked port and accept only its exact expected discovery notice. They
+verify command registration, not inference. Real-home TUI startup, a local shell
+command, resource summaries, unique task registration and clean exit also passed.
+Doctor passed. No authenticated model request was used for these UI checks.
+
+Temporary demos, screenshots, copied local test scripts, intermediate unactivated
+candidates and this work's backups were removed after the maintained tests and
+configuration were committed. Pre-existing historical releases and unrelated private
+data were preserved. Optional portable Ghostty launcher sources are versioned under
+`config/launchers`; bootstrap does not install those desktop files automatically.
+
+## Previous compact history baseline
+
+`h-fd27acfa7a6d-s-e955e29c51b7-m-c78b5148b110` remains verified and sealed.
 The root commit has exactly the same tracked tree as the previous main tip. No runtime
 functionality was removed. The previous Git refs are preserved in a verified private
 external bundle. The second commit updates the recipe and recovery documentation.
