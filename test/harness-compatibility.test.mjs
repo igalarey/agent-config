@@ -73,7 +73,7 @@ function fixture(t) {
   }
   const releaseManifest = JSON.parse(fs.readFileSync(path.join(releaseRoot, 'release.json')));
   for (const [relative, content] of [
-    ['packages/@tintinweb/pi-subagents/src/ui/agent-widget.ts', 'placement: "belowEditor"'],
+    ['packages/@tintinweb/pi-subagents/src/ui/agent-widget.ts', 'placement: "aboveEditor"'],
     ['packages/pi-subscription-usage/footer.ts', 'statuses.filter(([key]) => key !== "subagents")'],
   ]) {
     put(releaseRoot, relative, content);

@@ -33,10 +33,9 @@ indicators on the left and the current model on the right. The refresh button
 remains clickable. Memory indicators use the theme's dim color. The agent summary
 is hidden from this footer; other extension statuses remain visible.
 
-The agents panel sits below the editor and above the footer. Release preparation
-applies `manifests/subagents-ui.json` to the pinned subagents source and its placement
-tests. The overlay checks the source commit and original file hashes before changing
-only the placement. Agent execution, controls and widget contents remain unchanged.
+The agents panel uses the upstream `aboveEditor` slot. It appears after the task
+widget and before the editor and observational-memory worker indicators. Agent
+execution, controls and widget contents remain unchanged.
 
 ## Optional Linux launcher
 

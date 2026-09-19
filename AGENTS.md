@@ -10,9 +10,8 @@ Portable Pi configuration. Node 22.23.2, Pi 0.85.1, dependency-free ESM installe
   and THIRD_PARTY_NOTICES.md. Do not patch upstream source casually. The public memory
   lock omits two @emnapi optional peers; manifests/memory-lock-additions.json applies only
   to its exact original commit/hash, without depending on an unpublished memory commit.
-  `manifests/subagents-ui.json` similarly pins the panel-placement overlay and its tests
-  to exact upstream file hashes. Recheck that overlay when updating the subagents pin;
-  never bypass a mismatch or patch a sealed release.
+  The subagents panel uses the upstream `aboveEditor` placement. Do not patch the
+  sealed subagents snapshot to change its position.
 - `npm run bootstrap` is read-only preview. `--apply` fetches pinned sources if needed,
   prepares development and runtime trees from locks, verifies, then activates. A matching
   active release is validated but never reinstalled/retested. No Node/Pi/browser downloads.

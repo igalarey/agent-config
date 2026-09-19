@@ -5,8 +5,8 @@ Target: Linux, Node 22.23.2, Pi 0.85.1. Latest activation: 2026-09-19.
 
 ## Consolidated harness inventory (current)
 
-`h-e2d25ae4dc22-s-e955e29c51b7-m-c78b5148b110` is verified, sealed and active.
-It retains Carbon, the below-editor agents panel, the filtered footer and the three
+`h-e2d25ae4dc22-s-e955e29c51b7-m-c78b5148b110` is the previous verified release.
+The new release retains Carbon, the above-editor agents panel, the filtered footer and the three
 native npm packages. Bigpowers remains absent.
 
 The repository now contains the 14 curated skills, their assets, MIT license and
@@ -41,9 +41,9 @@ Restart Pi to load the new resource definitions.
 ## Previous agent panel placement
 
 `h-2bedd6f443a0-s-e955e29c51b7-m-c78b5148b110` remains verified and sealed.
-The agents panel uses the native below-editor slot, above the footer. Subscription
-Usage no longer renders the `subagents` summary; memory and other statuses remain.
-The pinned overlay changes one placement line and the two upstream tests that assert it.
+That historical release placed the agents panel in the native below-editor slot, above
+the footer. Subscription Usage no longer renders the `subagents` summary; memory and
+other statuses remain. The current release restores the upstream above-editor slot.
 
 All fourteen package checks and five official-runtime checks passed. Root regressions
 passed 121 tests with three skipped; the footer suite passed 39 tests, and the Carbon
