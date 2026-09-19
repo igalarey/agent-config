@@ -116,13 +116,18 @@ conversation context. These templates are maintained in this repository.
 ### Herdr (optional)
 
 The current Herdr configuration is tracked at `config/herdr/config.toml`. It contains
-only the Vesper color palette, sidebar/interface preferences, system toast delivery with
-copy notifications disabled, and sounds disabled. It does not include Herdr keybindings,
-commands, sockets, logs or session state.
+the Vesper theme, the `herdr-radar` managed sidebar and tab-bar blocks, interface
+preferences, system toast delivery with copy notifications disabled, and sounds disabled.
+The Radar blocks require the `hhdebb.herdr-radar` plugin; they do not include Herdr
+keybindings, sockets, logs or session state. The Agents panel defaults to active-first,
+grouped by recent activity; `prefix+a` switches between active-first and the flat recent
+view, and `prefix+comma` opens Radar settings. The tab-bar command contains this user's
+absolute Herdr state path, so run Radar's configure action again after copying the file
+to a different home directory.
 
 The Pi installer does not modify `~/.config/herdr/config.toml`. To apply this optional
 configuration manually, review the file and copy it to `~/.config/herdr/config.toml`, then
-run:
+install/enable `hhdebb.herdr-radar` and run:
 
 ```sh
 herdr config check
