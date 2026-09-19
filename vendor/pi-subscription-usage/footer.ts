@@ -194,27 +194,7 @@ export function createSubscriptionFooter(options: SubscriptionFooterOptions) {
       const sessionNameValue = ctx.sessionManager.getSessionName();
       const sessionSuffix = sessionNameValue ? ` • ${sanitizeSingleLine(sessionNameValue)}` : "";
       const fullLocation = branch ? `${cwd} (${branch})` : cwd;
-      const fullLine = `${fullLocation}  ${fullMarker}${sessionSuffix}`;
-
-      let renderedLocation: string;
-      if (visibleWidth(fullLine) <= width) {
-        renderedLocation = fullLine;
-      } else {
-        const compactMarker = fitMarkerWithRefresh(
-          formatSubscriptionMarker(state, now(), { compact: true }),
-          width,
-        );
-        const markerWidth = visibleWidth(compactMarker);
-        const locationBudget = width - markerWidth - 2;
-        const location = fitLocation(cwd, branch, locationBudget);
-        renderedLocation = location ? `${location}  ${compactMarker}` : compactMarker;
-      }
-
-      const refreshIndex = renderedLocation.lastIndexOf("↻");
-      const beforeRefresh = refreshIndex >= 0 ? renderedLocation.slice(0, refreshIndex) : "";
-      refreshBounds = refreshIndex >= 0
-        ? { start: visibleWidth(beforeRefresh), end: visibleWidth(`${beforeRefresh}↻`) }
-        : undefined;
+      const fullLine = `${fullLocation}${sessionSuffix}`;
 
       const usage = collectUsage(ctx.sessionManager.getEntries());
       const parts: string[] = [];
@@ -239,8 +219,27 @@ export function createSubscriptionFooter(options: SubscriptionFooterOptions) {
       else if ((context?.percent ?? 0) > 70) parts.push(theme.fg("warning", contextDisplay));
       else parts.push(contextDisplay);
 
-      let statsLeft = parts.join(" ");
-      if (visibleWidth(statsLeft) > width) statsLeft = truncateToWidth(statsLeft, width, "...");
+      const stats = parts.join(" ");
+      const markerBudget = Math.max(0, width - Math.min(Math.floor(width / 3), visibleWidth(stats)) - 2);
+      const marker = visibleWidth(fullMarker) <= markerBudget
+        ? fullMarker
+        : fitMarkerWithRefresh(formatSubscriptionMarker(state, now(), { compact: true }), markerBudget);
+      const markerWidth = visibleWidth(marker);
+      const leftBudget = Math.max(0, width - markerWidth - 2);
+      const locationBudget = Math.max(0, Math.min(Math.floor(width / 3),
+        leftBudget - visibleWidth(visibleWidth(stats) + 2 < leftBudget ? stats : contextDisplay) - 2));
+      const renderedLocation = visibleWidth(fullLine) <= locationBudget
+        ? fullLine
+        : fitLocation(cwd, branch, locationBudget);
+      const statsBudget = Math.max(0, leftBudget - (renderedLocation ? visibleWidth(renderedLocation) + 2 : 0));
+      const fittedStats = truncateToWidth(visibleWidth(stats) <= statsBudget ? stats : parts[parts.length - 1], statsBudget, "");
+      const statsLeft = renderedLocation ? `${renderedLocation}  ${fittedStats}` : fittedStats;
+      const padding = " ".repeat(Math.max(0, width - visibleWidth(statsLeft) - markerWidth));
+      const lines = [theme.fg("dim", statsLeft + padding + marker)];
+      const statuses = [...footerData.getExtensionStatuses().entries()]
+        .sort(([left], [rightKey]) => left.localeCompare(rightKey))
+        .map(([key, text]) => key === "om" ? theme.fg("dim", sanitizeSingleLine(text)) : sanitizeSingleLine(text));
+      const statusText = statuses.join(" ");
       const modelName = sanitizeSingleLine(ctx.model?.id ?? "no-model");
       const thinkingLevel = sanitizeSingleLine(ctx.thinkingLevel ?? "off");
       let right = ctx.model?.reasoning
@@ -248,18 +247,17 @@ export function createSubscriptionFooter(options: SubscriptionFooterOptions) {
         : modelName;
       if (ctx.model && footerData.getAvailableProviderCount() > 1) {
         const withProvider = `(${sanitizeSingleLine(ctx.model.provider)}) ${right}`;
-        if (visibleWidth(statsLeft) + 2 + visibleWidth(withProvider) <= width) right = withProvider;
+        if (visibleWidth(statusText) + 2 + visibleWidth(withProvider) <= width) right = withProvider;
       }
-      const availableRight = width - visibleWidth(statsLeft) - 2;
-      const renderedRight = availableRight > 0 ? truncateToWidth(right, availableRight, "") : "";
-      const padding = " ".repeat(Math.max(0, width - visibleWidth(statsLeft) - visibleWidth(renderedRight)));
-      const statsLine = theme.fg("dim", statsLeft) + theme.fg("dim", padding + renderedRight);
-
-      const lines = [theme.fg("dim", renderedLocation), statsLine];
-      const statuses = [...footerData.getExtensionStatuses().entries()]
-        .sort(([left], [rightKey]) => left.localeCompare(rightKey))
-        .map(([, text]) => sanitizeSingleLine(text));
-      if (statuses.length) lines.push(truncateToWidth(statuses.join(" "), width, theme.fg("dim", "...")));
+      const gap = statusText && width > 2 ? 2 : 0;
+      const availableRight = Math.max(0, width - gap - Math.min(visibleWidth(statusText), Math.floor(width / 2)));
+      const renderedRight = truncateToWidth(right, availableRight, "");
+      const statusLeft = truncateToWidth(statusText, Math.max(0, width - visibleWidth(renderedRight) - gap), "...");
+      const statusPadding = " ".repeat(Math.max(0, width - visibleWidth(statusLeft) - visibleWidth(renderedRight)));
+      lines.push(statusLeft + theme.fg("dim", statusPadding + renderedRight));
+      const refreshIndex = marker.lastIndexOf("↻");
+      const refreshStart = width - markerWidth + visibleWidth(marker.slice(0, refreshIndex));
+      refreshBounds = refreshIndex >= 0 ? { start: refreshStart, end: refreshStart + 1 } : undefined;
       return lines;
     },
     handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {

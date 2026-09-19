@@ -125,10 +125,12 @@ test("custom footer keeps public cwd, branch, session usage, context, model/thin
   });
 
   const lines = component.render(160);
-  assert.match(lines[0], /^~[\\/]project \(feat\/quota\)  Codex · 5h 23% used · 7d 41% used · ↻ • quota-work$/);
-  assert.match(lines[1], /↑1\.0k ↓525 R200 W100 CH15\.4% \$0\.215 50\.0%\/200k/);
-  assert.match(lines[1], /\(openai-codex\) gpt-5\.4 • high$/);
-  assert.equal(lines[2], "alpha status zed status");
+  assert.equal(lines.length, 2);
+  assert.match(lines[0], /^~[\\/]project \(feat\/quota\) • quota-work  ↑/);
+  assert.match(lines[0], /↑1\.0k ↓525 R200 W100 CH15\.4% \$0\.215 50\.0%\/200k/);
+  assert.match(lines[1], /^alpha status zed status +\(openai-codex\) gpt-5\.4 • high$/);
+  assert.match(lines[0], /Codex · 5h 23% used · 7d 41% used · ↻$/);
+  assert.equal(visibleWidth(lines[1]), 160);
   for (const line of lines) assert.ok(visibleWidth(line) <= 160);
 
   const refreshX = lines[0].indexOf("↻");
@@ -167,12 +169,14 @@ test("adaptive layout preserves both quota windows, branch, and refresh at 80 an
   });
 
   for (const width of [80, 120]) {
-    const [line] = component.render(width);
+    const [line, model] = component.render(width);
     assert.ok(visibleWidth(line) <= width);
     assert.match(line, /\(feat\/quota\)/);
+    assert.match(line, /50\.0%\/200k/);
+    assert.match(model, /gpt-5\.4 • high$/);
     assert.match(line, /5h 23% used/);
     assert.match(line, /7d 41% used/);
-    assert.doesNotMatch(line, /resets in/);
+    assert.equal(visibleWidth(line), width);
     const refreshIndex = line.indexOf("↻");
     assert.ok(refreshIndex >= 0);
     const refreshX = visibleWidth(line.slice(0, refreshIndex));
@@ -212,6 +216,46 @@ test("footer strips terminal controls from every externally sourced field", () =
   assert.doesNotMatch(rendered, /\]0;|\[2J|\[31m/);
   assert.match(rendered, /linked/);
   assert.match(rendered, /statusred/);
+});
+
+test("quota stays above the model safely at narrow widths", () => {
+  const { ctx } = fixtureContext();
+  let refreshes = 0;
+  const component = createSubscriptionFooter({
+    ctx, footerData: footerData(new Map([["om", "O ▕████░░░░▏ C ▕░░░░░░░░▏ X ▕░░░░░░░░▏ $0.133 中文"]])),
+    controller: {
+      getState: () => ({ kind: "loading", target: { key: "openai-codex", label: "Codex" } }),
+      requestRefresh: async () => { refreshes++; return "started"; },
+    }, tui: { requestRender() {} }, theme, now: () => 0,
+  });
+  for (const width of [1, 2, 5, 20, 40, 80, 120]) {
+    const lines = component.render(width);
+    assert.equal(lines.length, 2);
+    for (const line of lines) assert.ok(visibleWidth(line) <= width);
+    assert.equal(visibleWidth(lines[1]), width);
+    assert.equal(component.handleMouse({ type: "click", button: "left", x: width - 1, y: 1 }), undefined);
+    if (lines[0].endsWith("↻")) {
+      assert.ok(component.handleMouse({ type: "click", button: "left", x: width - 1, y: 0 })?.handled);
+    }
+  }
+  assert.ok(refreshes > 0);
+});
+
+test("memory status uses the theme dim color after sanitization", () => {
+  const { ctx } = fixtureContext();
+  const component = createSubscriptionFooter({
+    ctx,
+    footerData: footerData(new Map([["om", "O ▕░░▏ C ▕░░▏ X ▕░░▏ $0.133\u001b[2J"]])),
+    controller: { getState: () => ({ kind: "loading", target: { key: "openai-codex", label: "Codex" } }) },
+    tui: { requestRender() {} },
+    theme: { ...theme, fg: (color, text) => color === "dim" ? `\u001b[38;2;145;134;159m${text}\u001b[39m` : text },
+    now: () => 0,
+  });
+  const line = component.render(120)[1];
+  assert.ok(line.startsWith("\u001b[38;2;145;134;159m"));
+  assert.match(line, /\$0\.133/);
+  assert.ok(!line.includes("\u001b[2J"));
+  assert.ok(visibleWidth(line) <= 120);
 });
 
 test("refresh click is inactive when truncation hides the button", () => {
