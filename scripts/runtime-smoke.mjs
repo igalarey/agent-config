@@ -88,6 +88,11 @@ export function runtimeEnvironment(parent, { agentDir, home, temp, cwd = home })
   };
 }
 
+export function offlineRuntimeStderr(text = '') {
+  const expected = '[pi-ollama] Ollama not reachable and no cache available (TypeError: fetch failed). Run /ollama-refresh when Ollama is available.';
+  return text.split('\n').filter(line => line.trim() !== expected).join('\n').trim();
+}
+
 function result(id, started, error, details) {
   return {
     id,
@@ -409,7 +414,7 @@ function runRpc({ releasePath, manifest, host, env, agentDir, sessionDir, cwd, t
     cwd, env, input, encoding: 'utf8', shell: false, timeout: 60_000, maxBuffer: 16 * 1024 * 1024,
   });
   assert(rpc.status === 0, rpc.error?.message ?? rpc.stderr?.trim() ?? `RPC exited ${rpc.status}`);
-  assert(!rpc.stderr?.trim(), `RPC stderr was not empty: ${rpc.stderr.trim()}`);
+  assert(!offlineRuntimeStderr(rpc.stderr), `RPC stderr was not empty: ${rpc.stderr.trim()}`);
   const messages = rpc.stdout.split('\n').filter(Boolean).map(line => JSON.parse(line));
   assert(!messages.some(message => message.type === 'extension_error'), 'RPC emitted extension_error');
   const notification = messages.find(message => message.type === 'extension_ui_request' && message.method === 'notify'
@@ -648,7 +653,7 @@ async function runModernSmoke({ releasePath, manifest, parentEnv }) {
         '--extension', fixture, '--no-skills', '--no-prompt-templates', '--no-context-files', '--no-themes', '-p', 'Run the deterministic integration fixture.'],
       { cwd, env, encoding: 'utf8', shell: false, timeout: 60_000, maxBuffer: 16 * 1024 * 1024 });
       assert(run.status === 0, run.error?.message ?? run.stderr ?? `exit ${run.status}`);
-      assert(!run.stderr.trim(), run.stderr);
+      assert(!offlineRuntimeStderr(run.stderr), run.stderr);
       integration = run.stdout.split('\n').filter(Boolean).map(line => JSON.parse(line));
       const ended = integration.filter(event => event.type === 'message_end').map(event => event.message);
       assert(!integration.some(event => event.type === 'extension_error'), 'Integration extension error');

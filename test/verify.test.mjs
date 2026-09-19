@@ -13,7 +13,15 @@ import {
   HISTORICAL_BIGPOWERS_SKILL_ALLOWLIST,
   identifyInstalledPiHost,
   runtimeEnvironment,
+  offlineRuntimeStderr,
 } from '../scripts/runtime-smoke.mjs';
+
+test('offline runtime accepts only the expected Ollama discovery notice', () => {
+  const expected = '[pi-ollama] Ollama not reachable and no cache available (TypeError: fetch failed). Run /ollama-refresh when Ollama is available.';
+  assert.equal(offlineRuntimeStderr(`${expected}\n${expected}\n`), '');
+  assert.equal(offlineRuntimeStderr(`${expected}\nUnexpected extension failure\n`), 'Unexpected extension failure');
+  assert.equal(offlineRuntimeStderr('[pi-ollama] unknown failure'), '[pi-ollama] unknown failure');
+});
 
 function fixture(t) {
   const source = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-config-verify-'));
