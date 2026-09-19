@@ -4,8 +4,7 @@ Portable Pi configuration. Node 22.23.2, Pi 0.85.1, dependency-free ESM installe
 
 - New base: tintinweb pi-subagents, pi-tasks, pi-supervisor; observational-memory;
   local questions, browser and subscription usage. Native npm: pi-mcp-adapter 2.33.0,
-  pi-web-access 0.29.0, bigpowers 2.88.6 and pi-ollama 0.1.7. Eleven packages:
-  seven base plus four native.
+  pi-web-access 0.29.0 and pi-ollama 0.1.7. Ten packages: seven base plus three native.
 - `manifests/active-release.json` pins exact harness/subagents/memory commits. Tasks and
   supervisor are vendored source snapshots; revisions/licenses in `manifests/tintinweb.json`
   and THIRD_PARTY_NOTICES.md. Do not patch upstream source casually. The public memory
@@ -57,17 +56,12 @@ Portable Pi configuration. Node 22.23.2, Pi 0.85.1, dependency-free ESM installe
   Dependencies use --legacy-peer-deps like Pi, plus --ignore-scripts. Their full prefix is
   included in the release runtime digest and copied intact to ~/.pi/agent/npm on activation.
   Unexpected prefix changes cause refusal, never overwrite. Runtime smoke verifies native
-  tools, the exact Bigpowers skill allowlist with no prompts or extension, and MCP footer off.
+  tools, Ollama commands, absence of Bigpowers resources, and MCP footer off.
   Old sealed releases remain valid; do not remove their files to remove a registration.
-- Bigpowers loads an exact 14-skill allowlist: align-grid, context7-mcp, security-review,
-  design-interface, deepen-architecture, elaborate-spec, grill-me, define-language,
-  diagnose-root, enforce-first, edit-document, simple-english, smoke-test and
-  validate-contracts. `extensions: []` suppresses its global Git hooks and `prompts: []`
-  suppresses workflow templates. Do not run init/setup or enable its MCP server
-  automatically. Skills do not grant tools, deployment/network authority or linked
-  lifecycle skills. Relative helper commands require project-local files; package install
-  alone does not project them. Existing project scripts conflict with bigpowers init;
-  project adoption is separate from package installation.
+- Bigpowers is no longer installed. Historical release checks retain its old allowlist
+  rules, but current defaults and native locks exclude it. Do not reinstall it or run
+  its setup commands automatically. Native package retirement removes only unchanged
+  registrations from the prior release; modified registrations produce a conflict.
 - Web-access defaults: no cookies, curator, hosted fetch fallback or GitHub clone; PDF uses
   local unpdf. Search can reuse Codex auth and contacts providers. Keep pdf-reader for local
   rendering and youtube-transcript for actual captions. analyze-sessions is our local code.

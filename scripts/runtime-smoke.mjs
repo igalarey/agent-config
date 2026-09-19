@@ -447,7 +447,14 @@ export function assertBigpowersResourcePolicy(commands, releasePath) {
     const source = typeof value === 'string' ? value : value?.source;
     return /^npm:bigpowers@/.test(source ?? '');
   });
-  assert(entry && typeof entry === 'object', 'Bigpowers package policy missing');
+  if (!entry) {
+    const packageRoot = path.join(releasePath, 'native/node_modules/bigpowers');
+    assert(!fs.existsSync(packageRoot), 'Removed Bigpowers package is still installed');
+    assert(![...commands.values()].some(command => sourceIsInside(packageRoot, command.sourceInfo)),
+      'Removed Bigpowers resources are still registered');
+    return;
+  }
+  assert(typeof entry === 'object', 'Bigpowers package policy missing');
   assert(Array.isArray(entry.extensions) && entry.extensions.length === 0, 'Bigpowers extensions must be disabled');
 
   if (entry.skills === undefined && entry.prompts === undefined) {

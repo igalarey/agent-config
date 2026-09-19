@@ -147,6 +147,26 @@ const newPolicy = {
 };
 const settingsPath = '.pi/agent/settings.json';
 
+test('retired native packages are removed only when their managed registration is unchanged', t => {
+  const home = temporary(t, 'installer-native-retirement-');
+  const source = releaseSources(t, oldPolicy);
+  const before = prepareRelease(home, source);
+  execute(plan({ home, release: before.id }));
+  const settings = readJSON(path.join(home, settingsPath));
+  put(source.repositories.harness, 'config/pi.settings.json', JSON.stringify({ packages: [] }));
+  source.commits.harness = commit(source.repositories.harness, 'retire native package');
+  const after = prepareRelease(home, source);
+  const modified = structuredClone(settings);
+  modified.packages.find(entry => entry.source === oldPolicy.source).custom = true;
+  put(home, settingsPath, JSON.stringify(modified));
+  assert.ok(plan({ home, release: after.id }).conflicts.some(message => message.includes('retired managed package was modified')));
+  put(home, settingsPath, JSON.stringify(settings));
+  const migration = plan({ home, release: after.id });
+  assert.deepEqual(migration.conflicts, []);
+  execute(migration);
+  assert.ok(!readJSON(path.join(home, settingsPath)).packages.some(entry => entry.source === oldPolicy.source));
+});
+
 test('Carbon resources, UI defaults, and task filtering upgrade and roll back together', t => {
   const home = temporary(t, 'installer-carbon-home-');
   const source = releaseSources(t, oldPolicy);

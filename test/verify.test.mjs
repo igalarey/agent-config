@@ -95,7 +95,7 @@ test('runtime prompt evidence requires every release-owned template and ignores 
   assert.throws(() => assertPromptTemplateRegistrations(evidence, manifest), /prompt template registrations/i);
 });
 
-test('runtime Bigpowers policy enforces the current allowlist without invalidating legacy release settings', t => {
+test('runtime policy excludes Bigpowers while retaining historical release checks', t => {
   const releasePath = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-config-bigpowers-policy-'));
   t.after(() => fs.rmSync(releasePath, { recursive: true, force: true }));
   const config = path.join(releasePath, 'config/pi.settings.json');
@@ -119,6 +119,9 @@ test('runtime Bigpowers policy enforces the current allowlist without invalidati
   ));
 
   fs.writeFileSync(config, fs.readFileSync(new URL('../config/pi.settings.json', import.meta.url)));
+  assert.doesNotThrow(() => assertBigpowersResourcePolicy(new Map(), releasePath));
+  assert.throws(() => assertBigpowersResourcePolicy(commandsFor(BIGPOWERS_SKILL_ALLOWLIST), releasePath), /Removed Bigpowers resources/);
+  fs.writeFileSync(config, JSON.stringify(policy(BIGPOWERS_SKILL_ALLOWLIST)));
   const current = commandsFor(BIGPOWERS_SKILL_ALLOWLIST);
   assert.doesNotThrow(() => assertBigpowersResourcePolicy(current, releasePath));
   current.set(...command('using-bigpowers'));

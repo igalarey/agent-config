@@ -163,18 +163,7 @@ test('legacy planner fixture is idempotent and preserves profiles and source', t
   assert.match(generalPurpose, /thinking: medium/);
   assert.match(explore, /thinking: medium/);
   assert.equal(fs.readFileSync(path.join(home, '.agents/SYSTEM.md'), 'utf8'), fs.readFileSync(path.join(root, 'SYSTEM.md'), 'utf8'));
-  assert.deepEqual(installedSettings.packages.find(entry => entry.source?.startsWith('npm:bigpowers')), {
-    source: 'npm:bigpowers@2.88.6',
-    extensions: [],
-    skills: [
-      '.pi/skills/align-grid', '.pi/skills/context7-mcp', '.pi/skills/security-review',
-      '.pi/skills/design-interface', '.pi/skills/deepen-architecture', '.pi/skills/elaborate-spec',
-      '.pi/skills/grill-me', '.pi/skills/define-language', '.pi/skills/diagnose-root',
-      '.pi/skills/enforce-first', '.pi/skills/edit-document', '.pi/skills/simple-english',
-      '.pi/skills/smoke-test', '.pi/skills/validate-contracts',
-    ],
-    prompts: [],
-  });
+  assert.ok(!installedSettings.packages.some(entry => (typeof entry === 'string' ? entry : entry.source).startsWith('npm:bigpowers')));
   for (const skill of ['pdf-reader', 'youtube-transcript', 'analyze-sessions']) {
     assert.equal(fs.existsSync(path.join(home, '.agents/skills', skill, 'SKILL.md')), true);
   }

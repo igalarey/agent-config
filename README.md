@@ -17,7 +17,6 @@ Do not register a second copy of the same package.
 | Web search and fetch | `npm:pi-web-access@0.29.0` |
 | Public browser | `vendor/pi-browser` |
 | MCP gateway | `npm:pi-mcp-adapter@2.33.0`, nicobailon upstream directly |
-| Selected Bigpowers skills | `npm:bigpowers@2.88.6`, exact 14-skill allowlist; prompts/extensions disabled |
 | Project-owned prompt templates | `prompts/*.md`, installed as global Pi commands |
 | Codex/Claude subscription footer | `vendor/pi-subscription-usage` |
 | Native Ollama provider | `npm:pi-ollama@0.1.7` |
@@ -47,7 +46,7 @@ npm run doctor
 ```
 
 Preview writes nothing and performs no dependency installation. Apply fetches the two
-external sources at exact commits, prepares seven base packages and four native npm packages, runs offline verification,
+external sources at exact commits, prepares seven base packages and three native npm packages, runs offline verification,
 and activates only after success. Tasks and supervisor are reviewed source snapshots
 inside this repository; their revisions are in `manifests/tintinweb.json`.
 `manifests/active-release.json` pins the harness, subagents and memory commits.
@@ -91,7 +90,7 @@ Pi discovers these project-owned global commands from `~/.pi/agent/prompts`:
 - `/edit-document <document> [editing instructions]` edits the requested document while preserving intent and facts.
 
 Arguments are optional where shown. With no argument, each command uses the current
-conversation context. These templates are independent of the disabled Bigpowers prompts.
+conversation context. These templates are maintained in this repository.
 
 ## Configuration
 
@@ -186,40 +185,8 @@ Only the user can stop active supervision through `/supervise stop`.
 - PDF/YouTube skills are retained for local page rendering and actual captions; they need
   separately installed Python/PyMuPDF/yt-dlp. `analyze-sessions` is our original local
   implementation, not a third-party skill, and only reads sessions on explicit request.
-- Bigpowers loads exactly these 14 skills: `align-grid`, `context7-mcp`,
-  `security-review`, `design-interface`, `deepen-architecture`, `elaborate-spec`,
-  `grill-me`, `define-language`, `diagnose-root`, `enforce-first`, `edit-document`,
-  `simple-english`, `smoke-test` and `validate-contracts`. Prompts and extensions remain
-  disabled, so its Git hooks, MCP server and workflow templates do not load. The four
-  project-owned English prompt templates remain separate and unchanged.
-
-  Skills are instructions, not capability grants. A relative `scripts/...` command names
-  a file in the consumer project; installing the npm package does not project that helper
-  into every repository. Adopt the required project files deliberately. Do not run
-  `bigpowers init` automatically: it is separate project setup and refuses an existing
-  `scripts/` directory. Linked lifecycle skill names are handoff suggestions only.
-
-  | Skill | Required before use |
-  | --- | --- |
-  | `align-grid` | Project copies of `grid_tokens.py` and `verify_grid.js`, Node/Python, Puppeteer Core, an installed Chrome-compatible browser and a real local font for offline optical checks. Publishing or image search needs separate network authorization. |
-  | `context7-mcp` | An explicitly configured Context7 MCP server and project-local `scripts/lib/doc-fetch-cache.sh`; maximum three service calls. `bts` is only an optional fallback. |
-  | `security-review` | A Git repository with a usable diff/merge base and `specs/security/`. Parallel-worktree and fixture verification additionally require the named project scripts. |
-  | `design-interface` | Clear caller requirements, three parallel slots and a compatible launch tool. Its text names a generic `Task` tool; this base instead exposes parent `Agent`, so a role without delegation cannot comply. The skill grants neither delegation nor nesting. |
-  | `deepen-architecture` | Git history, parent access to an Explore agent and project-local `scripts/bp-churn-rank.sh`. Import changes additionally need `specs/import-boundaries.json` and `scripts/check-import-boundaries.sh`; architecture/ADR files are optional inputs. |
-  | `elaborate-spec` | Interactive user confirmation and permission to write `specs/planning-context.yaml`. The npm artifact omits its linked `docs/countable-story-format.md`; downstream skills are not enabled transitively. |
-  | `grill-me` | An interactive plan and codebase access. Docs mode needs an authorized current-document fetch tool; its text names `WebFetch`, while this base exposes native web-access tools. It must stop for approval before writing specs or implementing. |
-  | `define-language` | Enough domain conversation to resolve terms and permission to write `specs/UBIQUITOUS_LANGUAGE_LATEST.md`. |
-  | `diagnose-root` | A confirmed reproducible bug and an existing active `specs/bugs/BUG-*.md`; the skill updates that file but does not create it or implement a fix. |
-  | `enforce-first` | A project `CONVENTIONS.md` with the canonical F.I.R.S.T section plus runnable lint, typecheck, test and coverage gates. |
-  | `edit-document` | An existing document, its Git history when available and interactive confirmation of the proposed section structure; edits retain the upstream 240-character paragraph rule. |
-  | `simple-english` | Passage classification and the shipped reference. Its deterministic gate requires Python 3 and a project-accessible executable `skills/simple-english/scripts/ste_lint.py`; final STE approval remains with the writer. |
-  | `smoke-test` | An already deployed live URL, explicit network authority, `curl`, Python 3 and project-local `scripts/run-smoke.sh` plus `scripts/lib/python-env.sh`. Single-URL mode works without YAML. In the shipped multi-check runner, `method` and `SMOKE_RETRIES` are not applied, and a status-only success is not counted without `content_signal`; do not claim those checks. |
-  | `validate-contracts` | Version-controlled YAML under `specs/contracts/` and project-local `scripts/validate-contracts.sh`. The shipped runner requires Bash, Python 3 and JSON inputs, and only enforces key-set mode; schema/shape currently return `SKIP` and need separate consumer tooling. |
-
-  `extract-design` remains excluded because it mandates a broader lifecycle handoff and
-  depends on Puppeteer plus `@google/design.md` checks not guaranteed here. No other
-  planning, deployment, review or coordination skill is enabled. Third-party skill
-  instructions do not override shared policy or user authorization.
+- Bigpowers is not installed. Existing local PDF, YouTube and session-analysis skills
+  remain available. Historical release checks preserve compatibility with old releases.
 
 ## Development and releases
 
@@ -235,8 +202,8 @@ and five runtime checks using the official Pi CLI: loader/RPC, memory status, sy
 TaskExecute/result delivery, child extension scope, read-only scope and in-process child
 execution. It starts supervisor with a scripted offline provider, not a real account.
 The same official loader checks native MCP/web tools, the four project-owned prompt
-templates, the exact Bigpowers skill allowlist with no Bigpowers prompts or extension, and
-the disabled MCP footer. Native npm packages are installed by
+templates, Ollama command registration, absence of Bigpowers resources, and the disabled
+MCP footer. Ollama discovery uses a blocked port in these checks; no inference is tested. Native npm packages are installed by
 `pi install` in review, then reproduced with `npm ci --legacy-peer-deps --ignore-scripts`.
 The verified npm prefix is copied intact to `~/.pi/agent/npm`; settings retain `npm:`
 entries. Bootstrap backs up an unchanged managed prefix on update and refuses to overwrite

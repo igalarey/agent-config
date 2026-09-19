@@ -17,22 +17,9 @@ function put(dir, relative, content) {
   fs.writeFileSync(target, content);
 }
 
-const bigpowersPolicy = {
-  source: 'npm:bigpowers@2.88.6',
-  extensions: [],
-  skills: [
-    '.pi/skills/align-grid', '.pi/skills/context7-mcp', '.pi/skills/security-review',
-    '.pi/skills/design-interface', '.pi/skills/deepen-architecture', '.pi/skills/elaborate-spec',
-    '.pi/skills/grill-me', '.pi/skills/define-language', '.pi/skills/diagnose-root',
-    '.pi/skills/enforce-first', '.pi/skills/edit-document', '.pi/skills/simple-english',
-    '.pi/skills/smoke-test', '.pi/skills/validate-contracts',
-  ],
-  prompts: [],
-};
-
-test('native defaults pin an exact specialized Bigpowers allowlist', () => {
+test('native defaults pin MCP, web access and Ollama without Bigpowers', () => {
   const defaults = readJSON(path.join(root, 'config/pi.settings.json')).packages;
-  assert.deepEqual(defaults, ['npm:pi-mcp-adapter@2.33.0', 'npm:pi-web-access@0.29.0', bigpowersPolicy, 'npm:pi-ollama@0.1.7']);
+  assert.deepEqual(defaults, ['npm:pi-mcp-adapter@2.33.0', 'npm:pi-web-access@0.29.0', 'npm:pi-ollama@0.1.7']);
   const lock = readJSON(path.join(root, 'native/package-lock.json'));
   for (const entry of defaults) {
     const spec = typeof entry === 'string' ? entry : entry.source;
@@ -58,7 +45,7 @@ test('native registration is idempotent, preserves metadata and server config, a
   const packages = readJSON(path.join(home, '.pi/agent/settings.json')).packages;
   assert.ok(packages.includes('npm:unrelated@1.0.0'));
   assert.deepEqual(packages.find(p => p.source?.startsWith('npm:bigpowers')), {
-    ...bigpowersPolicy, custom: true,
+    source: 'npm:bigpowers', custom: true, extensions: ['extensions/omp-hooks.ts'],
   });
   assert.deepEqual(plan({ home }).operations, []);
 });

@@ -318,6 +318,19 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
       packages[index] = retained;
     }
   }
+  for (const priorEntry of priorDefaults?.packages ?? []) {
+    const spec = packageSource(priorEntry), match = /^npm:((?:@[^/]+\/)?[^@]+)@/.exec(spec);
+    if (!match || (defaults.packages ?? []).some(entry => packageNameMatches(packageSource(entry), match[1]))) continue;
+    for (let index = packages.length - 1; index >= 0; index--) {
+      if (!packageNameMatches(packageSource(packages[index]), match[1])) continue;
+      if (!isDeepStrictEqual(packages[index], priorEntry)) {
+        conflicts.push(`retired managed package was modified: ${match[1]}`);
+      } else {
+        packages.splice(index, 1);
+        migrations.push({ name: match[1], from: spec, to: null });
+      }
+    }
+  }
   for (const entry of defaults.packages ?? []) {
     const spec = packageSource(entry), match = /^npm:((?:@[^/]+\/)?[^@]+)@(\d+\.\d+\.\d+)$/.exec(spec);
     if (!match) throw new Error('Default npm packages must use exact versions');
