@@ -45,14 +45,13 @@ antigua que seguirá confundiendo.
 
 ## Instrucciones de repositorio
 
-El fichero común de proyecto es `CLAUDE.md`: Claude lo carga de forma nativa, Pi lo
-acepta como alternativa y Codex lo tiene configurado globalmente como nombre de respaldo.
-Un harness también puede inyectar instrucciones sin un fichero visible. Respeta el
-alcance por directorio y la precedencia indicada por cada herramienta.
+El fichero común de proyecto es `AGENTS.md`. Claude, Pi y Codex lo cargan como
+contexto del proyecto. Un harness también puede inyectar instrucciones sin un fichero
+visible. Respeta el alcance por directorio y la precedencia indicada por cada herramienta.
 
-No mantengas documentos completos equivalentes para agentes distintos. Si un repositorio
-ya utiliza otro formato, consérvalo y crea como máximo un adaptador mínimo cuando sea
-necesario.
+No mantengas documentos completos equivalentes para agentes distintos. Usa únicamente
+`AGENTS.md` como instrucciones del repositorio. Conserva un fichero legado distinto si
+existe, pero no lo trates como una fuente activa.
 
 Las instrucciones del repositorio deben contener sólo hechos propios del proyecto:
 

@@ -404,16 +404,18 @@ test('ambiguous or modified managed instruction blocks conflict without writes',
   }
 });
 
-test('global context precedence conflicts prevent an adapter hidden by override or shadowing CLAUDE', t => {
-  for (const relative of ['.pi/agent/AGENTS.override.md', '.pi/agent/CLAUDE.md', '.pi/agent/CLAUDE.MD']) {
-    const home = sandbox(t);
-    put(home, relative, 'user-owned global context\n');
-    const result = plan({ home });
-    assert.ok(result.conflicts.some(value => value.includes(relative)), `missing conflict for ${relative}`);
-    assert.throws(() => execute(result), /nothing written/);
-    assert.equal(fs.readdirSync(path.join(home, '.pi/agent')).includes('AGENTS.md'), false);
-    assert.equal(fs.readFileSync(path.join(home, relative), 'utf8'), 'user-owned global context\n');
-  }
+test('global override blocks the adapter, while legacy context files are not instruction sources', t => {
+  const overrideHome = sandbox(t);
+  put(overrideHome, '.pi/agent/AGENTS.override.md', 'user-owned global context\n');
+  const blocked = plan({ home: overrideHome });
+  assert.ok(blocked.conflicts.some(value => value.includes('.pi/agent/AGENTS.override.md')));
+  assert.throws(() => execute(blocked), /nothing written/);
+
+  const legacyHome = sandbox(t);
+  put(legacyHome, '.pi/agent/LEGACY.md', 'legacy user-owned context\n');
+  execute(plan({ home: legacyHome }));
+  assert.equal(fs.readFileSync(path.join(legacyHome, '.pi/agent/LEGACY.md'), 'utf8'), 'legacy user-owned context\n');
+  assert.match(fs.readFileSync(path.join(legacyHome, '.pi/agent/AGENTS.md'), 'utf8'), /agent-config:shared-instructions:start/);
 });
 
 test('case-insensitive global override still conflicts on Windows', { skip: process.platform !== 'win32' }, t => {

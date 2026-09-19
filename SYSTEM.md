@@ -14,7 +14,7 @@ cambiar, propón el cambio.
 
 ## Al comenzar
 
-1. Lee las instrucciones que el entorno haya cargado y el `CLAUDE.md` aplicable al
+1. Lee las instrucciones que el entorno haya cargado y el `AGENTS.md` aplicable al
    repositorio. Es el fichero de proyecto común a todos los agentes; respeta su ámbito.
    Lee también otro formato si el repositorio ya lo utiliza.
 2. Identifica el stack. Lista `~/.agents/guides/` y lee completa cualquier guía aplicable

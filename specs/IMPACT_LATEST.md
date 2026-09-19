@@ -25,7 +25,7 @@ context: expanded-bigpowers-skill-policy
   the new 14-skill policy. Any other explicit list, including a widening by one skill, fails.
 - Official Pi loader evidence compares registered Bigpowers commands with the allowlist in
   the recognized release policy. Prompts and extensions remain independently forbidden.
-- README, CLAUDE.md and third-party notices must not describe the old count as current.
+- README, AGENTS.md and third-party notices must not describe the old count as current.
 
 ## Dependency assessment from Bigpowers 2.88.6
 

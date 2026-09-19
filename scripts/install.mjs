@@ -471,11 +471,8 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
   };
   const overrideName = presentContextName('AGENTS.override.md');
   const agentsName = presentContextName('AGENTS.md') ?? presentContextName('AGENTS.MD');
-  const claudeName = presentContextName('CLAUDE.md') ?? presentContextName('CLAUDE.MD');
   if (overrideName) {
     conflicts.push(`global context override hides instruction adapter: .pi/agent/${overrideName}`);
-  } else if (!agentsName && claudeName) {
-    conflicts.push(`instruction adapter would hide existing global context: .pi/agent/${claudeName}`);
   } else {
     const adapterRelative = `.pi/agent/${agentsName ?? 'AGENTS.md'}`;
     const adapterPath = path.join(home, adapterRelative);
