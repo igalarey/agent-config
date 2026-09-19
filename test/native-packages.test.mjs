@@ -32,7 +32,7 @@ const bigpowersPolicy = {
 
 test('native defaults pin an exact specialized Bigpowers allowlist', () => {
   const defaults = readJSON(path.join(root, 'config/pi.settings.json')).packages;
-  assert.deepEqual(defaults, ['npm:pi-mcp-adapter@2.33.0', 'npm:pi-web-access@0.29.0', bigpowersPolicy]);
+  assert.deepEqual(defaults, ['npm:pi-mcp-adapter@2.33.0', 'npm:pi-web-access@0.29.0', bigpowersPolicy, 'npm:pi-ollama@0.1.7']);
   const lock = readJSON(path.join(root, 'native/package-lock.json'));
   for (const entry of defaults) {
     const spec = typeof entry === 'string' ? entry : entry.source;

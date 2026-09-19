@@ -9,6 +9,8 @@ export function verificationEnvironment(env = process.env, { home, temp } = {}) 
     PI_TASKS: 'off',
     PI_RUN_BROWSER_TESTS: '0',
     PI_OFFLINE: '1',
+    // pi-ollama discovers models during loading even with PI_OFFLINE; fetch blocks port 1.
+    OLLAMA_HOST: 'http://127.0.0.1:1',
     PI_SKIP_VERSION_CHECK: '1',
     PI_TELEMETRY: '0',
     npm_config_offline: 'true',
@@ -21,6 +23,7 @@ export function verificationEnvironment(env = process.env, { home, temp } = {}) 
   for (const [key, value] of Object.entries(env)) {
     const normalized = key.toUpperCase();
     if (!normalized.startsWith('PI_SUBAGENT_') && normalized !== 'PI_SUBAGENTS_CONFIG' && !normalized.startsWith('PI_BROWSER_')
+        && !normalized.startsWith('OLLAMA_')
         && !/^(?:PI_)?MCP_/.test(normalized) && !reserved.has(normalized)
         && !SENSITIVE_ENV.test(key) && !INJECTION_ENV.has(normalized)
         && !(home && HOST_ENV.has(normalized))) filtered[key] = value;

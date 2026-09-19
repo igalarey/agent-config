@@ -1079,13 +1079,14 @@ test('release switches with a different managed key or resource set are blocked'
 
 test('versioned bootstrap recipe pins the active release without local source paths', () => {
   const recipe = validateRecipe(readJSON(path.resolve('manifests/active-release.json')));
+  assert.equal(spawnSync('git', ['cat-file', '-t', recipe.sources.harness], { encoding: 'utf8' }).stdout.trim(), 'commit');
   assert.deepEqual(recipe, {
     schemaVersion: 1,
-    release: 'h-fd27acfa7a6d-s-e955e29c51b7-m-c78b5148b110',
+    release: `h-${recipe.sources.harness.slice(0, 12)}-s-e955e29c51b7-m-c78b5148b110`,
     piVersion: '0.85.1',
     runtime: { node: 'v22.23.2' },
     sources: {
-      harness: 'fd27acfa7a6da113b5fc4da256419345bd0142ad',
+      harness: recipe.sources.harness,
       subagents: 'e955e29c51b7a6cce37e1108cd2d6c57a77e151c',
       memory: 'c78b5148b110ea5a42356ffedb7dc5cbdd2fafff',
     },

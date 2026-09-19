@@ -4,6 +4,7 @@
   "dependencies": {
     "bigpowers": "2.88.6",
     "pi-mcp-adapter": "2.33.0",
-    "pi-web-access": "0.29.0"
+    "pi-web-access": "0.29.0",
+    "pi-ollama": "0.1.7"
   }
 }

@@ -59,6 +59,7 @@ export function runtimeEnvironment(parent, { agentDir, home, temp, cwd = home })
   for (const [key, value] of Object.entries(parent)) {
     if (value !== undefined && !SENSITIVE_ENV.test(key)
         && !key.toUpperCase().startsWith('PI_SUBAGENT_') && key.toUpperCase() !== 'PI_SUBAGENTS_CONFIG' && !key.toUpperCase().startsWith('PI_BROWSER_')
+        && !key.toUpperCase().startsWith('OLLAMA_')
         && !/^(?:PI_)?MCP_/i.test(key)) env[key] = value;
   }
   for (const key of Object.keys(env)) {
@@ -78,6 +79,7 @@ export function runtimeEnvironment(parent, { agentDir, home, temp, cwd = home })
     PWD: cwd,
     PI_CODING_AGENT_DIR: agentDir,
     PI_OFFLINE: '1',
+    OLLAMA_HOST: 'http://127.0.0.1:1',
     PI_TELEMETRY: '0',
     PI_RUN_LIVE_SUBAGENT_TESTS: '0',
     PI_RUN_BROWSER_TESTS: '0',
@@ -489,6 +491,12 @@ export function assertOfficialLoaderEvidence(evidence, releasePath, manifest) {
     assert(!allTools.has('web_fetch') && !allTools.has('bigpowers_skill'), 'Retired fetch or disabled bigpowers extension loaded');
     assert(!evidence.messages.some(message => message.method === 'setStatus' && message.statusKey === 'mcp' && message.statusText), 'MCP footer was not disabled');
     assertBigpowersResourcePolicy(commands, releasePath);
+    if (fs.existsSync(path.join(releasePath, 'native/node_modules/pi-ollama/package.json'))) {
+      for (const name of ['ollama-refresh', 'ollama-status', 'ollama-info']) {
+        assert(commands.has(name), `Official Pi loader Ollama command missing: ${name}`);
+        assertInsideRelease(releasePath, commands.get(name).sourceInfo, `Command ${name}`);
+      }
+    }
   }
   if (nativeBase(manifest) || manifest.packages.some(pkg => pkg.name === 'pi-mcp')) {
     for (const name of ['mcp', 'mcpScript']) {

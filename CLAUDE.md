@@ -4,7 +4,8 @@ Portable Pi configuration. Node 22.23.2, Pi 0.85.1, dependency-free ESM installe
 
 - New base: tintinweb pi-subagents, pi-tasks, pi-supervisor; observational-memory;
   local questions, browser and subscription usage. Native npm: pi-mcp-adapter 2.33.0,
-  pi-web-access 0.29.0 and bigpowers 2.88.6. Ten packages: seven base plus three native.
+  pi-web-access 0.29.0, bigpowers 2.88.6 and pi-ollama 0.1.7. Eleven packages:
+  seven base plus four native.
 - `manifests/active-release.json` pins exact harness/subagents/memory commits. Tasks and
   supervisor are vendored source snapshots; revisions/licenses in `manifests/tintinweb.json`
   and THIRD_PARTY_NOTICES.md. Do not patch upstream source casually. The public memory
@@ -73,6 +74,9 @@ Portable Pi configuration. Node 22.23.2, Pi 0.85.1, dependency-free ESM installe
 - Browser retains public-network restrictions and never downloads Chromium,
   uses no personal profile, and needs an installed Chrome/Edge. Its interactive/mouse smoke
   is separate from offline verification. MCP has no inherited browser network sandbox.
+- pi-ollama discovers models at load time even with PI_OFFLINE. Verification strips
+  inherited OLLAMA settings and uses a fetch-blocked port; it checks command registration,
+  not inference or an authenticated Ollama server. Runtime keeps the user's Ollama settings.
 - Subscription usage polls only in TUI, uses Pi OAuth APIs, and never reads auth.json itself.
   Offline checks do not establish authenticated quota or footer clicks. Memory retains its
   existing Luna-high model configuration and incurs model usage when it observes/compacts.

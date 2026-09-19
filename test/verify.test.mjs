@@ -140,13 +140,16 @@ test('subscription footer requires its refresh command from the official loader 
 });
 
 test('verification removes ambient MCP configuration and test switches', () => {
-  const parent = { PATH: '/fixture', MCP_CONFIG: '/private/config', Mcp_Oauth_Dir: '/private/oauth',
+  const parent = { PATH: '/fixture', OLLAMA_HOST: 'https://not-contacted.example', OLLAMA_NATIVE_DEBUG_LOG: '/private/log',
+    MCP_CONFIG: '/private/config', Mcp_Oauth_Dir: '/private/oauth',
     PI_MCP_ADAPTER_TEST_AUTH_STORE: 'disk', Pi_Mcp_Custom: 'contaminated' };
   for (const env of [verificationEnvironment(parent), runtimeEnvironment(parent, {
     agentDir: '/fixture/agent', home: '/fixture/home', temp: '/fixture/temp',
   })]) {
     assert.equal(env.PATH, '/fixture');
     assert.equal(Object.keys(env).some(key => /^(?:PI_)?MCP_/i.test(key)), false);
+    assert.equal(env.OLLAMA_HOST, 'http://127.0.0.1:1');
+    assert.equal(env.OLLAMA_NATIVE_DEBUG_LOG, undefined);
   }
 });
 

@@ -20,6 +20,8 @@ Do not register a second copy of the same package.
 | Selected Bigpowers skills | `npm:bigpowers@2.88.6`, exact 14-skill allowlist; prompts/extensions disabled |
 | Project-owned prompt templates | `prompts/*.md`, installed as global Pi commands |
 | Codex/Claude subscription footer | `vendor/pi-subscription-usage` |
+| Native Ollama provider | `npm:pi-ollama@0.1.7` |
+| Carbon UI and theme | `extensions/`, `themes/`; [configuration](docs/carbon-ui.md) |
 
 **RTK and pi-interactive-subagents are retired.** The old worker/scout/researcher
 profiles, bridges and external viewer are not part of the new base.
@@ -45,7 +47,7 @@ npm run doctor
 ```
 
 Preview writes nothing and performs no dependency installation. Apply fetches the two
-external sources at exact commits, prepares seven base packages and three native npm packages, runs offline verification,
+external sources at exact commits, prepares seven base packages and four native npm packages, runs offline verification,
 and activates only after success. Tasks and supervisor are reviewed source snapshots
 inside this repository; their revisions are in `manifests/tintinweb.json`.
 `manifests/active-release.json` pins the harness, subagents and memory commits.

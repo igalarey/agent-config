@@ -22,7 +22,8 @@
         ".pi/skills/validate-contracts"
       ],
       "prompts": []
-    }
+    },
+    "npm:pi-ollama@0.1.7"
   ],
   "theme": "carbon-violet",
   "editorPaddingX": 2,
@@ -42,8 +43,16 @@
     "compactAtContextTokens": 150000,
     "tailTokens": 20000,
     "models": {
-      "observer": { "provider": "openai-codex", "id": "gpt-5.6-luna", "thinking": "high" },
-      "consolidator": { "provider": "openai-codex", "id": "gpt-5.6-luna", "thinking": "high" }
+      "observer": {
+        "provider": "openai-codex",
+        "id": "gpt-5.6-luna",
+        "thinking": "high"
+      },
+      "consolidator": {
+        "provider": "openai-codex",
+        "id": "gpt-5.6-luna",
+        "thinking": "high"
+      }
     }
   }
 }
