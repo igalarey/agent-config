@@ -5,8 +5,8 @@ Target: Linux, Node 22.23.2, Pi 0.85.1. Latest activation: 2026-09-19.
 
 ## Consolidated harness inventory (current)
 
-`h-e2d25ae4dc22-s-e955e29c51b7-m-c78b5148b110` is the previous verified release.
-The new release retains Carbon, the above-editor agents panel, the filtered footer and the three
+`h-d80df52749b2-s-e955e29c51b7-m-c78b5148b110` is verified, sealed and active.
+It retains Carbon, the above-editor agents panel, the filtered footer and the three
 native npm packages. Bigpowers remains absent.
 
 The repository now contains the 14 curated skills, their assets, MIT license and
