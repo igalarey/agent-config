@@ -12,6 +12,12 @@
       "originalSha256": "53ea2ab2f6bf055f63e7f3cc4e23513b2f3c36b09783529f3b4165e123d651cf",
       "oldText": "expect(placement).toBe(\"aboveEditor\");",
       "newText": "expect(placement).toBe(\"belowEditor\");"
+    },
+    {
+      "path": "test/rpc-lifecycle-gating.test.ts",
+      "originalSha256": "a81e28059d675d092a3bedf9ae0c7fd6e04ab607e92218db41b37598d2d5e691",
+      "oldText": "{ placement: \"aboveEditor\" }",
+      "newText": "{ placement: \"belowEditor\" }"
     }
   ]
 }

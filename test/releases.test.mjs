@@ -390,12 +390,13 @@ test('a declared subscription usage package cannot disappear from the committed 
   assert.deepEqual(fs.readdirSync(home), []);
 });
 
-test('subagents UI overlay projects its two pinned edits and remains optional', t => {
+test('subagents UI overlay projects its pinned edits and remains optional', t => {
   const home = temporary(t);
   const source = fixture(t);
   const subagents = source.repositories.subagents;
   put(subagents, 'src/ui/agent-widget.ts', 'ui.setWidget("agents", factory, { placement: "aboveEditor" });\n');
   put(subagents, 'test/agent-color-surfaces.test.ts', 'expect(placement).toBe("aboveEditor");\n');
+  put(subagents, 'test/rpc-lifecycle-gating.test.ts', 'expect(options).toEqual({ placement: "aboveEditor" });\n');
   source.commits.subagents = commit(subagents, 'subagents UI baseline');
   put(source.repositories.harness, 'manifests/subagents-ui.json', JSON.stringify({
     commit: source.commits.subagents,
@@ -411,6 +412,11 @@ test('subagents UI overlay projects its two pinned edits and remains optional', 
         originalSha256: fileHash(path.join(subagents, 'test/agent-color-surfaces.test.ts')),
         oldText: 'expect(placement).toBe("aboveEditor")',
         newText: 'expect(placement).toBe("belowEditor")',
+      },
+      {
+        path: 'test/rpc-lifecycle-gating.test.ts',
+        originalSha256: fileHash(path.join(subagents, 'test/rpc-lifecycle-gating.test.ts')),
+        oldText: 'placement: "aboveEditor"', newText: 'placement: "belowEditor"',
       },
     ],
   }));
@@ -428,12 +434,14 @@ test('subagents UI overlay projects its two pinned edits and remains optional', 
   const mismatchSubagents = mismatch.repositories.subagents;
   put(mismatchSubagents, 'src/ui/agent-widget.ts', 'ui.setWidget("agents", factory, { placement: "aboveEditor" });\n');
   put(mismatchSubagents, 'test/agent-color-surfaces.test.ts', 'expect(placement).toBe("aboveEditor");\n');
+  put(mismatchSubagents, 'test/rpc-lifecycle-gating.test.ts', 'expect(options).toEqual({ placement: "aboveEditor" });\n');
   mismatch.commits.subagents = commit(mismatchSubagents, 'subagents UI mismatch baseline');
   put(mismatch.repositories.harness, 'manifests/subagents-ui.json', JSON.stringify({
     commit: mismatch.commits.subagents,
     files: [
       { path: 'src/ui/agent-widget.ts', originalSha256: 'a'.repeat(64), oldText: 'aboveEditor', newText: 'belowEditor' },
       { path: 'test/agent-color-surfaces.test.ts', originalSha256: fileHash(path.join(mismatchSubagents, 'test/agent-color-surfaces.test.ts')), oldText: 'aboveEditor', newText: 'belowEditor' },
+      { path: 'test/rpc-lifecycle-gating.test.ts', originalSha256: fileHash(path.join(mismatchSubagents, 'test/rpc-lifecycle-gating.test.ts')), oldText: 'aboveEditor', newText: 'belowEditor' },
     ],
   }));
   mismatch.commits.harness = commit(mismatch.repositories.harness, 'subagents UI mismatch overlay');

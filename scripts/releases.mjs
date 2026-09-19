@@ -237,6 +237,7 @@ function mappedReleaseFiles(records, commits) {
     const expectedPaths = new Set([
       'src/ui/agent-widget.ts',
       'test/agent-color-surfaces.test.ts',
+      'test/rpc-lifecycle-gating.test.ts',
     ]);
     if (overlay.commit !== commits.subagents || !Array.isArray(overlay.files) || overlay.files.length !== expectedPaths.size) {
       throw new Error('Subagents UI overlay does not match pinned source');

@@ -35,7 +35,7 @@ is hidden from this footer; other extension statuses remain visible.
 
 The agents panel sits below the editor and above the footer. Release preparation
 applies `manifests/subagents-ui.json` to the pinned subagents source and its placement
-test. The overlay checks the source commit and original file hashes before changing
+tests. The overlay checks the source commit and original file hashes before changing
 only the placement. Agent execution, controls and widget contents remain unchanged.
 
 ## Optional Linux launcher
