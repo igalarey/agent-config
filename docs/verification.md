@@ -3,9 +3,22 @@
 This file supersedes the historical Windows/RTK/interactive-subagents evidence in Git history.
 Target: Linux, Node 22.23.2, Pi 0.85.1. Latest activation: 2026-09-19.
 
-## Carbon UI and native package reconciliation (current)
+## Agent panel placement (current)
 
-`h-c992a2b264e8-s-e955e29c51b7-m-c78b5148b110` is verified, sealed and active.
+`h-2bedd6f443a0-s-e955e29c51b7-m-c78b5148b110` is verified, sealed and active.
+The agents panel uses the native below-editor slot, above the footer. Subscription
+Usage no longer renders the `subagents` summary; memory and other statuses remain.
+The pinned overlay changes one placement line and the two upstream tests that assert it.
+
+All fourteen package checks and five official-runtime checks passed. Root regressions
+passed 121 tests with three skipped; the footer suite passed 39 tests, and the Carbon
+suite passed 20 tests. The first candidate was not activated because a second upstream
+RPC test still asserted the old position. The final candidate includes that test update.
+These checks do not constitute a screenshot review or an authenticated model test.
+
+## Previous Carbon UI and native package reconciliation
+
+`h-c992a2b264e8-s-e955e29c51b7-m-c78b5148b110` remains verified and sealed.
 The release passed all fourteen package checks and five official-runtime checks.
 Root regressions passed 120 tests with three optional tests skipped. The separate
 Carbon suite passed 20 tests, and subscription footer tests passed 38 tests.
