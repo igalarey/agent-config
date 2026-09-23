@@ -591,7 +591,13 @@ function fauxIntegrationProvider(pi) {
         }
       }
       let content;
-      const names = new Set((context.tools ?? []).map(tool => tool.name));
+      // Pi 0.87 carries tools in system messages (toolsAdded/toolsRemoved), not context.tools.
+      const current = new Map((context.tools ?? []).map(tool => [tool.name, tool]));
+      for (const message of context.messages.filter(item => item.role === 'system')) {
+        for (const removed of message.toolsRemoved ?? []) current.delete(removed.name);
+        for (const added of message.toolsAdded ?? []) current.set(added.name, added);
+      }
+      const names = new Set(current.keys());
       const results = context.messages.filter(message => message.role === 'toolResult');
       const tool = (name, args) => [{ type: 'toolCall', id: `fixture-${++calls}`, name, arguments: args }];
       const text = value => [{ type: 'text', text: value }];
