@@ -80,7 +80,7 @@ export function createTransportUsageProvider<TRaw>(
 
 export function resolveSubscriptionTarget(model: SubscriptionModel | undefined): SubscriptionTarget | undefined {
   if (model?.provider === "openai-codex") return { key: "openai-codex", label: "Codex" };
-  if (model?.provider === "anthropic") return { key: "anthropic", label: "Claude" };
+  if (model?.provider === "anthropic" || model?.provider === "claude-bridge") return { key: "anthropic", label: "Claude" };
   return undefined;
 }
 

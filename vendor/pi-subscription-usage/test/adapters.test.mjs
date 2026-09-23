@@ -25,6 +25,13 @@ const claude = {
   baseUrl: "https://api.anthropic.com",
 };
 
+const claudeBridge = {
+  provider: "claude-bridge",
+  id: "claude-opus-5-5",
+  api: "claude-bridge",
+  baseUrl: "claude-bridge",
+};
+
 function jwt(accountId = "acct-fixture", extraPayload = {}) {
   const encode = value => Buffer.from(JSON.stringify(value)).toString("base64url");
   return `${encode({ alg: "none" })}.${encode({
@@ -303,6 +310,39 @@ test("non-OAuth, auth refresh failure, and 401 are unavailable without credentia
     transport: transportWith([{ status: 401, headers: {}, body: "ignored" }]),
   });
   assert.deepEqual(await unauthorized.fetchUsage({ model: claude, signal: new AbortController().signal }), { kind: "unavailable" });
+});
+
+test("Claude bridge models use Pi's canonical Anthropic OAuth, never the bridge model", async () => {
+  const base = registry({ auth: { ok: true, apiKey: "anthropic-oauth-token" } });
+  const modelRegistry = { ...base, getAll: () => [codex, { ...claude, baseUrl: "https://proxy.example" }, claude] };
+  const transport = transportWith([{
+    status: 200,
+    headers: {},
+    body: JSON.stringify({ limits: [{ kind: "session", group: "session", percent: 29 }] }),
+  }]);
+  const provider = createAnthropicUsageProvider({ modelRegistry, transport });
+  assert.equal(provider.supports(claudeBridge), true);
+  assert.deepEqual(await provider.fetchUsage({ model: claudeBridge, signal: new AbortController().signal }), {
+    kind: "known",
+    windows: [{ label: "5h", usedPercent: 29 }],
+  });
+  assert.deepEqual(base.calls.map(call => call.model), [claude, claude]);
+  assert.equal(transport.requests[0].url, ANTHROPIC_USAGE_URL);
+  assert.equal(transport.requests[0].headers.Authorization, "Bearer anthropic-oauth-token");
+
+  const noAnthropic = registry({ oauth: false });
+  const noAnthropicTransport = transportWith([]);
+  const withoutLogin = createAnthropicUsageProvider({
+    modelRegistry: { ...noAnthropic, getAll: () => [codex, claude] },
+    transport: noAnthropicTransport,
+  });
+  assert.deepEqual(await withoutLogin.fetchUsage({ model: claudeBridge, signal: new AbortController().signal }), { kind: "unavailable" });
+  assert.equal(noAnthropic.calls.some(call => call.type === "auth"), false);
+  assert.equal(noAnthropicTransport.requests.length, 0);
+
+  const withoutRegistryList = createAnthropicUsageProvider({ modelRegistry: registry(), transport: transportWith([]) });
+  assert.deepEqual(await withoutRegistryList.fetchUsage({ model: claudeBridge, signal: new AbortController().signal }), { kind: "unavailable" });
+  assert.equal(provider.supports({ ...claudeBridge, api: "anthropic-messages" }), false);
 });
 
 test("canonical model checks never send OAuth credentials to custom or proxy base URLs", async () => {

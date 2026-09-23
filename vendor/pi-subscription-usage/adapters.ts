@@ -15,7 +15,7 @@ export const REQUEST_TIMEOUT_MS = 10_000;
 const ANTHROPIC_DEFAULT_COOLDOWN_MS = 10 * 60_000;
 const OPENAI_AUTH_CLAIM = "https://api.openai.com/auth";
 
-type AuthRegistry = Pick<ModelRegistry, "isUsingOAuth" | "getApiKeyAndHeaders">;
+type AuthRegistry = Pick<ModelRegistry, "isUsingOAuth" | "getApiKeyAndHeaders"> & Partial<Pick<ModelRegistry, "getAll">>;
 
 export interface SubscriptionHttpRequest {
   url: string;
@@ -120,6 +120,15 @@ function isCanonicalAnthropic(model: SubscriptionModel): boolean {
   return model.provider === "anthropic"
     && model.api === "anthropic-messages"
     && model.baseUrl.replace(/\/+$/, "") === "https://api.anthropic.com";
+}
+
+// pi-claude-bridge runs Claude Code on the same Claude subscription but has no credentials of its own.
+function isClaudeBridge(model: SubscriptionModel): boolean {
+  return model.provider === "claude-bridge" && model.api === "claude-bridge";
+}
+
+function supportsAnthropic(model: SubscriptionModel): boolean {
+  return isCanonicalAnthropic(model) || isClaudeBridge(model);
 }
 
 function extractCodexAccountId(token: string): string | undefined {
@@ -329,8 +338,9 @@ async function resolveOAuthToken(
   model: SubscriptionModel,
   signal: AbortSignal,
 ): Promise<string | undefined> {
-  if (!modelRegistry.isUsingOAuth(model)) return undefined;
-  const auth = await abortable(modelRegistry.getApiKeyAndHeaders(model), signal);
+  const authModel = isClaudeBridge(model) ? modelRegistry.getAll?.().find(isCanonicalAnthropic) : model;
+  if (!authModel || !modelRegistry.isUsingOAuth(authModel)) return undefined;
+  const auth = await abortable(modelRegistry.getApiKeyAndHeaders(authModel), signal);
   return auth.ok && typeof auth.apiKey === "string" && auth.apiKey.length > 0
     ? auth.apiKey
     : undefined;
@@ -426,7 +436,7 @@ export function createCodexUsageProvider(options: ProviderAdapterOptions): Subsc
 }
 
 export function createAnthropicUsageProvider(options: ProviderAdapterOptions): SubscriptionUsageProvider {
-  return providerRequest(options, isCanonicalAnthropic, fetchAnthropicUsage);
+  return providerRequest(options, supportsAnthropic, fetchAnthropicUsage);
 }
 
 export function createDefaultSubscriptionProviders(

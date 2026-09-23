@@ -4,7 +4,7 @@ Harness-owned optional extension package for Pi 0.87.1. It adds subscription usa
 
 ## Behavior
 
-- Selects **Codex** only for canonical direct `openai-codex` models and **Claude** only for canonical direct `anthropic` models.
+- Selects **Codex** only for canonical direct `openai-codex` models and **Claude** for canonical direct `anthropic` models and `claude-bridge` models from `pi-claude-bridge`.
 - Requires Pi to report OAuth for the active model. API-key auth, unsupported models, and custom/proxy base URLs return `N/D` without an HTTP request.
 - Renders provider-reported windows explicitly as used quota:
 
@@ -32,6 +32,8 @@ await ctx.modelRegistry.getApiKeyAndHeaders(model)
 ```
 
 `getApiKeyAndHeaders()` may refresh an OAuth token near expiry and persist the rotated credential through Pi's own credential store. The extension does not read `auth.json`, inspect session files, or reimplement refresh/persistence. Pi's method has no abort-signal parameter; the extension bounds its own wait and prevents any later auth result from starting HTTP after abort, while Pi's already-started resolver may still finish and persist its rotation.
+
+`claude-bridge` models have no credentials of their own (`apiKey: "not-used"`); the bridge runs Claude Code on the same Claude subscription. For them the adapter calls the same two methods on the first canonical `anthropic` model returned by `ctx.modelRegistry.getAll()`, never on the bridge model. If Pi has no Anthropic OAuth login (`/login anthropic`), the footer shows `Claude · N/D` without an HTTP request. This assumes Pi and Claude Code are signed in to the same Claude account.
 
 Only the resolved `apiKey` access token is used. Registry-provided headers and base URLs are never forwarded. Credentials are sent solely to fixed first-party endpoints after canonical provider/API/base-URL checks:
 

@@ -57,6 +57,7 @@ function providerFor(providerId, fetchUsage) {
 test("targets only the active Codex subscription or direct Anthropic provider", () => {
   assert.deepEqual(resolveSubscriptionTarget(codex), { key: "openai-codex", label: "Codex" });
   assert.deepEqual(resolveSubscriptionTarget(claude), { key: "anthropic", label: "Claude" });
+  assert.deepEqual(resolveSubscriptionTarget({ provider: "claude-bridge", id: "claude-opus-5-5", api: "claude-bridge" }), { key: "anthropic", label: "Claude" });
   assert.equal(resolveSubscriptionTarget({ provider: "openrouter", id: "anthropic/claude", api: "openai-completions" }), undefined);
   assert.equal(resolveSubscriptionTarget(undefined), undefined);
 });
