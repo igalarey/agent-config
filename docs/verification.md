@@ -1,12 +1,31 @@
 # Verification: tintinweb base
 
 This file supersedes the historical Windows/RTK/interactive-subagents evidence in Git history.
-Target: Linux, Node 22.23.2, Pi 0.87.1. Latest activation: 2026-09-19.
+Target: Linux, Node 22.23.2, Pi 0.87.1. Latest activation: 2026-09-23.
 
-## Consolidated harness inventory (current)
+## Pi 0.87.1, gpt-6 and Claude bridge (current)
 
-`h-d80df52749b2-s-e955e29c51b7-m-c78b5148b110` is verified, sealed and active.
-It retains Carbon, the above-editor agents panel, the filtered footer and the three
+`h-e349fa4d7425-s-e955e29c51b7-m-c78b5148b110` is verified, sealed and active. It replaces
+`h-1de789cdd3c2-…`, an out-of-band copy of the 0.85.1 release relabelled as 0.87.1 whose id
+did not match its commits and whose runtime checks never ran. Pi 0.87 passes tool
+declarations in transcript system messages; the faux runtime provider now reads them.
+
+Verification passed on 2026-09-23:
+
+- 136 root regression tests, with three optional tests skipped; six local package groups.
+- All candidate package suites and all five official-runtime checks against Pi 0.87.1.
+- Real-home activation, then 150 installed compatibility checks and a successful doctor run.
+- Repeat bootstrap with zero planned configuration changes.
+
+Installer state was repaired before activation (backup in
+`~/.agent-config/backups/manual-20260923-state-repair`): the previous release was set to the
+genuine `h-b033e405918c-…`, and tracking of agents, subagents, tasks and supervisor files was
+restored from the pre-0.87.1 rollback state. Inactive releases were then deleted.
+
+## Consolidated harness inventory (2026-09-19)
+
+`h-d80df52749b2-s-e955e29c51b7-m-c78b5148b110` was verified, sealed and active.
+It retained Carbon, the above-editor agents panel, the filtered footer and the three
 native npm packages. Bigpowers remains absent.
 
 The repository now contains the 14 curated skills, their assets, MIT license and
