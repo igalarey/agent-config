@@ -3,9 +3,17 @@
 This file supersedes the historical Windows/RTK/interactive-subagents evidence in Git history.
 Target: Linux, Node 22.23.2, Pi 0.87.1. Latest activation: 2026-09-23.
 
-## Pi 0.87.1, gpt-6 and Claude bridge (current)
+## Claude usage for bridge models (current)
 
-`h-e349fa4d7425-s-e955e29c51b7-m-c78b5148b110` is verified, sealed and active. It replaces
+`h-ac39a7be47d0-s-e955e29c51b7-m-c78b5148b110` is verified, sealed and active. The usage footer
+now shows Claude quota for `claude-bridge` models through Pi's Anthropic OAuth. A live
+read-only request returned the 5h and 7d windows. The candidate passed all package suites
+and the five official-runtime checks, then 150 installed compatibility checks and doctor.
+The previous release was deleted.
+
+## Pi 0.87.1, gpt-6 and Claude bridge (2026-09-23)
+
+`h-e349fa4d7425-s-e955e29c51b7-m-c78b5148b110` was verified, sealed and activated. It replaced
 `h-1de789cdd3c2-…`, an out-of-band copy of the 0.85.1 release relabelled as 0.87.1 whose id
 did not match its commits and whose runtime checks never ran. Pi 0.87 passes tool
 declarations in transcript system messages; the faux runtime provider now reads them.
