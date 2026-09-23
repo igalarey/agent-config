@@ -57,7 +57,7 @@ pi -e ~/projects/pi-supervisor/src/index.ts
 /supervise Refactor the auth module to use dependency injection and add 90% test coverage
 
 /supervise model
-# Opens pi's model selector — pick any model with a configured API key
+# Opens a searchable list of models with configured auth
 
 /supervise sensitivity low
 # Only steer when seriously off track
@@ -229,7 +229,7 @@ src/
   workspace-config.ts   # .pi/supervisor-config.json read/write for model persistence
   ui/
     status-widget.ts    # 🎯 footer badge + one-line widget with live thinking stream
-    model-picker.ts     # Interactive model picker using pi's ModelSelectorComponent
+    model-picker.ts     # Interactive model picker (searchable list in model-list.ts)
     settings-panel.ts   # Interactive settings overlay using pi-tui's SettingsList
 ```
 

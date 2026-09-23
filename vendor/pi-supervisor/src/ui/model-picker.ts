@@ -1,12 +1,10 @@
 /**
- * model-picker — wraps pi's internal ModelSelectorComponent for use in
- * the /supervise model command. Shows the same model selector the user
- * sees when pressing Ctrl+P in pi, with search and API-key availability.
+ * model-picker — searchable model list for the /supervise model command.
  */
 
 import type { Model } from "@earendil-works/pi-ai";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { ModelSelectorComponent, SettingsManager } from "@earendil-works/pi-coding-agent";
+import { createModelList } from "./model-list.js";
 
 /**
  * Open the interactive model picker.
@@ -23,16 +21,10 @@ export async function pickModel(
       ? ctx.modelRegistry.find(currentProvider, currentModelId)
       : undefined;
 
-  // Minimal in-memory settings — we only need the selector, not persistence
-  const settingsManager = SettingsManager.inMemory();
-
   return ctx.ui.custom<Model<any> | null>((tui, _theme, _kb, done) => {
-    const component = new ModelSelectorComponent(
-      tui,
+    const component = createModelList(
+      ctx,
       currentModel,
-      settingsManager,
-      ctx.modelRegistry,
-      [], // no scoped-model cycling — we want the full model list
       (model) => done(model),
       () => done(null)
     );
@@ -44,7 +36,7 @@ export async function pickModel(
       render: (width) => component.render(width),
       invalidate: () => component.invalidate(),
       handleInput: (data) => {
-        component.handleInput(data);
+        component.handleInput?.(data);
         tui.requestRender();
       },
     };

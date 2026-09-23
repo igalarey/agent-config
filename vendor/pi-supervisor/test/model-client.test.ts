@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseDecision } from "../src/model-client.js";
+import { callModel, parseDecision } from "../src/model-client.js";
 
 describe("parseDecision — happy paths", () => {
   it("parses bare JSON with all four fields", () => {
@@ -98,5 +98,47 @@ describe("parseDecision — failure modes return safeContinue (never crash)", ()
 
   it("returns continue/0 on completely empty input", () => {
     expect(parseDecision("").action).toBe("continue");
+  });
+});
+
+describe("callModel — host registry streaming", () => {
+  const model = { provider: "claude-bridge", id: "claude-opus-5-5" };
+
+  function ctxWith(events: unknown[], calls: unknown[][] = []) {
+    return {
+      modelRegistry: {
+        find: (provider: string, id: string) => (provider === model.provider && id === model.id ? model : undefined),
+        streamSimple: (...args: unknown[]) => {
+          calls.push(args);
+          return (async function* () {
+            yield* events;
+          })();
+        },
+      },
+    } as any;
+  }
+
+  it("accumulates text deltas and passes system prompt, user prompt and signal", async () => {
+    const calls: unknown[][] = [];
+    const deltas: string[] = [];
+    const signal = new AbortController().signal;
+    const text = await callModel(
+      ctxWith([{ type: "start" }, { type: "text_delta", delta: "{\"action\":" }, { type: "text_delta", delta: "\"done\"}" }, { type: "done" }], calls),
+      model.provider, model.id, "system", "user", signal, (acc) => deltas.push(acc),
+    );
+    expect(text).toBe('{"action":"done"}');
+    expect(deltas).toEqual(['{"action":', '{"action":"done"}']);
+    const [calledModel, context, options] = calls[0] as [unknown, any, any];
+    expect(calledModel).toBe(model);
+    expect(context.systemPrompt).toBe("system");
+    expect(context.messages).toMatchObject([{ role: "user", content: "user" }]);
+    expect(options.signal).toBe(signal);
+  });
+
+  it("returns null for an error event, a thrown stream or an unknown model", async () => {
+    expect(await callModel(ctxWith([{ type: "text_delta", delta: "x" }, { type: "error" }]), model.provider, model.id, "s", "u")).toBeNull();
+    const throwing = { modelRegistry: { find: () => model, streamSimple: () => { throw new Error("no auth"); } } } as any;
+    expect(await callModel(throwing, model.provider, model.id, "s", "u")).toBeNull();
+    expect(await callModel(ctxWith([]), "anthropic", "missing", "s", "u")).toBeNull();
   });
 });

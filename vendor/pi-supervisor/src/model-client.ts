@@ -6,16 +6,10 @@
  */
 
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import {
-  createAgentSession,
-  DefaultResourceLoader,
-  getAgentDir,
-  SessionManager,
-} from "@earendil-works/pi-coding-agent";
 import type { SteeringDecision } from "./types.js";
 
 /**
- * Run a one-shot LLM call using pi's internal agent session.
+ * Run a one-shot LLM call through the host model registry.
  * Returns the raw response text, or null on failure.
  */
 export async function callModel(
@@ -30,55 +24,25 @@ export async function callModel(
   const model = ctx.modelRegistry.find(provider, modelId);
   if (!model) return null;
 
-  // pi-coding-agent 0.72.x requires cwd + agentDir on the loader and
-  // renamed `systemPromptOverride: () => string` → `systemPrompt: string`.
-  const loader = new DefaultResourceLoader({
-    cwd: ctx.cwd,
-    agentDir: getAgentDir(),
-    noExtensions: true,
-    noSkills: true,
-    noPromptTemplates: true,
-    noThemes: true,
-    systemPrompt,
-  });
-  await loader.reload();
-
-  let session: Awaited<ReturnType<typeof createAgentSession>>["session"];
-  try {
-    const result = await createAgentSession({
-      sessionManager: SessionManager.inMemory(),
-      modelRegistry: ctx.modelRegistry,
-      model,
-      tools: [],
-      resourceLoader: loader,
-    });
-    session = result.session;
-  } catch {
-    return null;
-  }
-
-  const onAbort = () => session.abort();
-  signal?.addEventListener("abort", onAbort, { once: true });
-
+  // Pi 0.87 removed createAgentSession({ modelRegistry }); a separate session would use a fresh
+  // runtime without extension providers. The registry streams with the host's providers and auth.
   let responseText = "";
-  const unsubscribe = session.subscribe((event) => {
-    if (
-      event.type === "message_update" &&
-      event.assistantMessageEvent.type === "text_delta"
-    ) {
-      responseText += event.assistantMessageEvent.delta;
-      onDelta?.(responseText);
-    }
-  });
-
   try {
-    await session.prompt(userPrompt);
+    const stream = ctx.modelRegistry.streamSimple(
+      model,
+      { systemPrompt, messages: [{ role: "user", content: userPrompt, timestamp: Date.now() }] },
+      { signal },
+    );
+    for await (const event of stream) {
+      if (event.type === "text_delta") {
+        responseText += event.delta;
+        onDelta?.(responseText);
+      } else if (event.type === "error") {
+        return null;
+      }
+    }
   } catch {
     return null;
-  } finally {
-    unsubscribe();
-    signal?.removeEventListener("abort", onAbort);
-    session.dispose();
   }
 
   return responseText;

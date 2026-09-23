@@ -19,11 +19,19 @@ suggestions to explicit user requests; this is not a byte-identical upstream sna
 from [tintinweb/pi-tasks](https://github.com/tintinweb/pi-tasks) and
 [tintinweb/pi-supervisor](https://github.com/tintinweb/pi-supervisor). Exact revisions
 are recorded in `manifests/tintinweb.json`. Their original LICENSE files are retained.
-Source, tests and user documentation are unchanged; media, GitHub workflows and
-contributor-only instructions are excluded from the snapshots. One local change: the
-supervisor's `package.json` declares the Pi packages as exact 0.87.1 development
-dependencies, and its lock is regenerated. Without this, npm installs its unpinned Pi
-peer dependency, an outdated Pi copy with known vulnerabilities, into the runtime package.
+Media, GitHub workflows and contributor-only instructions are excluded from the snapshots.
+`vendor/pi-tasks/` is otherwise unchanged. `vendor/pi-supervisor/` has local Pi 0.87.1
+compatibility changes:
+
+- `package.json` declares the Pi packages as exact 0.87.1 development dependencies, and
+  the lock is regenerated. Without this, npm installs the unpinned Pi peer dependency, an
+  outdated Pi copy with known vulnerabilities, into the runtime package.
+- `src/model-client.ts` streams through `ctx.modelRegistry.streamSimple()`. Pi 0.87 removed
+  the `modelRegistry` option of `createAgentSession()`.
+- `src/ui/model-list.ts` replaces `ModelSelectorComponent` in the model picker and settings
+  panel. In Pi 0.87 that component needs a `ModelRuntime`, which extensions cannot reach.
+- `test/model-client.test.ts` adds tests for the streaming call.
+- `README.md` describes the new picker.
 
 [tintinweb/pi-subagents](https://github.com/tintinweb/pi-subagents) is fetched at the
 recipe's exact commit. Its MIT license is included in each prepared release.

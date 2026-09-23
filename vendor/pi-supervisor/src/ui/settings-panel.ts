@@ -8,9 +8,9 @@
  */
 
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { ModelSelectorComponent, SettingsManager } from "@earendil-works/pi-coding-agent";
 import { type SettingItem, SettingsList, type SettingsListTheme } from "@earendil-works/pi-tui";
 import type { Sensitivity, SupervisorState } from "../types.js";
+import { createModelList } from "./model-list.js";
 import { isWidgetVisible } from "./status-widget.js";
 
 const SENSITIVITIES: Sensitivity[] = ["low", "medium", "high"];
@@ -52,13 +52,9 @@ export async function openSettings(
         ? [currentValue.split("/")[0], currentValue.split("/").slice(1).join("/")]
         : [currentProvider, currentValue];
       const currentModel = ctx.modelRegistry.find(prov, mid);
-      const settingsManager = SettingsManager.inMemory();
-      const component = new ModelSelectorComponent(
-        tui,
+      const component = createModelList(
+        ctx,
         currentModel,
-        settingsManager,
-        ctx.modelRegistry,
-        [],
         (model) => {
           result.model = { provider: model.provider, modelId: model.id };
           submenuDone(`${model.provider}/${model.id}`);
