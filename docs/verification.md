@@ -3,9 +3,20 @@
 This file supersedes the historical Windows/RTK/interactive-subagents evidence in Git history.
 Target: Linux, Node 22.23.2, Pi 0.87.1. Latest activation: 2026-09-23.
 
-## Supervisor Pi 0.87 compatibility and memory LF (current)
+## Tasks widget auto-clear and order (current)
 
-`h-5bf5b25acace-s-e955e29c51b7-m-bc1eba141a47` is verified, sealed and active.
+`h-4ee9a22a674b-s-e955e29c51b7-m-bc1eba141a47` is verified, sealed and active.
+
+- Completed tasks carried over by a restart or resume now start their auto-clear
+  countdown at the next turn; before, they stayed until the next `TaskCreate`.
+- `config/tasks-config.json` clears each completed task four turns after completion
+  (`on_task_complete`) and lists in-progress, then open, then completed tasks (`active`).
+- Tasks: typecheck and 408 tests; 150 installed compatibility checks and doctor passed;
+  repeat bootstrap planned 0 changes. The previous release was deleted.
+
+## Supervisor Pi 0.87 compatibility and memory LF (2026-09-23)
+
+`h-5bf5b25acace-s-e955e29c51b7-m-bc1eba141a47` was verified, sealed and activated.
 
 - The supervisor declares Pi as an exact 0.87.1 development dependency. Its runtime
   `node_modules` dropped from 255 MB, with a Pi 0.78 copy and five high advisories, to
