@@ -139,11 +139,14 @@ Astra remains the parent default. Profiles inherit instructions, not the parent'
 
 | Profile | Model / reasoning | Local tools | Turn default |
 | --- | --- | --- | --- |
-| Explore | Luna medium, priority requested | read, grep, find, ls | 20 |
-| general-purpose | Luna medium, priority requested | Above plus bash, edit, write | 30 |
-| Plan | Sol high | Read/search only | 30 |
-| deep-implementation | Sol high | Read/search plus bash, edit, write | 40 |
-| deep-review | Sol high | Read/search only | 30 |
+| Explore | `gpt-6-luna` medium, priority requested | read, grep, find, ls | 20 |
+| general-purpose | `gpt-6-luna` medium, priority requested | Above plus bash, edit, write | 30 |
+| Plan | `gpt-6-sol` high | Read/search only | 30 |
+| deep-implementation | `gpt-6-sol` high | Read/search plus bash, edit, write | 40 |
+| deep-review | `gpt-6-sol` high | Read/search only | 30 |
+
+All profiles use the `openai-codex` provider. The parent default is `gpt-6-astra`.
+Read-only profiles cannot run `git diff`; include the diff in a review prompt.
 
 Luna profiles load only `agents/luna-fast.mjs`, using an explicit home-relative path.
 It registers no tools and requests `service_tier: priority` through Pi's provider-payload
@@ -160,6 +163,12 @@ access: these tool scopes and prompt instructions are not an OS sandbox.
 Nesting is disabled globally (`maxSubagentDepth: 1`). The background pool is limited to
 six agents and the foreground pool to two, independently. Model, thinking and turn
 values are defaults that upstream invocation options can override, not hard spending caps.
+The agents widget shows foreground and background agents with their model and estimated
+cost (`widgetMode: all`, `showModel`, `showCost`); `fleetView` is off.
+
+`config/subagents.json` is installed as the global `~/.pi/agent/subagents.json`.
+A `.pi/subagents.json` file in a project, including `~/.pi/subagents.json` when Pi
+starts in the home directory, applies only to that project.
 
 Upstream worktree automation is disabled because it creates preservation commits with
 `--no-verify`. Use ordinary Git worktrees with hooks instead. Background concurrency,
@@ -192,8 +201,11 @@ Only the user can stop active supervision through `/supervise stop`.
   and `inheritEnv: false`.
 - Subscription usage uses Pi's OAuth resolver and fixed provider endpoints. Refresh runs
   only in interactive TUI, not RPC. Offline tests do not certify authenticated quota or clicks.
+  Codex models show ChatGPT quota. Direct `anthropic` and `claude-bridge` models show
+  Claude quota. Bridge models use Pi's Anthropic OAuth, so they need `/login anthropic`
+  in Pi with the same Claude account that Claude Code uses.
 - Observational memory retains the existing compaction configuration. Its observer and
-  consolidator make model calls. Sessions and generated memories remain private.
+  consolidator make model calls with `gpt-6-luna`, high reasoning. Sessions and generated memories remain private.
 - PDF/YouTube skills are retained for local page rendering and actual captions; they need
   separately installed Python/PyMuPDF/yt-dlp. `analyze-sessions` is our original local
   implementation, not a third-party skill, and only reads sessions on explicit request.
@@ -219,8 +231,9 @@ TaskExecute/result delivery, child extension scope, read-only scope and in-proce
 execution. It starts supervisor with a scripted offline provider, not a real account.
 The same official loader checks native MCP/web tools, the four project-owned prompt
 templates, Ollama command registration, absence of Bigpowers resources, and the disabled
-MCP footer. Ollama discovery uses a blocked port in these checks; no inference is tested. Native npm packages are installed by
-`pi install` in review, then reproduced with `npm ci --legacy-peer-deps --ignore-scripts`.
+MCP footer. Ollama discovery uses a blocked port in these checks; no inference is tested.
+Native npm packages have exact versions in `native/package.json`. The release reproduces
+them from `native/package-lock.json` with `npm ci --ignore-scripts --omit=dev --legacy-peer-deps`.
 The verified npm prefix is copied intact to `~/.pi/agent/npm`; settings retain `npm:`
 entries. Bootstrap backs up an unchanged managed prefix on update and refuses to overwrite
 unmanaged changes. Add default packages through the source and prepare a new release:
@@ -249,9 +262,8 @@ from exact commits, then `deps`, `verify`, `plan` and `apply` with `--release <i
 Commit source changes before preparing, update the recipe after verification, and publish
 only reviewed commits. Do not update Pi or floating package branches blindly.
 
-The published history starts from the current harness baseline. The next commit pins its
-verified release; both commits are required because the recipe references the baseline's
-exact hash. Earlier Git history is retained in a private external recovery bundle, not
+The published history starts from the current harness baseline. Each release pin commit
+follows the harness commit that its recipe references by exact hash, so both are required. Earlier Git history is retained in a private external recovery bundle, not
 in published `main`. Existing clones must not merge the previous history back into this
 branch; use a fresh clone and preserve any local work separately. Historical commit links
 in migration notes refer to that archive.
