@@ -3,9 +3,24 @@
 This file supersedes the historical Windows/RTK/interactive-subagents evidence in Git history.
 Target: Linux, Node 22.23.2, Pi 0.87.1. Latest activation: 2026-09-23.
 
-## Claude usage for bridge models (current)
+## Supervisor Pi 0.87 compatibility and memory LF (current)
 
-`h-ac39a7be47d0-s-e955e29c51b7-m-c78b5148b110` is verified, sealed and active. The usage footer
+`h-5bf5b25acace-s-e955e29c51b7-m-bc1eba141a47` is verified, sealed and active.
+
+- The supervisor declares Pi as an exact 0.87.1 development dependency. Its runtime
+  `node_modules` dropped from 255 MB, with a Pi 0.78 copy and five high advisories, to
+  `typebox` only; `npm audit --omit=dev` reports 0 vulnerabilities.
+- Type-checking against Pi 0.87.1 exposed two API breaks, now fixed: model calls use
+  `ctx.modelRegistry.streamSimple()`, and the model picker uses a public searchable list.
+- Memory is pinned to `bc1eba1`, whose lock already contains the two optional peers, so
+  `manifests/memory-lock-additions.json` was removed.
+- All package suites (supervisor: typecheck and 59 tests), five official-runtime checks,
+  150 installed compatibility checks and doctor passed; repeat bootstrap planned 0 changes.
+  The previous release was deleted.
+
+## Claude usage for bridge models (2026-09-23)
+
+`h-ac39a7be47d0-s-e955e29c51b7-m-c78b5148b110` was verified, sealed and activated. The usage footer
 now shows Claude quota for `claude-bridge` models through Pi's Anthropic OAuth. A live
 read-only request returned the 5h and 7d windows. The candidate passed all package suites
 and the five official-runtime checks, then 150 installed compatibility checks and doctor.
