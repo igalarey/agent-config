@@ -2,5 +2,9 @@
   "worktreeIsolation": false,
   "maxSubagentDepth": 1,
   "maxConcurrent": 6,
-  "maxConcurrentForeground": 2
+  "maxConcurrentForeground": 2,
+  "fleetView": false,
+  "widgetMode": "all",
+  "showCost": true,
+  "showModel": true
 }

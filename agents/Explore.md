@@ -1,7 +1,7 @@
 ---
 name: Explore
 description: Bounded read-only code exploration with Luna medium and priority service requested.
-model: openai-codex/gpt-5.6-luna
+model: openai-codex/gpt-6-luna
 thinking: medium
 tools: read, grep, find, ls
 extensions: ["~/.pi/agent/agents/luna-fast.mjs"]

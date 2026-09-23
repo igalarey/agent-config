@@ -584,7 +584,7 @@ function fauxIntegrationProvider(pi) {
             throw new Error('OFFLINE_CAPTURE_ONLY');
           },
         }).result();
-        const luna = model.id === 'gpt-5.6-luna';
+        const luna = model.id === 'gpt-6-luna';
         if (captured?.reasoning?.effort !== (luna ? 'medium' : 'high')
           || captured.service_tier !== (luna ? 'priority' : undefined)) {
           throw new Error(`Subagent model policy was not serialized for ${model.id}`);
@@ -627,7 +627,7 @@ function fauxIntegrationProvider(pi) {
       } else {
         const valid = ['read', 'grep', 'find', 'ls'].every(name => names.has(name))
           && [...names].every(name => ['read', 'grep', 'find', 'ls'].includes(name));
-        content = text(`${valid ? 'READONLY_SCOPE_OK' : 'READONLY_SCOPE_FAILED'} pid=${process.pid} ${model.id === 'gpt-5.6-sol' ? 'SOL_HIGH_OK' : ''}`);
+        content = text(`${valid ? 'READONLY_SCOPE_OK' : 'READONLY_SCOPE_FAILED'} pid=${process.pid} ${model.id === 'gpt-6-sol' ? 'SOL_HIGH_OK' : ''}`);
       }
       const message = { role: 'assistant', content, api: model.api, provider: model.provider, model: model.id,
         stopReason: content[0].type === 'toolCall' ? 'toolUse' : 'stop', timestamp: Date.now(),
@@ -640,7 +640,7 @@ function fauxIntegrationProvider(pi) {
     return stream;
   };
   if (policyProfiles) pi.registerProvider('openai-codex', { baseUrl: 'https://invalid.example', apiKey: 'offline-fixture', api: 'openai-codex-responses',
-    models: ['gpt-5.6-luna', 'gpt-5.6-sol'].map(id => ({ id, name: id, reasoning: true, thinkingLevelMap: { medium: 'medium', high: 'high' },
+    models: ['gpt-6-luna', 'gpt-6-sol'].map(id => ({ id, name: id, reasoning: true, thinkingLevelMap: { medium: 'medium', high: 'high' },
       input: ['text'], contextWindow: 200000, maxTokens: 1024, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } })), streamSimple });
   pi.registerProvider('agent-config-fixture', { baseUrl: 'https://invalid.example', apiKey: 'offline-fixture', api: 'agent-config-fixture',
     models: [{ id: 'fixture', name: 'fixture', reasoning: false, input: ['text'], contextWindow: 200000, maxTokens: 1024,

@@ -1,6 +1,6 @@
 # pi-browser
 
-A small Chromium extension for Pi 0.85.1. The user's standing authorization enables bounded browsing of general public HTTP(S) sites for the main agent and explicitly allowlisted subagents. It does not require `/browser on` or per-domain approval.
+A small Chromium extension for Pi 0.87.1. The user's standing authorization enables bounded browsing of general public HTTP(S) sites for the main agent and explicitly allowlisted subagents. It does not require `/browser on` or per-domain approval.
 
 ## Automatic public access
 

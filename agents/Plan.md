@@ -1,7 +1,7 @@
 ---
 name: Plan
 description: Difficult implementation planning and risk analysis with Sol high; read-only.
-model: openai-codex/gpt-5.6-sol
+model: openai-codex/gpt-6-sol
 thinking: high
 tools: read, grep, find, ls
 extensions: false

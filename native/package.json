@@ -2,6 +2,7 @@
   "name": "pi-extensions",
   "private": true,
   "dependencies": {
+    "pi-claude-bridge": "0.8.0",
     "pi-mcp-adapter": "2.33.0",
     "pi-ollama": "0.1.7",
     "pi-web-access": "0.29.0"

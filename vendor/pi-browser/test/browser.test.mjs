@@ -82,7 +82,7 @@ function testExtension(executable, origins = ['http://localhost:3456']) {
   return createTestBrowserExtension({ executablePath: executable, origins, allowSensitiveActions: true });
 }
 
-test('Pi 0.85.1 loads six tools and /browser without eager browser or active-tool work', async t => {
+test('Pi 0.87.1 loads six tools and /browser without eager browser or active-tool work', async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-browser-load-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const loaded = await discoverAndLoadExtensions([path.join(root, 'index.ts')], directory, directory);

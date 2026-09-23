@@ -31,7 +31,7 @@ function fixture(t) {
   const releaseRoot = path.join(home, '.agent-config/releases', id);
   const skill = '---\nname: fixture-skill\ndescription: fixture\n---\n';
   put(releaseRoot, 'release.json', JSON.stringify({
-    schemaVersion: 2, id, piVersion: '0.85.1', sourceDigest: 'd'.repeat(64),
+    schemaVersion: 2, id, piVersion: '0.87.1', sourceDigest: 'd'.repeat(64),
     sources: {
       harness: { commit: 'a'.repeat(40) }, subagents: { commit: 'b'.repeat(40) }, memory: { commit: 'c'.repeat(40) },
     },
@@ -108,7 +108,7 @@ function fixture(t) {
   return { home, releaseRoot, inventory };
 }
 
-const fakePi = () => ({ status: 0, stdout: 'pi 0.85.1\n', stderr: '' });
+const fakePi = () => ({ status: 0, stdout: 'pi 0.87.1\n', stderr: '' });
 
 test('inventory is derived from the selected release and remains home-relative', t => {
   const { home, inventory } = fixture(t);
@@ -217,7 +217,7 @@ test('malformed state and settings fail without exposing their contents', t => {
 test('projected compatibility command supports --home and a sanitized Pi version process', t => {
   const { home } = fixture(t);
   const bin = path.join(home, 'bin');
-  put(home, 'bin/pi', '#!/bin/sh\n[ -z "$OPENAI_API_KEY" ] || exit 9\n[ "$PI_OFFLINE" = 1 ] || exit 8\nprintf "pi 0.85.1\\n"\n');
+  put(home, 'bin/pi', '#!/bin/sh\n[ -z "$OPENAI_API_KEY" ] || exit 9\n[ "$PI_OFFLINE" = 1 ] || exit 8\nprintf "pi 0.87.1\\n"\n');
   fs.chmodSync(path.join(bin, 'pi'), 0o700);
   const command = spawnSync(process.execPath, [path.join(home, '.pi/agent/scripts/verify-compatibility.mjs'), '--home', home], {
     encoding: 'utf8', shell: false, env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, OPENAI_API_KEY: 'private' },

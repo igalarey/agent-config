@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "piVersion": "0.85.1",
+  "piVersion": "0.87.1",
   "packages": [
     {
       "name": "@tintinweb/pi-subagents",

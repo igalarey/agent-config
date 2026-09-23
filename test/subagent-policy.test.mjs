@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import priority from '../agents/luna-fast.mjs';
 
-const model = { provider: 'openai-codex', api: 'openai-codex-responses', id: 'gpt-5.6-luna' };
+const model = { provider: 'openai-codex', api: 'openai-codex-responses', id: 'gpt-6-luna' };
 function handler() {
   let hook;
   priority({ on(event, fn) { assert.equal(event, 'before_provider_request'); hook = fn; } });
@@ -18,7 +18,7 @@ test('Luna priority preserves reasoning and request content without mutating inp
 });
 
 test('priority does not affect Astra, Sol, other providers or unknown models', () => {
-  for (const other of [undefined, { ...model, id: 'gpt-6-astra' }, { ...model, id: 'gpt-5.6-sol' }, { ...model, provider: 'other' }, { ...model, api: 'openai-responses' }]) {
+  for (const other of [undefined, { ...model, id: 'gpt-6-astra' }, { ...model, id: 'gpt-6-sol' }, { ...model, provider: 'other' }, { ...model, api: 'openai-responses' }]) {
     assert.equal(handler()({ payload: { input: [] } }, { model: other }), undefined);
   }
 });
@@ -29,7 +29,7 @@ test('profiles pin models with explicit local tools and bounded turns', () => {
     ['Plan', 'sol', 'high', false], ['deep-implementation', 'sol', 'high', true], ['deep-review', 'sol', 'high', false],
   ]) {
     const text = fs.readFileSync(new URL(`../agents/${name}.md`, import.meta.url), 'utf8');
-    assert.ok(text.includes(`model: openai-codex/gpt-5.6-${family}\n`), name);
+    assert.ok(text.includes(`model: openai-codex/gpt-6-${family}\n`), name);
     assert.ok(text.includes(`thinking: ${thinking}\n`), name);
     assert.ok(text.includes(`tools: ${writable ? 'read, grep, find, ls, bash, edit, write' : 'read, grep, find, ls'}\n`), name);
     assert.match(text, /max_turns: [1-9]\d?\n/);

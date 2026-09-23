@@ -1,7 +1,7 @@
 ---
 name: general-purpose
 description: Bounded local implementation with Luna medium and priority service requested. Use deep-implementation for difficult work.
-model: openai-codex/gpt-5.6-luna
+model: openai-codex/gpt-6-luna
 thinking: medium
 tools: read, grep, find, ls, bash, edit, write
 extensions: ["~/.pi/agent/agents/luna-fast.mjs"]

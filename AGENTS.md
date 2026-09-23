@@ -1,10 +1,11 @@
 # agent-config
 
-Portable Pi configuration. Node 22.23.2, Pi 0.85.1, dependency-free ESM installer scripts.
+Portable Pi configuration. Node 22.23.2, Pi 0.87.1, dependency-free ESM installer scripts.
 
 - New base: tintinweb pi-subagents, pi-tasks, pi-supervisor; observational-memory;
   local questions, browser and subscription usage. Native npm: pi-mcp-adapter 2.33.0,
-  pi-web-access 0.29.0 and pi-ollama 0.1.7. Ten packages: seven base plus three native.
+  pi-web-access 0.29.0, pi-ollama 0.1.7 and pi-claude-bridge 0.8.0. Eleven packages:
+  seven base plus four native.
 - `manifests/active-release.json` pins exact harness/subagents/memory commits. Tasks and
   supervisor are vendored source snapshots; revisions/licenses in `manifests/tintinweb.json`
   and THIRD_PARTY_NOTICES.md. Do not patch upstream source casually. The public memory
@@ -22,7 +23,7 @@ Portable Pi configuration. Node 22.23.2, Pi 0.85.1, dependency-free ESM installe
   Global AGENTS.md is a minimal shared-policy adapter; do not hide foreign global context.
 - Activation is conflict-aware and backed up, not a multi-file transaction. Never mutate
   sealed releases; prepare another candidate. Source, dependencies, runner and runtime
-  checksums are validated. Keep old releases untouched for historical recovery.
+  checksums are validated. Never modify a release; inactive releases may be deleted.
 - `npm test`: offline root regressions in temporary homes. `npm run deps -- --apply` prepares
   five local packages with npm ci --ignore-scripts. `npm run verify`: six local groups,
   not the full release. Full candidate: fourteen base package suites and five runtime checks.
@@ -55,6 +56,7 @@ Portable Pi configuration. Node 22.23.2, Pi 0.85.1, dependency-free ESM installe
   Tasks use session-global storage; auto-cascade is off. Supervisor steering is advisory and
   cannot authorize destructive/remote operations for the user.
 - Native packages use config/pi.settings.json npm entries and native/package*.json locks.
+  Add them with `npm run add-native`, never with `pi install`; then `npm run pin-recipe`.
   Dependencies use --legacy-peer-deps like Pi, plus --ignore-scripts. Their full prefix is
   included in the release runtime digest and copied intact to ~/.pi/agent/npm on activation.
   Unexpected prefix changes cause refusal, never overwrite. Runtime smoke verifies native

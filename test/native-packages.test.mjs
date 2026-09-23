@@ -17,13 +17,20 @@ function put(dir, relative, content) {
   fs.writeFileSync(target, content);
 }
 
-test('native defaults pin MCP, web access and Ollama without Bigpowers', () => {
+test('native defaults are exact npm pins that match the lock, without Bigpowers', () => {
   const defaults = readJSON(path.join(root, 'config/pi.settings.json')).packages;
-  assert.deepEqual(defaults, ['npm:pi-mcp-adapter@2.33.0', 'npm:pi-web-access@0.29.0', 'npm:pi-ollama@0.1.7']);
+  for (const required of ['npm:pi-mcp-adapter@', 'npm:pi-web-access@', 'npm:pi-ollama@']) {
+    assert.ok(defaults.some(entry => entry.startsWith(required)), required);
+  }
+  assert.ok(!defaults.some(entry => entry.includes('bigpowers')));
   const lock = readJSON(path.join(root, 'native/package-lock.json'));
+  const manifest = readJSON(path.join(root, 'native/package.json'));
+  assert.equal(Object.keys(manifest.dependencies).length, defaults.length);
   for (const entry of defaults) {
     const spec = typeof entry === 'string' ? entry : entry.source;
     const at = spec.lastIndexOf('@'), name = spec.slice(4, at), version = spec.slice(at + 1);
+    assert.match(version, /^\d+\.\d+\.\d+$/);
+    assert.equal(manifest.dependencies[name], version);
     assert.equal(lock.packages[`node_modules/${name}`].version, version);
     assert.equal(lock.packages[''].dependencies[name], version);
   }

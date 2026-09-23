@@ -10,7 +10,7 @@ const json = name => JSON.parse(read(name));
 test('new upstream sources are exact reviewed Git commits, not floating branches', () => {
   const manifest = json('manifests/tintinweb.json');
   assert.equal(manifest.schemaVersion, 1);
-  assert.equal(manifest.piVersion, '0.85.1');
+  assert.equal(manifest.piVersion, '0.87.1');
   assert.deepEqual(manifest.packages.map(p => p.name), [
     '@tintinweb/pi-subagents', '@tintinweb/pi-tasks', 'pi-supervisor',
   ]);

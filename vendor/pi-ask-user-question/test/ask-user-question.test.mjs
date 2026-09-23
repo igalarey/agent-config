@@ -32,7 +32,7 @@ function context({ inputs = [], selections = [], hasUI = true } = {}) {
   };
 }
 
-test('Pi 0.85.1 loads the tool and free-text answers are trimmed', async t => {
+test('Pi 0.87.1 loads the tool and free-text answers are trimmed', async t => {
   const tool = await definition(t);
   const result = await tool.execute('text', { question: 'Name?', kind: 'text' }, undefined, undefined,
     context({ inputs: ['  Ada  '] }));

@@ -11,12 +11,12 @@ const PREFIX = 'INSTRUCTION_LOADER_INSPECT ';
 const strictLoaderCheck = process.env.PI_RUN_INSTRUCTION_LOADER_TESTS === '1';
 let installedHost, unavailableHost;
 try {
-  installedHost = identifyInstalledPiHost('0.85.1');
+  installedHost = identifyInstalledPiHost('0.87.1');
 } catch (error) {
   unavailableHost = error instanceof Error ? error.message : String(error);
 }
 const loaderSkip = !installedHost && !strictLoaderCheck
-  ? `exact installed Pi 0.85.1 host unavailable (${unavailableHost}); set PI_RUN_INSTRUCTION_LOADER_TESTS=1 to require it`
+  ? `exact installed Pi 0.87.1 host unavailable (${unavailableHost}); set PI_RUN_INSTRUCTION_LOADER_TESTS=1 to require it`
   : false;
 
 function inspectRolePrompt({ host, env, agentDir, cwd, temp, roleAppend, label }) {
@@ -47,8 +47,8 @@ function inspectRolePrompt({ host, env, agentDir, cwd, temp, roleAppend, label }
   return JSON.parse(notice.message.slice(PREFIX.length));
 }
 
-test('official Pi 0.85.1 loader keeps the global AGENTS adapter for parent and explicit role/grandchild appends', { skip: loaderSkip }, t => {
-  assert.ok(installedHost, `strict instruction loader check requires exact installed Pi 0.85.1: ${unavailableHost}`);
+test('official Pi 0.87.1 loader keeps the global AGENTS adapter for parent and explicit role/grandchild appends', { skip: loaderSkip }, t => {
+  assert.ok(installedHost, `strict instruction loader check requires exact installed Pi 0.87.1: ${unavailableHost}`);
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-config-instruction-loader-'));
   t.after(() => fs.rmSync(work, { recursive: true, force: true }));
   const home = path.join(work, 'home');
@@ -62,7 +62,7 @@ test('official Pi 0.85.1 loader keeps the global AGENTS adapter for parent and e
   fs.writeFileSync(path.join(agentDir, 'APPEND_SYSTEM.md'), 'DISCOVERED_APPEND_SENTINEL\n');
 
   const env = runtimeEnvironment(process.env, { home, agentDir, cwd, temp });
-  const host = identifyInstalledPiHost('0.85.1', { env });
+  const host = identifyInstalledPiHost('0.87.1', { env });
   assert.equal(host.packageSha256, installedHost.packageSha256);
   const adapterPath = path.join(agentDir, 'AGENTS.md');
   const sharedPath = path.join(home, '.agents', 'SYSTEM.md').replaceAll('\\', '/');

@@ -1,6 +1,6 @@
 # pi-subscription-usage
 
-Harness-owned optional extension package for Pi 0.85.1. It adds subscription usage beside the cwd/git marker in a compact custom footer and registers `/subscription-refresh` as a data-only refresh fallback.
+Harness-owned optional extension package for Pi 0.87.1. It adds subscription usage beside the cwd/git marker in a compact custom footer and registers `/subscription-refresh` as a data-only refresh fallback.
 
 ## Behavior
 
@@ -24,7 +24,7 @@ Harness-owned optional extension package for Pi 0.85.1. It adds subscription usa
 
 The extension calls `setFooter()` only when `ctx.mode === "tui"`. Default provider objects, controller timers, OAuth resolution, and HTTP transport are created or started only when the real TUI invokes that footer factory. RPC has `hasUI === true`, but is excluded by the exact mode check; JSON and print modes are excluded as well.
 
-Adapters use only Pi 0.85.1's public `ModelRegistry` methods:
+Adapters use only Pi 0.87.1's public `ModelRegistry` methods:
 
 ```ts
 ctx.modelRegistry.isUsingOAuth(model)
@@ -42,7 +42,7 @@ Every operation has a 10-second deadline. HTTP uses `redirect: "manual"`, reject
 
 ### Codex adapter
 
-The access-token JWT is decoded using the same three-part payload approach as installed Pi 0.85.1. `ChatGPT-Account-ID` comes only from `https://api.openai.com/auth.chatgpt_account_id`. Requests send Bearer auth, account ID, and JSON accept headers; custom auth headers are ignored.
+The access-token JWT is decoded using the same three-part payload approach as installed Pi 0.87.1. `ChatGPT-Account-ID` comes only from `https://api.openai.com/auth.chatgpt_account_id`. Requests send Bearer auth, account ID, and JSON accept headers; custom auth headers are ignored.
 
 The parser accepts only `rate_limit.primary_window` and `secondary_window` entries with both finite `used_percent` and a recognized `limit_window_seconds` (`18000` → `5h`, `604800` → `7d`). It accepts `reset_at` Unix seconds or `reset_after_seconds`; missing reset is omitted. Missing duration never implies a window, missing percentage never implies zero, and credits are not quota percentages.
 

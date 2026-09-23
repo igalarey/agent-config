@@ -59,7 +59,7 @@ const theme = {
   bold: value => value,
 };
 
-test("Pi 0.85.1 loader registers the command without starting background work", async () => {
+test("Pi 0.87.1 loader registers the command without starting background work", async () => {
   const root = fileURLToPath(new URL("..", import.meta.url));
   const loaded = await discoverAndLoadExtensions([fileURLToPath(new URL("../index.ts", import.meta.url))], root, root);
   assert.deepEqual(loaded.errors, []);

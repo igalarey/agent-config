@@ -20,6 +20,7 @@ Do not register a second copy of the same package.
 | Project-owned prompt templates | `prompts/*.md`, installed as global Pi commands |
 | Codex/Claude subscription footer | `vendor/pi-subscription-usage` |
 | Native Ollama provider | `npm:pi-ollama@0.1.7` |
+| Claude provider bridge | `npm:pi-claude-bridge@0.8.0` |
 | Carbon UI and theme | `extensions/`, `themes/`; [configuration](docs/carbon-ui.md) |
 | Curated local skills | `pi-skills/`, copied from Bigpowers 2.88.6 with its MIT license |
 
@@ -34,7 +35,7 @@ the repository's defaults. Edit shared policy separately.
 
 ## Install
 
-Requirements: **Node 22.23.2**, npm, Git and **Pi 0.85.1** already installed.
+Requirements: **Node 22.23.2**, npm, Git and **Pi 0.87.1** already installed.
 The release seal binds exact Node, OS and architecture. This revision is verified on
 Linux; another platform must prepare and verify its own candidate. Bootstrap does not
 install Node/Pi, authenticate providers, or download Chrome, RTK or Python executables.
@@ -48,7 +49,7 @@ npm run doctor
 ```
 
 Preview writes nothing and performs no dependency installation. Apply fetches the two
-external sources at exact commits, prepares seven base packages and three native npm packages, runs offline verification,
+external sources at exact commits, prepares seven base packages and four native npm packages, runs offline verification,
 and activates only after success. Tasks and supervisor are reviewed source snapshots
 inside this repository; their revisions are in `manifests/tintinweb.json`.
 `manifests/active-release.json` pins the harness, subagents and memory commits.
@@ -222,7 +223,18 @@ MCP footer. Ollama discovery uses a blocked port in these checks; no inference i
 `pi install` in review, then reproduced with `npm ci --legacy-peer-deps --ignore-scripts`.
 The verified npm prefix is copied intact to `~/.pi/agent/npm`; settings retain `npm:`
 entries. Bootstrap backs up an unchanged managed prefix on update and refuses to overwrite
-unmanaged changes. Add default packages through the source and prepare a new release.
+unmanaged changes. Add default packages through the source and prepare a new release:
+
+```sh
+npm run add-native -- <package>[@exact-version]   # pin version, lock and settings entry
+npm test && git commit -am "feat(config): add <package>"
+npm run pin-recipe                                # recipe -> current harness commit
+git commit -am "chore(release): pin <package> release"
+npm run bootstrap -- --source-map sources.local.json --apply
+```
+
+Never install a native package with `pi install` directly: the unpinned registration and
+changed npm prefix make `verify-compatibility.mjs` fail and block later activations.
 See [verification evidence](docs/verification.md).
 
 For source development, an optional unversioned source map can override the cache:
@@ -244,7 +256,8 @@ in published `main`. Existing clones must not merge the previous history back in
 branch; use a fresh clone and preserve any local work separately. Historical commit links
 in migration notes refer to that archive.
 
-Old sealed releases remain untouched. This migration is not a promise of automatic reverse
+Sealed releases are never modified. Releases other than the active one may be deleted
+to reclaim disk space; recovery then requires rebuilding the old commit. This migration is not a promise of automatic reverse
 migration to the retired runtime; retain backups and the corresponding historical installer
 and Node/Pi versions when recovery to an older base is required.
 

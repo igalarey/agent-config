@@ -1,7 +1,7 @@
 # Verification: tintinweb base
 
 This file supersedes the historical Windows/RTK/interactive-subagents evidence in Git history.
-Target: Linux, Node 22.23.2, Pi 0.85.1. Latest activation: 2026-09-19.
+Target: Linux, Node 22.23.2, Pi 0.87.1. Latest activation: 2026-09-19.
 
 ## Consolidated harness inventory (current)
 

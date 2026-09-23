@@ -10,7 +10,7 @@ const enabled = process.env.PI_RUN_BROWSER_TESTS === '1';
 
 test('browser loads through official Pi RPC with automatic public tools active, sensitive tools gated, and no model calls (opt-in)', { skip: !enabled }, t => {
   const source = path.resolve(import.meta.dirname, '..', 'vendor/pi-browser');
-  const host = identifyPiHost('0.85.1', {
+  const host = identifyPiHost('0.87.1', {
     packageRoot: path.join(source, 'node_modules', '@earendil-works', 'pi-coding-agent'),
   });
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-config-browser-loader-'));

@@ -1158,7 +1158,7 @@ test('versioned bootstrap recipe pins the active release without local source pa
   assert.deepEqual(recipe, {
     schemaVersion: 1,
     release: `h-${recipe.sources.harness.slice(0, 12)}-s-e955e29c51b7-m-c78b5148b110`,
-    piVersion: '0.85.1',
+    piVersion: '0.87.1',
     runtime: { node: 'v22.23.2' },
     sources: {
       harness: recipe.sources.harness,

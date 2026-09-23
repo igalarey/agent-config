@@ -2,7 +2,8 @@
   "packages": [
     "npm:pi-mcp-adapter@2.33.0",
     "npm:pi-web-access@0.29.0",
-    "npm:pi-ollama@0.1.7"
+    "npm:pi-ollama@0.1.7",
+    "npm:pi-claude-bridge@0.8.0"
   ],
   "theme": "carbon-violet",
   "editorPaddingX": 2,
@@ -24,12 +25,12 @@
     "models": {
       "observer": {
         "provider": "openai-codex",
-        "id": "gpt-5.6-luna",
+        "id": "gpt-6-luna",
         "thinking": "high"
       },
       "consolidator": {
         "provider": "openai-codex",
-        "id": "gpt-5.6-luna",
+        "id": "gpt-6-luna",
         "thinking": "high"
       }
     }

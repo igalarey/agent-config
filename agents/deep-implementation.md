@@ -1,7 +1,7 @@
 ---
 name: deep-implementation
 description: Difficult local implementation, debugging and refactoring with Sol high.
-model: openai-codex/gpt-5.6-sol
+model: openai-codex/gpt-6-sol
 thinking: high
 tools: read, grep, find, ls, bash, edit, write
 extensions: false

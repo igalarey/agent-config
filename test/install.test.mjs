@@ -473,7 +473,7 @@ test('retired Orca skills are absent while find-skills remains independent', () 
 
 test('memory roles use the selected Codex Luna model and high reasoning', () => {
   const settings = readJSON(path.join(root, 'config/pi.settings.json'));
-  const expected = { provider: 'openai-codex', id: 'gpt-5.6-luna', thinking: 'high' };
+  const expected = { provider: 'openai-codex', id: 'gpt-6-luna', thinking: 'high' };
   assert.deepEqual(settings['observational-memory'].models.observer, expected);
   assert.deepEqual(settings['observational-memory'].models.consolidator, expected);
 });
@@ -481,20 +481,20 @@ test('memory roles use the selected Codex Luna model and high reasoning', () => 
 test('local manifest contains only harness-owned packages', () => {
   const manifest = readJSON(path.join(root, 'manifests/packages.json'));
   assert.equal(manifest.scope, 'local-harness');
-  assert.equal(manifest.piVersion, '0.85.1');
+  assert.equal(manifest.piVersion, '0.87.1');
   assert.deepEqual(manifest.packages.map(pkg => pkg.name), ['pi-ask-user-question', 'pi-browser', 'pi-subscription-usage', '@tintinweb/pi-tasks', 'pi-supervisor']);
   const usageMeta = readJSON(path.join(root, 'vendor/pi-subscription-usage/package.json'));
   for (const name of ['pi-ai', 'pi-coding-agent', 'pi-tui']) {
-    assert.equal(usageMeta.peerDependencies[`@earendil-works/${name}`], '0.85.1');
+    assert.equal(usageMeta.peerDependencies[`@earendil-works/${name}`], '0.87.1');
   }
   assert.equal(manifest.packages.find(pkg => pkg.name === 'pi-browser')?.version, '0.2.0');
   assert.doesNotMatch(JSON.stringify(manifest.packages), /pi-interactive-subagents|observational-memory/);
 });
-test('local Pi 0.85.1 tools are pinned and exclude reviewed unlicensed source paths', () => {
+test('local Pi 0.87.1 tools are pinned and exclude reviewed unlicensed source paths', () => {
   const askFolder = path.join(root, 'vendor/pi-ask-user-question');
   for (const name of ['pi-ask-user-question', 'pi-browser']) {
     const metadata = readJSON(path.join(root, 'vendor', name, 'package.json'));
-    assert.equal(metadata.peerDependencies['@earendil-works/pi-coding-agent'], '0.85.1');
+    assert.equal(metadata.peerDependencies['@earendil-works/pi-coding-agent'], '0.87.1');
     assert.equal(metadata.peerDependencies.typebox, '1.3.7');
     assert.equal(metadata.dependencies?.['@earendil-works/pi-server'], undefined);
     assert.equal(metadata.devDependencies?.['@earendil-works/pi-server'], undefined);
@@ -525,7 +525,7 @@ test('doctor detects dependencies whose package exports are import-only', t => {
 test('doctor never runs an RTK binary', t => {
   const home = sandbox(t), calls = [];
   execute(plan({ home }));
-  inspect({ home, spawn: (command) => { calls.push(command); return { status: 0, stdout: '0.85.1\n' }; } });
+  inspect({ home, spawn: (command) => { calls.push(command); return { status: 0, stdout: '0.87.1\n' }; } });
   assert.deepEqual(calls, ['pi']);
 });
 test('argument parser rejects typos and defaults to dry run', () => {
