@@ -105,10 +105,8 @@ completo.
 
 ## Seguridad del entorno
 
-La carpeta de usuario está sincronizada con OneDrive y puede contener marcadores de
-posición. **No descargues contenido de OneDrive sin petición explícita.** No hagas
-búsquedas recursivas desde `~` ni desde `C:\`; limita siempre la ruta y la profundidad.
-No descargues ni instales binarios por iniciativa propia.
+No hagas búsquedas recursivas desde `~` ni desde `/`; limita siempre la ruta y la
+profundidad. No descargues ni instales binarios por iniciativa propia.
 
 No expongas credenciales, tokens ni contenido de ficheros secretos. Evita imprimirlos en
 comandos, logs o respuestas.

@@ -53,8 +53,6 @@ external sources at exact commits, prepares seven base packages and four native 
 and activates only after success. Tasks and supervisor are reviewed source snapshots
 inside this repository; their revisions are in `manifests/tintinweb.json`.
 `manifests/active-release.json` pins the harness, subagents and memory commits.
-`manifests/memory-lock-additions.json` repairs two missing optional development entries
-in the public memory lock, guarded by the original commit and SHA-256; memory code is unchanged.
 
 No extra development clones are needed. Sources are cached under
 `~/.agent-config/sources`; verified runtime packages live in `~/.agent-config/releases`.

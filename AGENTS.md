@@ -8,9 +8,8 @@ Portable Pi configuration. Node 22.23.2, Pi 0.87.1, dependency-free ESM installe
   seven base plus four native.
 - `manifests/active-release.json` pins exact harness/subagents/memory commits. Tasks and
   supervisor are vendored source snapshots; revisions/licenses in `manifests/tintinweb.json`
-  and THIRD_PARTY_NOTICES.md. Do not patch upstream source casually. The public memory
-  lock omits two @emnapi optional peers; manifests/memory-lock-additions.json applies only
-  to its exact original commit/hash, without depending on an unpublished memory commit.
+  and THIRD_PARTY_NOTICES.md. Do not patch upstream source casually. The pinned memory
+  commit's lock already includes the two @emnapi optional peers; no lock patch is needed.
   The subagents panel uses the upstream `aboveEditor` placement. Do not patch the
   sealed subagents snapshot to change its position.
 - `npm run bootstrap` is read-only preview. `--apply` fetches pinned sources if needed,
