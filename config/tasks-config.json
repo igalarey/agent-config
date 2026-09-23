@@ -1,4 +1,6 @@
 {
   "taskScope": "session-global",
-  "autoCascade": false
+  "autoCascade": false,
+  "autoClearCompleted": "on_task_complete",
+  "sortOrder": "active"
 }

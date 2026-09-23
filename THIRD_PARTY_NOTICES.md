@@ -20,7 +20,10 @@ from [tintinweb/pi-tasks](https://github.com/tintinweb/pi-tasks) and
 [tintinweb/pi-supervisor](https://github.com/tintinweb/pi-supervisor). Exact revisions
 are recorded in `manifests/tintinweb.json`. Their original LICENSE files are retained.
 Media, GitHub workflows and contributor-only instructions are excluded from the snapshots.
-`vendor/pi-tasks/` is otherwise unchanged. `vendor/pi-supervisor/` has local Pi 0.87.1
+`vendor/pi-tasks/` has one local change: `src/auto-clear.ts` starts the auto-clear countdown
+for completed tasks it did not see complete, such as tasks carried over by a restart or
+resume. Upstream `29180d7` keeps those tasks until the next `TaskCreate`.
+`test/auto-clear.test.ts` adds tests for it. `vendor/pi-supervisor/` has local Pi 0.87.1
 compatibility changes:
 
 - `package.json` declares the Pi packages as exact 0.87.1 development dependencies, and

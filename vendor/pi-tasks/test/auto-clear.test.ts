@@ -458,3 +458,46 @@ describe("auto-clear: starting a new batch", () => {
     expect(store.list()).toHaveLength(1);
   });
 });
+
+describe("auto-clear: completions carried over from a previous instance", () => {
+  function carriedOver(mode: AutoClearMode) {
+    const store = new TaskStore();
+    store.create("Done before restart", "Desc");
+    store.create("Also done", "Desc");
+    store.update("1", { status: "completed" });
+    store.update("2", { status: "completed" });
+    // A fresh manager, as after a restart or resume: it never saw these completions.
+    return { store, manager: new AutoClearManager(() => store, () => mode) };
+  }
+
+  it("on_task_complete starts their countdown at the first turn and clears them", () => {
+    const { store, manager } = carriedOver("on_task_complete");
+    expect(manager.onTurnStart(1)).toBe(false);
+    expect(store.list()).toHaveLength(2);
+    expect(manager.onTurnStart(5)).toBe(true);
+    expect(store.list()).toHaveLength(0);
+  });
+
+  it("on_list_complete starts the batch countdown at the first turn and clears the list", () => {
+    const { store, manager } = carriedOver("on_list_complete");
+    manager.onTurnStart(1);
+    expect(store.list()).toHaveLength(2);
+    manager.onTurnStart(5);
+    expect(store.list()).toHaveLength(0);
+  });
+
+  it("on_list_complete still waits while the carried-over list has unfinished work", () => {
+    const { store, manager } = carriedOver("on_list_complete");
+    store.create("Open", "Desc");
+    manager.onTurnStart(1);
+    manager.onTurnStart(9);
+    expect(store.list()).toHaveLength(3);
+  });
+
+  it("never mode leaves them alone", () => {
+    const { store, manager } = carriedOver("never");
+    manager.onTurnStart(1);
+    manager.onTurnStart(9);
+    expect(store.list()).toHaveLength(2);
+  });
+});

@@ -110,6 +110,13 @@ export class AutoClearManager {
     let cleared = false;
 
     if (mode === "on_task_complete") {
+      // Completions this instance never tracked — tasks carried over by a restart,
+      // reload or resume — start their countdown now; otherwise they never clear.
+      for (const task of this.getStore().list()) {
+        if (task.status === "completed" && !this.completedAtTurn.has(task.id)) {
+          this.completedAtTurn.set(task.id, currentTurn);
+        }
+      }
       for (const [taskId, turn] of this.completedAtTurn) {
         const task = this.getStore().get(taskId);
         if (!task || task.status !== "completed") {
@@ -121,8 +128,10 @@ export class AutoClearManager {
           cleared = true;
         }
       }
-    } else if (mode === "on_list_complete" && this.allCompletedAtTurn !== null) {
-      if (currentTurn - this.allCompletedAtTurn >= this.clearDelayTurns) {
+    } else if (mode === "on_list_complete") {
+      // Same for a finished list carried over from before this instance started.
+      if (this.allCompletedAtTurn === null) this.checkAllCompleted(currentTurn);
+      if (this.allCompletedAtTurn !== null && currentTurn - this.allCompletedAtTurn >= this.clearDelayTurns) {
         this.getStore().clearCompleted();
         this.allCompletedAtTurn = null;
         cleared = true;

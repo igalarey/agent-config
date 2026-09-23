@@ -26,9 +26,10 @@ test('new base disables upstream hook-bypassing worktree automation', () => {
   assert.equal(json('config/subagents.json').worktreeIsolation, false);
 });
 
-test('new task state is kept outside repositories and does not auto-cascade', () => {
+test('new task state is kept outside repositories, does not auto-cascade and lists active work first', () => {
   assert.deepEqual(json('config/tasks-config.json'), {
     taskScope: 'session-global', autoCascade: false,
+    autoClearCompleted: 'on_task_complete', sortOrder: 'active',
   });
 });
 
