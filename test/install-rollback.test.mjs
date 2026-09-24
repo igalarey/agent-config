@@ -195,6 +195,7 @@ test('Carbon resources, UI defaults, and task filtering upgrade and roll back to
     'extensions/carbon-ui/tool-card.ts': 'export const toolCard = true;\n',
     'extensions/carbon-tasks/index.ts': 'export default function carbonTasks() {}\n',
     'themes/carbon-violet.json': '{"name":"carbon-violet","colors":{}}\n',
+    'themes/carbon-graphite.json': '{"name":"carbon-graphite","colors":{}}\n',
   };
   for (const [relative, content] of Object.entries(carbonFiles)) put(harness, relative, content);
   put(harness, 'config/pi.settings.json', JSON.stringify({
@@ -223,7 +224,7 @@ test('Carbon resources, UI defaults, and task filtering upgrade and roll back to
 
   const rollback = plan({ home, release: legacy.id });
   assert.deepEqual(rollback.conflicts, []);
-  assert.equal(rollback.operations.filter(op => op.content === null && op.relative.includes('carbon-')).length, 5);
+  assert.equal(rollback.operations.filter(op => op.content === null && op.relative.includes('carbon-')).length, 6);
   execute(rollback);
   installed = readJSON(path.join(home, settingsPath));
   tasks = installed.packages.find(entry => String(typeof entry === 'string' ? entry : entry.source).endsWith('/pi-tasks'));

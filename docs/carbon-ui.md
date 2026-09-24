@@ -3,7 +3,7 @@
 Carbon UI is an optional Pi presentation layer projected to `~/.pi/agent` by the
 installer. It includes:
 
-- the `carbon-violet` theme;
+- the `carbon-violet` and `carbon-graphite` themes;
 - a transparent editor with two columns of horizontal padding;
 - compact, background-free cards for built-in and task tools;
 - a wrapper around the vendored `@tintinweb/pi-tasks` extension.
@@ -16,7 +16,9 @@ on the original package entry so Pi does not register the task tools twice.
 
 The default settings select `carbon-violet`, use editor padding `2` and output
 padding `1`, hide expanded thinking blocks, keep startup messages enabled, and
-collapse the changelog.
+collapse the changelog. `carbon-graphite` is an optional variant with a gray accent
+and `#131413` page/message backgrounds. Select it in `/settings`; the terminal's
+base background remains controlled by the terminal emulator.
 
 Run the focused regression suite with:
 

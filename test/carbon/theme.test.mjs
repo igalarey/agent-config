@@ -13,6 +13,7 @@ const { ToolExecutionComponent } = await load('dist/modes/interactive/components
 const { createBashToolDefinition } = await load('dist/core/tools/bash.js');
 const { readFileSync } = await import('node:fs');
 const themePath = resource('themes/carbon-violet.json');
+const graphiteThemePath = resource('themes/carbon-graphite.json');
 test('Carbon theme validates and native messages retain expansion and visible errors', () => {
 validateThemeJson(themePath, JSON.parse(readFileSync(themePath, 'utf8')));
 setThemeInstance(loadThemeFromPath(themePath, 'truecolor'));
@@ -44,4 +45,14 @@ assistant.setHideThinkingBlock(true);
 tool.updateResult({content: [{type: 'text', text: 'Error de prueba visible'}], details: {}, isError: true});
 assert.ok(tool.render(80).join('\n').includes('Error de prueba visible'));
 assert.ok(!tool.render(80).join('\n').includes('48;2;51;38;41'));
+});
+
+test('Carbon Graphite uses Pi-valid neutral accent and requested export background', () => {
+const graphite = JSON.parse(readFileSync(graphiteThemePath, 'utf8'));
+validateThemeJson(graphiteThemePath, graphite);
+assert.equal(graphite.name, 'carbon-graphite');
+assert.equal(graphite.colors.accent, 'gray');
+assert.equal(graphite.vars.gray, '#b3b7b5');
+assert.equal(graphite.export.pageBg, '#131413');
+setThemeInstance(loadThemeFromPath(graphiteThemePath, 'truecolor'));
 });

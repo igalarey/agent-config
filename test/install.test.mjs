@@ -154,6 +154,7 @@ test('legacy planner fixture is idempotent and preserves profiles and source', t
   for (const relative of [
     'extensions/carbon-ui/index.ts', 'extensions/carbon-ui/builtin-tools.ts',
     'extensions/carbon-ui/tool-card.ts', 'extensions/carbon-tasks/index.ts', 'themes/carbon-violet.json',
+    'themes/carbon-graphite.json',
   ]) {
     assert.equal(fs.readFileSync(path.join(home, '.pi/agent', relative), 'utf8'), fs.readFileSync(path.join(root, relative), 'utf8'));
   }

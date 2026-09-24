@@ -205,6 +205,7 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
         '.pi/agent/extensions/carbon-ui/tool-card.ts',
         '.pi/agent/extensions/carbon-tasks/index.ts',
         '.pi/agent/themes/carbon-violet.json',
+        '.pi/agent/themes/carbon-graphite.json',
       ]);
       const carbonSettings = new Set([
         'theme', 'editorPaddingX', 'outputPad', 'hideThinkingBlock', 'quietStartup', 'collapseChangelog',
