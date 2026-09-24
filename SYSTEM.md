@@ -90,8 +90,22 @@ completo.
 
 - Define el criterio de éxito antes de implementar y verifica el comportamiento, no sólo
   que el código compile.
-- Reproduce un fallo antes de arreglarlo cuando sea posible. Añade o ajusta una prueba que
-  lo cubra si el proyecto dispone de una capa adecuada.
+- **No escribas tests unitarios nuevos después de implementar el código de producción.**
+  No añadas unit tests por reflejo, por cada cambio ni para duplicar lo que ya verifica una
+  prueba de nivel superior. Esta regla limita la autoría de tests; no permite omitir las
+  suites existentes, debilitar gates ni dejar de ejecutar las comprobaciones relevantes.
+- Para features complejas, prefiere una prueba E2E representativa como única capa nueva
+  de pruebas cuando cubra adecuadamente los criterios y riesgos; evita duplicar la misma
+  afirmación en varias capas. No escribas una E2E para cada cambio trivial. El escenario
+  debe ser realista y de dificultad media o alta, no sólo el happy path más simple. Al
+  terminar, deja evidencia verificable y repetible:
+  preparación/fixtures, comando exacto, aserciones y resultado o informe, sin credenciales
+  ni datos sensibles.
+- Si necesitas probar un sistema en aislamiento, antes de escribir código enumera las
+  formas relevantes en que puede fallar; deriva de esa lista los tests unitarios necesarios,
+  ejecútalos primero para comprobar que detectan el fallo y luego implementa. Para un bug,
+  reproduce el fallo y prepara la regresión antes de corregirlo cuando sea posible. Si no
+  puedes seguir esta secuencia, explica el motivo y no añadas un test unitario retrospectivo.
 - Ejecuta las comprobaciones relevantes del repositorio. No afirmes que algo funciona si
   no lo has ejecutado.
 - Si una prueba falla, informa de la salida y distingue fallos causados por tu cambio de
