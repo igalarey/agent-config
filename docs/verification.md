@@ -1,11 +1,23 @@
 # Verification: tintinweb base
 
 This file supersedes the historical Windows/RTK/interactive-subagents evidence in Git history.
-Target: Linux, Node 22.23.2, Pi 0.87.1. Latest activation: 2026-09-23.
+Target: Linux, Node 22.23.2, Pi 0.87.1. Latest activation: 2026-09-24.
 
-## Tasks widget auto-clear and order (current)
+## Carbon Graphite theme (current)
 
-`h-4ee9a22a674b-s-e955e29c51b7-m-bc1eba141a47` is verified, sealed and active.
+`h-acc1ae48d05f-s-e955e29c51b7-m-bc1eba141a47` is verified, sealed and active.
+
+- Added selectable `carbon-graphite` with a gray accent (`#b3b7b5`) and `#131413`
+  page/message backgrounds. Pi themes do not control the terminal emulator's base background.
+  The saved theme remains `carbon-violet` until selected in `/settings`.
+- Pi theme validation/render tests: 21 passed. Root: 136 passed; local verification:
+  all six groups passed. Candidate: 14 package checks and five official-runtime checks passed;
+  compatibility reports 152 checks, doctor is OK and repeat bootstrap planned zero changes.
+  The previous release was deleted.
+
+## Tasks widget auto-clear and order (2026-09-23)
+
+`h-4ee9a22a674b-s-e955e29c51b7-m-bc1eba141a47` was verified, sealed and activated.
 
 - Completed tasks carried over by a restart or resume now start their auto-clear
   countdown at the next turn; before, they stayed until the next `TaskCreate`.
