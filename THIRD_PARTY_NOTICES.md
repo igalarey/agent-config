@@ -38,6 +38,10 @@ compatibility changes:
 
 [tintinweb/pi-subagents](https://github.com/tintinweb/pi-subagents) is fetched at the
 recipe's exact commit. Its MIT license is included in each prepared release.
+`manifests/subagents-notifications.json` records local Pi 0.87.1 delivery changes and test-fixture compatibility edits.
+The upstream notice is MIT, copyright (c) 2026 tintinweb.
+`vendor/pi-tasks/LICENSE` also retains that complete notice for the patch text in this repository.
+See [completion delivery](docs/notification-delivery.md) for behavior and verification.
 RTK is no longer distributed or installed.
 
 ## Native npm packages

@@ -47,6 +47,12 @@ Portable Pi configuration. Node 22.23.2, Pi 0.87.1, dependency-free ESM installe
 - Do not restore the legacy global registry bridges. The new runtime uses SDK sessions in
   process and native extension/tool scoping. MCP loads directly from npm, with no wrapper.
   MCP configs can spawn/network on startup. Merge only footer defaults; preserve servers.
+- `manifests/subagents-notifications.json` applies exact hash-gated delivery changes to
+  the pinned source during candidate preparation, never to a source cache or sealed release.
+  Actionable boundaries require Pi 0.87.1; upstream development types remain 0.84.2.
+  The SDK regression covers consumed, unread, grouped, idle and shutdown cases.
+  Existing mock fixtures need session startup and `isIdle`; do not weaken the production
+  check to fit an incomplete mock. See `docs/notification-delivery.md`.
 - Subagent concurrency uses separate pools: six background and two foreground agents.
   Nested delegation remains disabled; child MCP permissions and model defaults are unchanged.
 - Worktree automation is disabled because upstream commits with --no-verify. Use manual Git

@@ -197,6 +197,10 @@ cost (`widgetMode: all`, `showModel`, `showCost`); `fleetView` is off.
 A `.pi/subagents.json` file in a project, including `~/.pi/subagents.json` when Pi
 starts in the home directory, applies only to that project.
 
+Completion notices stay cancellable until a Pi 0.87.1 turn boundary.
+Results already collected do not create redundant notices or model requests.
+[Completion delivery](docs/notification-delivery.md) describes the pinned correction and SDK regression.
+
 Upstream worktree automation is disabled because it creates preservation commits with
 `--no-verify`. Use ordinary Git worktrees with hooks instead. Background concurrency,
 workflow concurrency and nested depth are different upstream limits, not the old lineage

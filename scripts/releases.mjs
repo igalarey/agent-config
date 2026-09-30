@@ -28,7 +28,7 @@ const SOURCES = {
     entries: [
       'SYSTEM.md', 'config/pi.settings.json', 'manifests/packages.json',
     ],
-    optionalEntries: ['config/subagents.json', 'config/tasks-config.json', 'config/SUPERVISOR.md', 'config/HARNESS-AUTHORITY.md', 'manifests/tintinweb.json', 'manifests/memory-lock-additions.json', 'manifests/subagents-ui.json', 'manifests/curated-skills.json', 'manifests/harness-legacy.json', 'native/package.json', 'native/package-lock.json', 'config/mcp.json', 'config/web-search.json', 'scripts/harness-compatibility.mjs', 'scripts/verify-compatibility.mjs'],
+    optionalEntries: ['config/subagents.json', 'config/tasks-config.json', 'config/SUPERVISOR.md', 'config/HARNESS-AUTHORITY.md', 'manifests/tintinweb.json', 'manifests/memory-lock-additions.json', 'manifests/subagents-ui.json', 'manifests/subagents-notifications.json', 'manifests/curated-skills.json', 'manifests/harness-legacy.json', 'native/package.json', 'native/package-lock.json', 'config/mcp.json', 'config/web-search.json', 'scripts/harness-compatibility.mjs', 'scripts/verify-compatibility.mjs'],
     prefixes: ['agents/', 'guides/', 'skills/', 'pi-skills/', 'prompts/', 'extensions/', 'themes/', 'vendor/pi-ask-user-question/', 'vendor/pi-web-fetch/', 'vendor/pi-browser/',
       'vendor/pi-mcp/', 'vendor/pi-subscription-usage/', 'vendor/pi-tasks/', 'vendor/pi-supervisor/'],
   },
@@ -172,6 +172,38 @@ export function manifestDigest(manifest) {
   if (manifest.schemaVersion >= REPORT_SCHEMA) payload.schemaVersion = manifest.schemaVersion;
   return digest(json(payload));
 }
+const NOTIFICATION_FIXTURE_PATHS = new Set([
+  'test/helpers/boot-extension.ts', 'test/rpc-result-consumption.test.ts', 'test/wait-queued.test.ts',
+  'test/print-mode.test.ts', 'test/agent-mention-wiring.test.ts', 'test/mention-start-notification.test.ts',
+  'test/cost-display.test.ts', 'test/workflow-tool.test.ts',
+]);
+export function applyNotificationOverlay(content, overlay, commit, piVersion, expectedPath = 'src/index.ts') {
+  const invalid = reason => { throw new Error(`Invalid notification overlay: ${reason}`); };
+  if (!object(overlay) || overlay.schemaVersion !== 1 || overlay.path !== expectedPath
+      || (expectedPath !== 'src/index.ts' && !NOTIFICATION_FIXTURE_PATHS.has(expectedPath))
+      || overlay.piVersion !== '0.87.1' || piVersion !== overlay.piVersion
+      || !/^[0-9a-f]{40}$/.test(overlay.commit ?? '') || overlay.commit !== commit
+      || !validContentHash(overlay.originalSha256) || !validContentHash(overlay.resultSha256)
+      || digest(content) !== overlay.originalSha256 || !Array.isArray(overlay.edits)
+      || overlay.edits.length === 0 || overlay.edits.length > 12) invalid('pinned source or metadata mismatch');
+  const text = content.toString('utf8');
+  const ranges = overlay.edits.map(edit => {
+    if (!object(edit) || typeof edit.oldText !== 'string' || !edit.oldText
+        || typeof edit.newText !== 'string' || edit.oldText === edit.newText) invalid('invalid edit');
+    const start = text.indexOf(edit.oldText);
+    if (start < 0 || text.indexOf(edit.oldText, start + 1) >= 0) invalid('replacement is not unique');
+    return { start, end: start + edit.oldText.length, replacement: edit.newText };
+  }).sort((a, b) => a.start - b.start);
+  for (let i = 1; i < ranges.length; i++) {
+    if (ranges[i].start < ranges[i - 1].end) invalid('edits overlap');
+  }
+  let output = text;
+  for (const range of ranges.toReversed()) output = output.slice(0, range.start) + range.replacement + output.slice(range.end);
+  const result = Buffer.from(output);
+  if (digest(result) !== overlay.resultSha256 || overlay.resultSha256 === overlay.originalSha256) invalid('result hash mismatch');
+  return result;
+}
+
 function mappedReleaseFiles(records, commits) {
   const files = [];
   const add = (relative, entry, content = entry.content, source = entry.sourceKey) => {
@@ -263,6 +295,38 @@ function mappedReleaseFiles(records, commits) {
       target.gitObject = null;
     }
     if (seen.size !== expectedPaths.size) throw new Error('Invalid subagents UI overlay');
+  }
+  const notificationOverlay = records.find(entry => entry.sourceKey === 'harness' && entry.sourcePath === 'manifests/subagents-notifications.json');
+  if (notificationOverlay) {
+    if (subagentsName !== '@tintinweb/pi-subagents') throw new Error('Notification overlay requires modern subagents');
+    const overlay = JSON.parse(notificationOverlay.content.toString('utf8'));
+    const target = files.find(entry => entry.path === `packages/${subagentsName}/src/index.ts`);
+    if (!target) throw new Error('Notification overlay target missing');
+    const piVersion = parseCommittedJSON(records, 'harness', 'manifests/packages.json').piVersion;
+    target.content = applyNotificationOverlay(target.content, overlay, commits.subagents, piVersion);
+    target.size = target.content.length;
+    target.sha256 = digest(target.content);
+    target.source = 'generated';
+    target.gitObject = null;
+    if (overlay.fixtures !== undefined) {
+      if (!Array.isArray(overlay.fixtures) || overlay.fixtures.length > NOTIFICATION_FIXTURE_PATHS.size) {
+        throw new Error('Invalid notification overlay fixtures');
+      }
+      const seen = new Set();
+      for (const fixture of overlay.fixtures) {
+        if (!object(fixture) || !NOTIFICATION_FIXTURE_PATHS.has(fixture.path) || seen.has(fixture.path)) {
+          throw new Error('Invalid notification overlay fixture path');
+        }
+        seen.add(fixture.path);
+        const file = files.find(entry => entry.path === `packages/${subagentsName}/${fixture.path}`);
+        if (!file) throw new Error('Notification overlay fixture missing');
+        file.content = applyNotificationOverlay(file.content, fixture, commits.subagents, piVersion, fixture.path);
+        file.size = file.content.length;
+        file.sha256 = digest(file.content);
+        file.source = 'generated';
+        file.gitObject = null;
+      }
+    }
   }
   const compatibilityPaths = [
     'config/HARNESS-AUTHORITY.md', 'manifests/curated-skills.json', 'manifests/harness-legacy.json',

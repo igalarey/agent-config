@@ -462,6 +462,59 @@ test('subagents UI overlay projects its pinned edits and remains optional', t =>
   }
 });
 
+test('notification overlay is exact, hash-gated and optional for historical releases', t => {
+  const source = fixture(t);
+  const subagents = source.repositories.subagents;
+  packageFiles(subagents, '@tintinweb/pi-subagents', { subagents: true, extension: 'src/index.ts' });
+  put(subagents, 'test/helpers/boot-extension.ts', 'const isIdle = false;\n');
+  source.commits.subagents = commit(subagents, 'modern notification baseline');
+  const original = fs.readFileSync(path.join(subagents, 'src/index.ts'), 'utf8');
+  const expected = original.replace('packageName', 'notificationName');
+  const hash = text => createHash('sha256').update(text).digest('hex');
+  put(source.repositories.harness, 'manifests/packages.json', JSON.stringify({ piVersion: '0.87.1', packages: [] }));
+  const overlay = {
+    schemaVersion: 1, commit: source.commits.subagents, piVersion: '0.87.1', path: 'src/index.ts',
+    originalSha256: hash(original), resultSha256: hash(expected),
+    edits: [{ oldText: 'packageName', newText: 'notificationName' }],
+    fixtures: [{
+      schemaVersion: 1, commit: source.commits.subagents, piVersion: '0.87.1', path: 'test/helpers/boot-extension.ts',
+      originalSha256: hash('const isIdle = false;\n'), resultSha256: hash('const isIdle = true;\n'),
+      edits: [{ oldText: 'false', newText: 'true' }],
+    }],
+  };
+  const setOverlay = value => {
+    put(source.repositories.harness, 'manifests/subagents-notifications.json', JSON.stringify(value));
+    source.commits.harness = commit(source.repositories.harness, 'notification overlay fixture');
+  };
+  setOverlay(overlay);
+  const candidate = planRelease({ home: temporary(t), ...source });
+  const projected = candidate.files.find(file => file.path === 'packages/@tintinweb/pi-subagents/src/index.ts');
+  assert.equal(projected.content.toString(), expected);
+  assert.equal(projected.source, 'generated');
+  assert.equal(projected.gitObject, null);
+  assert.equal(candidate.files.find(file => file.path === 'packages/@tintinweb/pi-subagents/test/helpers/boot-extension.ts').content.toString(), 'const isIdle = true;\n');
+  assert.equal(fs.readFileSync(path.join(subagents, 'src/index.ts'), 'utf8'), original);
+  assert.equal(fs.readFileSync(path.join(subagents, 'test/helpers/boot-extension.ts'), 'utf8'), 'const isIdle = false;\n');
+  assert(candidate.files.some(file => file.path === 'manifests/subagents-notifications.json'));
+  for (const change of [
+    { schemaVersion: 2 }, { commit: 'f'.repeat(40) }, { piVersion: '0.87.2' }, { path: '../src/index.ts' },
+    { originalSha256: 'a'.repeat(64) }, { resultSha256: 'b'.repeat(64) }, { edits: [] },
+    { edits: [{ oldText: 'missing', newText: 'new' }] },
+    { edits: [{ oldText: 'e', newText: 'new' }] },
+    { edits: [{ oldText: 'packageName', newText: 'new' }, { oldText: 'packageName', newText: 'other' }] },
+    { edits: [{ oldText: 'packageName', newText: 'new' }, { oldText: 'const packageName', newText: 'other' }] },
+    { fixtures: [overlay.fixtures[0], overlay.fixtures[0]] },
+    { fixtures: [{ ...overlay.fixtures[0], path: 'src/index.ts' }] },
+    { fixtures: [{ ...overlay.fixtures[0], path: '../test/helpers/boot-extension.ts' }] },
+    { fixtures: [{ ...overlay.fixtures[0], originalSha256: 'c'.repeat(64) }] },
+    { fixtures: [{ ...overlay.fixtures[0], commit: 'f'.repeat(40) }] },
+  ]) {
+    setOverlay({ ...overlay, ...change });
+    assert.throws(() => planRelease({ home: temporary(t), ...source }), /notification overlay/i);
+  }
+  assert.doesNotThrow(() => planRelease({ home: temporary(t), ...fixture(t) }));
+});
+
 test('release CLI accepts a machine-local source map and remains preview-only by default', t => {
   const home = temporary(t);
   const mapFolder = temporary(t, 'release-map-');
