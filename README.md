@@ -168,9 +168,9 @@ Astra remains the parent default. Profiles inherit instructions, not the parent'
 | --- | --- | --- | --- |
 | Explore | `gpt-6-luna` medium, priority requested | read, grep, find, ls | 20 |
 | general-purpose | `gpt-6-luna` medium, priority requested | Above plus bash, edit, write | 30 |
-| Plan | `gpt-6-sol` high | Read/search only | 30 |
-| deep-implementation | `gpt-6-sol` high | Read/search plus bash, edit, write | 40 |
-| deep-review | `gpt-6-sol` high | Read/search only | 30 |
+| Plan | `gpt-6.1-sol` high | Read/search only | 30 |
+| deep-implementation | `gpt-6.1-sol` high | Read/search plus bash, edit, write | 40 |
+| deep-review | `gpt-6.1-sol` high | Read/search only | 30 |
 
 All profiles use the `openai-codex` provider. The parent default is `gpt-6-astra`.
 Read-only profiles cannot run `git diff`; include the diff in a review prompt.

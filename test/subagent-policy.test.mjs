@@ -18,25 +18,25 @@ test('Luna priority preserves reasoning and request content without mutating inp
 });
 
 test('priority does not affect Astra, Sol, other providers or unknown models', () => {
-  for (const other of [undefined, { ...model, id: 'gpt-6-astra' }, { ...model, id: 'gpt-6-sol' }, { ...model, provider: 'other' }, { ...model, api: 'openai-responses' }]) {
+  for (const other of [undefined, { ...model, id: 'gpt-6-astra' }, { ...model, id: 'gpt-6.1-sol' }, { ...model, provider: 'other' }, { ...model, api: 'openai-responses' }]) {
     assert.equal(handler()({ payload: { input: [] } }, { model: other }), undefined);
   }
 });
 
 test('profiles pin models with explicit local tools and bounded turns', () => {
-  for (const [name, family, thinking, writable] of [
-    ['Explore', 'luna', 'medium', false], ['general-purpose', 'luna', 'medium', true],
-    ['Plan', 'sol', 'high', false], ['deep-implementation', 'sol', 'high', true], ['deep-review', 'sol', 'high', false],
+  for (const [name, modelId, thinking, writable] of [
+    ['Explore', 'gpt-6-luna', 'medium', false], ['general-purpose', 'gpt-6-luna', 'medium', true],
+    ['Plan', 'gpt-6.1-sol', 'high', false], ['deep-implementation', 'gpt-6.1-sol', 'high', true], ['deep-review', 'gpt-6.1-sol', 'high', false],
   ]) {
     const text = fs.readFileSync(new URL(`../agents/${name}.md`, import.meta.url), 'utf8');
-    assert.ok(text.includes(`model: openai-codex/gpt-6-${family}\n`), name);
+    assert.ok(text.includes(`model: openai-codex/${modelId}\n`), name);
     assert.ok(text.includes(`thinking: ${thinking}\n`), name);
     assert.ok(text.includes(`tools: ${writable ? 'read, grep, find, ls, bash, edit, write' : 'read, grep, find, ls'}\n`), name);
     assert.match(text, /max_turns: [1-9]\d?\n/);
     assert.match(text, /prompt_mode: append/);
     assert.match(text, /skills: false/);
     assert.match(text, /allowed_subagents: none/);
-    assert.ok(text.includes(family === 'luna' ? 'extensions: ["~/.pi/agent/agents/luna-fast.mjs"]' : 'extensions: false'));
+    assert.ok(text.includes(modelId === 'gpt-6-luna' ? 'extensions: ["~/.pi/agent/agents/luna-fast.mjs"]' : 'extensions: false'));
   }
   const settings = JSON.parse(fs.readFileSync(new URL('../config/subagents.json', import.meta.url)));
   assert.equal(settings.maxSubagentDepth, 1);
