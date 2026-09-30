@@ -303,6 +303,28 @@ test('compatibility artifacts adopt only catalogued predecessors and roll back u
   assert.equal(typeof state.files['.pi/agent/skills/fixture-curated/SKILL.md'], 'string');
   assert.deepEqual(plan({ home }).operations, []);
 
+  const learningFiles = {
+    'extensions/learning/index.ts': 'export default function learning() {}\n',
+    'extensions/learning/store.mjs': 'export const learning = true;\n',
+    'prompts/research.md': '---\ndescription: Research with sources\n---\nResearch $ARGUMENTS.\n',
+  };
+  for (const [relative, content] of Object.entries(learningFiles)) put(harness, relative, content);
+  source.commits.harness = commit(harness, 'add reviewed learning and research prompt');
+  const learning = prepareRelease(home, source);
+  const learningUpgrade = plan({ home, release: learning.id });
+  assert.deepEqual(learningUpgrade.conflicts, []);
+  execute(learningUpgrade);
+  put(home, '.pi/agent/learning/pending/private.json', '{"private":true}\n');
+  put(home, '.pi/agent/skills/learned/learned-private/SKILL.md', 'user learning\n');
+  const modifiedLearning = path.join(home, '.pi/agent/extensions/learning/store.mjs');
+  fs.writeFileSync(modifiedLearning, 'user modification\n');
+  assert.ok(plan({ home, release: compatible.id }).conflicts.includes('.pi/agent/extensions/learning/store.mjs'));
+  fs.writeFileSync(modifiedLearning, learningFiles['extensions/learning/store.mjs']);
+  execute(plan({ home, release: compatible.id }));
+  for (const relative of Object.keys(learningFiles)) assert.equal(fs.existsSync(path.join(home, '.pi/agent', relative)), false);
+  assert.equal(fs.readFileSync(path.join(home, '.pi/agent/learning/pending/private.json'), 'utf8'), '{"private":true}\n');
+  assert.equal(fs.readFileSync(path.join(home, '.pi/agent/skills/learned/learned-private/SKILL.md'), 'utf8'), 'user learning\n');
+
   const unsafeHome = temporary(t, 'installer-compatibility-unsafe-');
   const unsafeCandidate = prepareRelease(unsafeHome, source);
   put(unsafeHome, '.pi/agent/HARNESS-AUTHORITY.md', '# User changed authority\n');

@@ -96,6 +96,24 @@ function packageEntrypoints(metadata) {
   return typeof rootExport === 'string' ? [safeRelative(rootExport.replace(/^\.\//, ''))] : [];
 }
 
+export function validateCuratedAdaptations(curated) {
+  const value = curated.adaptations;
+  if (value === undefined) return undefined;
+  const fail = () => { throw new Error('Invalid curated skill adaptation provenance'); };
+  if (!object(value) || !/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/.test(value.repository ?? '')
+      || !/^[a-f0-9]{40}$/.test(value.commit ?? '') || value.license !== 'MIT'
+      || typeof value.licenseFile !== 'string' || !Object.hasOwn(curated.files, value.licenseFile)
+      || !object(value.skills) || Object.keys(value.skills).length === 0) fail();
+  for (const [name, source] of Object.entries(value.skills)) {
+    if (!curated.skills.includes(name) || !object(source)
+        || typeof source.path !== 'string' || !/^(?:skills|optional-skills)\/[a-z0-9/-]+\/SKILL\.md$/.test(source.path)
+        || !/^[a-f0-9]{64}$/.test(source.sha256 ?? '') || !Array.isArray(source.changes)
+        || source.changes.length === 0 || source.changes.some(change => typeof change !== 'string' || !change.trim())) fail();
+    try { safeRelative(source.path); safeRelative(value.licenseFile); } catch { fail(); }
+  }
+  return value;
+}
+
 export function supportsHarnessInventory(releaseRoot) {
   return ['config/HARNESS-AUTHORITY.md', 'manifests/harness-legacy.json',
     'scripts/harness-compatibility.mjs', 'scripts/verify-compatibility.mjs']
@@ -180,7 +198,7 @@ export function buildHarnessInventory(releaseRoot) {
     resources.push({ path: deployedPath, sha256: actual });
   };
   const curatedPath = path.join(root, 'manifests/curated-skills.json');
-  let curatedSkills = [], curatedSource;
+  let curatedSkills = [], curatedSource, curatedAdaptations;
   if (fs.existsSync(curatedPath)) {
     const curated = readJSON(curatedPath, 'curated skills manifest');
     const sourceKeys = ['package', 'version', 'repository', 'integrity', 'license'];
@@ -188,6 +206,7 @@ export function buildHarnessInventory(releaseRoot) {
         || sourceKeys.some(key => typeof curated.source[key] !== 'string' || !curated.source[key])) {
       throw new Error('Invalid curated skills manifest');
     }
+    curatedAdaptations = validateCuratedAdaptations(curated);
     curatedSkills = [...curated.skills];
     curatedSource = Object.fromEntries(sourceKeys.map(key => [key, curated.source[key]]));
     for (const [relative, expectedHash] of Object.entries(curated.files).sort(([a], [b]) => a.localeCompare(b))) {
@@ -225,6 +244,7 @@ export function buildHarnessInventory(releaseRoot) {
     localPackages,
     curatedSource,
     curatedSkills,
+    ...(curatedAdaptations === undefined ? {} : { curatedAdaptations }),
     resources,
   };
 }

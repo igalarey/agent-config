@@ -124,6 +124,31 @@ test('inventory is derived from the selected release and remains home-relative',
   assert.equal(fs.readFileSync(path.join(home, '.pi/agent/skills/unrelated/SKILL.md'), 'utf8'), 'user-owned\n');
 });
 
+test('adapted skills preserve exact upstream provenance in the generated inventory', t => {
+  const { releaseRoot } = fixture(t);
+  const file = path.join(releaseRoot, 'manifests/curated-skills.json');
+  const curated = JSON.parse(fs.readFileSync(file));
+  const license = 'MIT License\nCopyright (c) 2025 Nous Research\n';
+  put(releaseRoot, 'pi-skills/LICENSE.hermes', license);
+  curated.files['LICENSE.hermes'] = sha256(license);
+  curated.adaptations = {
+    repository: 'https://github.com/NousResearch/hermes-agent', commit: 'e'.repeat(40),
+    license: 'MIT', licenseFile: 'LICENSE.hermes', skills: {
+      'fixture-skill': { path: 'skills/research/fixture-skill/SKILL.md', sha256: 'f'.repeat(64), changes: ['Adapted to Pi tools.'] },
+    },
+  };
+  fs.writeFileSync(file, JSON.stringify(curated));
+  assert.deepEqual(buildHarnessInventory(releaseRoot).curatedAdaptations, curated.adaptations);
+  for (const bad of [
+    { ...curated.adaptations, commit: 'main' },
+    { ...curated.adaptations, licenseFile: '../LICENSE' },
+    { ...curated.adaptations, skills: { unknown: curated.adaptations.skills['fixture-skill'] } },
+  ]) {
+    fs.writeFileSync(file, JSON.stringify({ ...curated, adaptations: bad }));
+    assert.throws(() => buildHarnessInventory(releaseRoot), /adaptation|Unsafe/i);
+  }
+});
+
 test('stale inventory, missing assets and changed release identity fail independently', t => {
   for (const mode of ['stale', 'asset', 'identity']) {
     const { home } = fixture(t);

@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { verificationEnvironment } from './verify-env.mjs';
 import { runRuntimeSmoke } from './runtime-smoke.mjs';
+import { validateCuratedAdaptations } from './harness-compatibility.mjs';
 
 const SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i;
 const CONTENT_HASH = /^[0-9a-f]{64}$/i;
@@ -277,6 +278,7 @@ function mappedReleaseFiles(records, commits) {
         || new Set(curated.skills).size !== curated.skills.length || curated.skills.some(name => typeof name !== 'string' || !name)) {
       throw new Error('Invalid curated skills manifest');
     }
+    validateCuratedAdaptations(curated);
     const snapshot = files.filter(entry => entry.path.startsWith('pi-skills/'));
     const declared = Object.entries(curated.files);
     if (snapshot.length !== declared.length) throw new Error('Curated skills file inventory mismatch');
@@ -439,6 +441,7 @@ function validateSourceFiles(releasePath, manifest) {
         || new Set(curated.skills).size !== curated.skills.length || curated.skills.some(name => typeof name !== 'string' || !name)) {
       throw new Error('Invalid curated skills manifest');
     }
+    validateCuratedAdaptations(curated);
     const snapshot = manifest.files.filter(entry => entry.path.startsWith('pi-skills/'));
     if (snapshot.length !== Object.keys(curated.files).length) throw new Error('Curated skills file inventory mismatch');
     for (const [relative, sha256] of Object.entries(curated.files)) {

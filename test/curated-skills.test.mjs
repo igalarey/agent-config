@@ -13,10 +13,11 @@ const skillNames = [
   "align-grid", "context7-mcp", "security-review", "design-interface",
   "deepen-architecture", "elaborate-spec", "grill-me", "define-language",
   "diagnose-root", "enforce-first", "edit-document", "simple-english",
-  "smoke-test", "validate-contracts",
+  "smoke-test", "validate-contracts", "grounded-citations", "simplify-code", "spike", "ast-grep",
 ];
 const expectedFiles = [
-  "LICENSE.bigpowers",
+  "LICENSE.bigpowers", "LICENSE.hermes",
+  "grounded-citations/SKILL.md", "simplify-code/SKILL.md", "spike/SKILL.md", "ast-grep/SKILL.md", "ast-grep/LICENSE",
   "align-grid/SKILL.md", "align-grid/scripts/grid_tokens.py", "align-grid/scripts/verify_grid.js",
   "context7-mcp/SKILL.md",
   "deepen-architecture/DEEPENING.md", "deepen-architecture/INTERFACE-DESIGN.md",
@@ -73,6 +74,17 @@ test("curated skill manifest, files, hashes, and provenance are sealed", () => {
   assert.match(license, /^MIT License\n/);
   assert.match(license, /Copyright \(c\) 2026 Daniel VM/);
   assert.equal(manifest.source.license, "MIT");
+  const hermesLicense = readFileSync(new URL("LICENSE.hermes", root), "utf8");
+  assert.match(hermesLicense, /Copyright \(c\) 2025 Nous Research/);
+  assert.equal(manifest.adaptations.repository, "https://github.com/NousResearch/hermes-agent");
+  assert.equal(manifest.adaptations.commit, "47676981f55de91231fdeef2f0eec47e7c209e78");
+  assert.deepEqual(Object.keys(manifest.adaptations.skills).sort(),
+    ["ast-grep", "diagnose-root", "grounded-citations", "simplify-code", "spike"]);
+  for (const [name, provenance] of Object.entries(manifest.adaptations.skills)) {
+    assert.match(provenance.path, /^(?:skills|optional-skills)\/[a-z-]+\/[a-z-]+\/SKILL\.md$/);
+    assert.match(provenance.sha256, /^[a-f0-9]{64}$/);
+    assert.ok(provenance.changes.length > 0, name);
+  }
   for (const name of skillNames) {
     const text = readFileSync(new URL(`${name}/SKILL.md`, root), "utf8");
     const frontmatter = text.match(/^---\n([\s\S]*?)\n---\n/);

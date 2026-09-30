@@ -22,7 +22,8 @@ Do not register a second copy of the same package.
 | Native Ollama provider | `npm:pi-ollama@0.1.7` |
 | Claude provider bridge | `npm:pi-claude-bridge@0.8.0` |
 | Carbon UI and theme | `extensions/`, `themes/`; [configuration](docs/carbon-ui.md) |
-| Curated local skills | `pi-skills/`, copied from Bigpowers 2.88.6 with its MIT license |
+| Curated local skills | `pi-skills/`, retained Bigpowers skills and selective Hermes adaptations with MIT notices |
+| Reviewed procedural learning | `extensions/learning`, staged proposals and human approval |
 
 **RTK and pi-interactive-subagents are retired.** The old worker/scout/researcher
 profiles, bridges and external viewer are not part of the new base.
@@ -89,9 +90,37 @@ Pi discovers these project-owned global commands from `~/.pi/agent/prompts`:
 - `/diagnose [problem or failing behavior]` investigates safely without editing unless requested.
 - `/compare-designs [design question or component]` compares two or three alternatives without implementing them.
 - `/edit-document <document> [editing instructions]` edits the requested document while preserving intent and facts.
+- `/research [question or comparison]` connects claims to source passages and states evidence limits.
 
 Arguments are optional where shown. With no argument, each command uses the current
 conversation context. These templates are maintained in this repository.
+
+### Reviewed learning
+
+`/learn` reviews the current conversation for tested, reusable procedures.
+It does not search past sessions, replace observational-memory, or start background model calls.
+The model can use `learning_propose` to save a pending proposal, not to approve a skill.
+
+- `/learn review [focus]` narrows the review to a topic.
+- `/learn pending` lists proposals and their session/project provenance.
+- `/learn show ID` displays the full proposal.
+- `/learn approve ID` opens a full-content preview and then asks for confirmation.
+- `/learn reject ID` asks before discarding the proposal.
+
+Approval and rejection require the interactive TUI. Dismissed or edited previews do not publish anything.
+Proposals live under `~/.pi/agent/learning/pending`.
+Approved single-file skills live under `~/.pi/agent/skills/learned/learned-<slug>/SKILL.md`.
+If `PI_CODING_AGENT_DIR` is set, both locations use that agent directory.
+Run `/reload` after approval to discover the skill.
+
+Only extension-owned learned skills support updates. Stale proposals and changed or unowned targets cause refusal.
+Curated skills, shared policy, private memory files, and sealed releases are not learning targets.
+Secret-pattern checks reject some suspicious text, but they are not complete secret detection or a prompt-injection sandbox.
+Other file and Bash tools still have the permissions of the Pi process.
+
+A crash can leave the private `learning/.lock` directory.
+Stop the relevant Pi sessions before removing that empty lock directory and retrying.
+Do not delete pending proposals or ownership markers to bypass a refusal.
 
 ## Configuration
 
@@ -109,7 +138,7 @@ conversation context. These templates are maintained in this repository.
 | `config/HARNESS-AUTHORITY.md` | Component responsibilities and configuration authority |
 | `scripts/verify-compatibility.mjs` | Check the generated inventory against the active release |
 | `agents/` | Five model/tool profiles and a child-only Luna priority hook |
-| `prompts/` | Four global Pi prompt templates installed by filename |
+| `prompts/` | Five global Pi prompt templates installed by filename |
 | `SYSTEM.md`, `guides/`, `skills/` | Defaults for new shared instruction/skill resources |
 
 ### Herdr (optional)
@@ -207,9 +236,13 @@ Only the user can stop active supervision through `/supervise stop`.
 - PDF/YouTube skills are retained for local page rendering and actual captions; they need
   separately installed Python/PyMuPDF/yt-dlp. `analyze-sessions` is our original local
   implementation, not a third-party skill, and only reads sessions on explicit request.
-- Bigpowers is not installed. Its 14 selected skills are versioned as local copies,
-  with their assets and MIT license. PDF, YouTube and session-analysis skills remain
-  available. Historical release checks preserve compatibility with old releases.
+- Bigpowers is not installed. Thirteen original skills remain unchanged. `diagnose-root`
+  now uses an adapted Hermes method without unavailable companion skills or mandatory bug files.
+  Four additions cover grounded citations, scoped simplification, feasibility spikes, and optional AST search.
+  The 18 curated skills retain source hashes and applicable MIT notices.
+  PDF, YouTube and session-analysis skills remain available.
+  See [Hermes adoption](docs/hermes-adoption.md) for reviewed source, decisions, and exclusions.
+  Historical release checks preserve compatibility with old releases.
 - The installer generates `~/.pi/agent/harness-manifest.json` from the selected release.
   It is an audit inventory, not another source of version pins. See
   [harness compatibility](docs/harness-compatibility.md) for verification and migration.
@@ -227,8 +260,8 @@ The complete candidate additionally verifies subagents and memory (14 base packa
 and five runtime checks using the official Pi CLI: loader/RPC, memory status, synthetic
 TaskExecute/result delivery, child extension scope, read-only scope and in-process child
 execution. It starts supervisor with a scripted offline provider, not a real account.
-The same official loader checks native MCP/web tools, the four project-owned prompt
-templates, Ollama command registration, absence of Bigpowers resources, and the disabled
+The same official loader checks native MCP/web tools, the five project-owned prompt
+templates, reviewed-learning registration, Ollama command registration, absence of Bigpowers resources, and the disabled
 MCP footer. Ollama discovery uses a blocked port in these checks; no inference is tested.
 Native npm packages have exact versions in `native/package.json`. The release reproduces
 them from `native/package-lock.json` with `npm ci --ignore-scripts --omit=dev --legacy-peer-deps`.

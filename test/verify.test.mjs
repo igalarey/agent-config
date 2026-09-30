@@ -98,6 +98,28 @@ test('MCP release evidence requires its commands from the official loader inside
   assert.throws(() => assertOfficialLoaderEvidence(evidence, releasePath, manifest), /loaded outside release/);
 });
 
+test('official loader requires the reviewed-learning tool and human command from the isolated global extension', () => {
+  const releasePath = path.resolve('fixture-release');
+  const agentDir = path.resolve('isolated-agent');
+  const packageInfo = { origin: 'package', path: path.join(releasePath, 'packages/fixture/index.ts') };
+  const tools = ['subagent', 'subagents_list', 'subagent_message', 'subagent_cancel', 'ask_user_question', 'web_fetch'];
+  const commands = ['subagent', 'subagent-cancel', 'om', 'om:status', 'om:compact', 'om:consolidate'];
+  const evidence = { inspect: { success: true }, inspection: {
+    allTools: tools.map(name => ({ name, sourceInfo: packageInfo })), activeTools: [...tools],
+    commands: commands.map(name => ({ name, sourceInfo: packageInfo })),
+  } };
+  const manifest = { packages: [], files: [{ path: 'extensions/learning/index.ts' }] };
+  assert.throws(() => assertOfficialLoaderEvidence(evidence, releasePath, manifest, agentDir), /learning/i);
+  const sourceInfo = { origin: 'top-level', source: 'auto', scope: 'user', path: path.join(agentDir, 'extensions/learning/index.ts') };
+  evidence.inspection.allTools.push({ name: 'learning_propose', sourceInfo });
+  evidence.inspection.activeTools.push('learning_propose');
+  assert.throws(() => assertOfficialLoaderEvidence(evidence, releasePath, manifest, agentDir), /learn/i);
+  evidence.inspection.commands.push({ name: 'learn', sourceInfo });
+  assert.doesNotThrow(() => assertOfficialLoaderEvidence(evidence, releasePath, manifest, agentDir));
+  evidence.inspection.allTools.at(-1).sourceInfo = packageInfo;
+  assert.throws(() => assertOfficialLoaderEvidence(evidence, releasePath, manifest, agentDir), /learning/i);
+});
+
 test('runtime prompt evidence requires every release-owned template and ignores releases without prompts', () => {
   const prompt = name => ({
     name, source: 'prompt',
@@ -109,6 +131,12 @@ test('runtime prompt evidence requires every release-owned template and ignores 
   const manifest = { files: ['review', 'diagnose', 'compare-designs', 'edit-document']
     .map(name => ({ path: `prompts/${name}.md` })) };
   assert.doesNotThrow(() => assertPromptTemplateRegistrations(evidence, manifest));
+  const expanded = structuredClone(evidence);
+  expanded.commands.data.commands.push(prompt('research'));
+  const expandedManifest = { files: [...manifest.files, { path: 'prompts/research.md' }] };
+  assert.doesNotThrow(() => assertPromptTemplateRegistrations(expanded, expandedManifest));
+  expanded.commands.data.commands.pop();
+  assert.throws(() => assertPromptTemplateRegistrations(expanded, expandedManifest), /prompt template registrations/i);
   evidence.commands.data.commands.push({ name: 'using-bigpowers', source: 'prompt', sourceInfo: {
     source: 'package', scope: 'user', origin: 'package', path: '/release/native/node_modules/bigpowers/prompts/using-bigpowers.md',
   } });

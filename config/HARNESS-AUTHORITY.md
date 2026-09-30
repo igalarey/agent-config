@@ -21,12 +21,13 @@ comparing them. The inventory is audit evidence, not an independent set of manua
 | Release identity and source commits | Verified and sealed `release.json` | Installer state selects one release; inventory repeats its identity for audit. |
 | Local package versions and entrypoints | Release package metadata and source inventory | Pi settings point to the selected release paths. |
 | Native npm versions and integrity | `native/package.json` and `native/package-lock.json` in the release | The verified native prefix is copied to `~/.pi/agent/npm`; inventory records installed metadata. |
-| Curated skills | `manifests/curated-skills.json` plus `pi-skills/` in the release | Installer projects them to `~/.pi/agent/skills`. They do not depend on an installed Bigpowers package. |
+| Curated skills | `manifests/curated-skills.json` plus `pi-skills/` in the release | Installer projects them to `~/.pi/agent/skills`. Original and adapted provenance remain distinct. They do not depend on Bigpowers or Hermes runtimes. |
 | Other managed resources | Release source and installer managed hashes | Pi loads projected prompts, extensions and themes according to settings and Pi's loader rules. |
 | Session, context and native tool lifecycle | Pi core | Extensions add capabilities without taking ownership of Pi's lifecycle. |
 | Tasks and task state | `@tintinweb/pi-tasks` | `carbon-tasks` adapts registration and presentation; the original package entrypoint is suppressed to prevent duplicate activation. |
 | Agent delegation | `@tintinweb/pi-subagents` | Tasks may describe work; the supervisor may advise but does not execute it. |
 | Conversation memory | `observational-memory` | Pi remains responsible for context and compaction lifecycle. |
+| Reviewed procedural learning | `extensions/learning` | The model stages evidence-backed skill proposals. A human approves only extension-owned learned skills. |
 | User questions | `pi-ask-user-question` | The main agent decides when user input is required. |
 | Public browsing and web research | `pi-browser` and `pi-web-access` | Their existing public-network and provider boundaries remain unchanged. |
 | MCP tools | `pi-mcp-adapter` | MCP server configuration and permissions remain separate and user-controlled. |
@@ -58,3 +59,7 @@ are instructions and local assets; tool access, network policy, credentials and 
 authorization continue to be controlled by Pi, the active agent profile and the shared
 policy in `~/.agents/SYSTEM.md`. The installer preserves that shared policy and does not
 replace it with this document.
+
+Learning proposals and approved learned skills are private runtime data, not release source.
+The learning extension does not write shared policy, curated resources, observational memories, or sealed releases.
+Its approval gate does not constrain arbitrary writes from other Pi tools or processes running as the same user.

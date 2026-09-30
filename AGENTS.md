@@ -66,8 +66,14 @@ Portable Pi configuration. Node 22.23.2, Pi 0.87.1, dependency-free ESM installe
   its setup commands automatically. Native package retirement removes only unchanged
   registrations from the prior release; modified registrations produce a conflict.
 - Curated skills live in `pi-skills/`, not in the native npm prefix. Their provenance and
-  hashes are in `manifests/curated-skills.json`. Keep the MIT notice and required assets.
-  Project them only to `~/.pi/agent/skills` to avoid duplicate registrations.
+  hashes are in `manifests/curated-skills.json`. Its `source` retains Bigpowers provenance;
+  `adaptations` pins Hermes-derived methods by commit, source hash and change notes.
+  Keep all applicable MIT notices and required assets. Project skills only to
+  `~/.pi/agent/skills` to avoid duplicate registrations. See `docs/hermes-adoption.md`.
+- Reviewed learning is a native extension, not another memory provider. It stages
+  evidence-backed procedures and requires interactive human approval for owned learned
+  skills. Never version its pending records or approved private skills, modify SYSTEM.md,
+  replace curated/user skills through it, or describe its gate as an OS sandbox.
 - `harness-manifest.json` is generated audit data, not a version authority. Update source
   and prepare a verified release instead of editing deployed pins. Compatibility checks
   use `scripts/harness-compatibility.mjs`. Keep its source digest aligned with

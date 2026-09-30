@@ -88,6 +88,9 @@ function compatibilityShapeResources(source) {
   return new Set([
     ...projectedResources(source).filter(resource => resource.relative.startsWith('.pi/agent/skills/')
       || resource.relative === '.pi/agent/HARNESS-AUTHORITY.md'
+      || resource.relative.startsWith('.pi/agent/prompts/')
+      || resource.relative === '.pi/agent/extensions/learning/index.ts'
+      || resource.relative === '.pi/agent/extensions/learning/store.mjs'
       || resource.relative.startsWith('.pi/agent/scripts/')).map(resource => resource.relative),
     '.pi/agent/harness-manifest.json',
   ]);

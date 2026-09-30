@@ -52,13 +52,29 @@ configuration or credentials are bundled. The Bigpowers npm package is no longer
 
 ## Curated Bigpowers skills
 
-`pi-skills/` contains the 14 curated skill directories copied from the local Bigpowers
-2.88.6 deployment. The source package is [danielvm-git/bigpowers](https://github.com/danielvm-git/bigpowers)
+The original 14 curated skill directories came from the local Bigpowers 2.88.6 deployment.
+`diagnose-root` now contains a Hermes-derived adaptation instead of its original content. The source package is [danielvm-git/bigpowers](https://github.com/danielvm-git/bigpowers)
 and is distributed under MIT. `pi-skills/LICENSE.bigpowers` retains the complete upstream
 license text; `manifests/curated-skills.json` records the npm integrity and SHA-256 hash
-for every retained asset. The copies match the package's canonical `skills/` files,
-including references, scripts and fixtures. They do not use the generated `.pi/skills/`
+for every retained asset. Except for the declared adaptation, the copies match the package's
+canonical `skills/` files, including references, scripts and fixtures. They do not use the generated `.pi/skills/`
 variants. No Bigpowers hooks, prompt templates or extension are installed.
+
+## Hermes-derived methods
+
+The adapted `diagnose-root`, `grounded-citations`, `simplify-code`, `spike`, and `ast-grep`
+skills derive from [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)
+commit `47676981f55de91231fdeef2f0eec47e7c209e78`.
+`pi-skills/LICENSE.hermes` retains the MIT notice, copyright (c) 2025 Nous Research.
+`manifests/curated-skills.json` records exact source paths, hashes, and local changes.
+These are method adaptations for Pi, not unmodified Hermes skills or a Hermes runtime.
+
+Hermes attributes systematic-debugging to [obra/superpowers](https://github.com/obra/superpowers).
+Its spike skill credits the GSD /gsd-spike workflow, MIT copyright (c) 2025 Lex Christopherson.
+The ast-grep skill credits Yeongyu Kim, whose separate MIT notice remains in `pi-skills/ast-grep/LICENSE`.
+The learning extension is a local implementation informed by Hermes review prompts,
+ownership guards, and staged approvals. It does not copy the Python agent fork or memory store.
+See [the source review and exclusions](docs/hermes-adoption.md).
 
 ## Other release sources and dependencies
 

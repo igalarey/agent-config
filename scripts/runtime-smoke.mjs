@@ -347,7 +347,8 @@ const packageCommands = manifest => modernBase(manifest)
   ? ['agents', 'tasks', 'supervise', 'om', 'om:status', 'om:compact', 'om:consolidate'] : PACKAGE_COMMANDS;
 const BROWSER_TOOLS = ['browser_goto', 'browser_read', 'browser_click', 'browser_fill', 'browser_screenshot', 'browser_close'];
 const INSPECT_PREFIX = 'AGENT_CONFIG_RUNTIME_INSPECT ';
-export const PROJECT_PROMPT_NAMES = ['compare-designs', 'diagnose', 'edit-document', 'review'];
+export const HISTORICAL_PROJECT_PROMPT_NAMES = ['compare-designs', 'diagnose', 'edit-document', 'review'];
+export const PROJECT_PROMPT_NAMES = ['compare-designs', 'diagnose', 'edit-document', 'research', 'review'];
 
 function releasePromptNames(manifest) {
   return (manifest.files ?? []).map(file => file.path).filter(relative => /^prompts\/[^/]+\.md$/.test(relative))
@@ -361,7 +362,8 @@ function copyReleasePrompts(releasePath, agentDir, manifest) {
 export function assertPromptTemplateRegistrations(evidence, manifest) {
   const expected = releasePromptNames(manifest);
   if (expected.length === 0) return;
-  assert(JSON.stringify(expected) === JSON.stringify(PROJECT_PROMPT_NAMES),
+  assert([PROJECT_PROMPT_NAMES, HISTORICAL_PROJECT_PROMPT_NAMES]
+    .some(names => JSON.stringify(expected) === JSON.stringify(names)),
     `Unexpected project prompt inventory: ${expected.join(', ')}`);
   assert(evidence.commands?.success === true && Array.isArray(evidence.commands.data?.commands),
     'Official RPC prompt template evidence is missing');
@@ -396,6 +398,8 @@ function writeInspectorExtension(file) {
 }
 
 function runRpc({ releasePath, manifest, host, env, agentDir, sessionDir, cwd, temp }) {
+  const hasLearning = manifest.files?.some(file => file.path === 'extensions/learning/index.ts');
+  if (hasLearning) fs.cpSync(path.join(releasePath, 'extensions/learning'), path.join(agentDir, 'extensions/learning'), { recursive: true });
   if (manifest.files?.some(file => file.path === 'manifests/curated-skills.json')) {
     fs.cpSync(path.join(releasePath, 'pi-skills'), path.join(agentDir, 'skills'), { recursive: true });
   }
@@ -409,6 +413,7 @@ function runRpc({ releasePath, manifest, host, env, agentDir, sessionDir, cwd, t
     { id: 'commands', type: 'get_commands' },
     { id: 'inspect', type: 'prompt', message: '/agent-config-runtime-inspect' },
     { id: 'memory-status', type: 'prompt', message: '/om:status' },
+    ...(hasLearning ? [{ id: 'learning-status', type: 'prompt', message: '/learn pending' }] : []),
   ].map(value => JSON.stringify(value)).join('\n') + '\n';
   const rpc = spawnSync(process.execPath, [host.cli, '--mode', 'rpc', '--session-dir', sessionDir, '--extension', inspector,
     ...(nativeBase(manifest) ? [] : ['--no-skills']),
@@ -430,6 +435,7 @@ function runRpc({ releasePath, manifest, host, env, agentDir, sessionDir, cwd, t
     commands: messages.find(message => message.id === 'commands'),
     inspect: messages.find(message => message.id === 'inspect'),
     status: messages.find(message => message.id === 'memory-status'),
+    learningStatus: messages.find(message => message.id === 'learning-status'),
   };
 }
 
@@ -511,6 +517,17 @@ export function assertOfficialLoaderEvidence(evidence, releasePath, manifest, ag
     assertInsideRelease(releasePath, allTools.get(name).sourceInfo, `Tool ${name}`);
   }
   const commands = new Map(evidence.inspection.commands.map(command => [command.name, command]));
+  if (manifest.files?.some(file => file.path === 'extensions/learning/index.ts')) {
+    assert(typeof agentDir === 'string', 'Learning requires an isolated agent directory');
+    const tool = allTools.get('learning_propose');
+    assert(tool && activeTools.has('learning_propose'), 'Reviewed-learning proposal tool missing or inactive');
+    assert(commands.has('learn'), 'Reviewed-learning human command missing');
+    const expectedPath = path.join(agentDir, 'extensions/learning/index.ts');
+    for (const item of [tool, commands.get('learn')]) {
+      assert(item.sourceInfo?.source === 'auto' && item.sourceInfo?.scope === 'user'
+        && item.sourceInfo?.path === expectedPath, 'Learning resource did not load from the isolated global extension');
+    }
+  }
   assertPromptTemplateRegistrations(evidence, manifest);
   assertCuratedSkillRegistrations(evidence, releasePath, manifest, agentDir);
   if (manifest.packages.some(pkg => pkg.name === 'pi-browser')) {
@@ -563,6 +580,9 @@ function assertRpcEvidence(evidence, releasePath, sessionDir, manifest = { packa
   const commandNames = new Set(evidence.commands.data?.commands?.filter(command => command.source === 'extension').map(command => command.name));
   for (const name of packageCommands(manifest)) assert(commandNames.has(name), `RPC command missing: ${name}`);
   assert(evidence.status?.success === true, 'RPC /om:status did not execute without a model');
+  if (manifest.files?.some(file => file.path === 'extensions/learning/index.ts')) {
+    assert(evidence.learningStatus?.success === true, 'RPC /learn pending did not execute without a model');
+  }
   assert(evidence.messages.some(message => message.type === 'extension_ui_request' && message.method === 'notify' && /om status/.test(message.message)), 'RPC memory status notification missing');
   for (const command of evidence.commands.data.commands.filter(item => item.source === 'extension' && item.sourceInfo?.origin === 'package')) {
     assertInsideRelease(releasePath, command.sourceInfo, `RPC command ${command.name}`);
