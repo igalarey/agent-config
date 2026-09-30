@@ -62,6 +62,24 @@ PI_NOTIFICATION_RELEASE_PATH="$HOME/.agent-config/releases/<release-id>" \
 The release gates still include the complete upstream suites and official CLI/RPC checks.
 The SDK scenario does not establish every abort, recovery, branch-switch, or long-running group combination.
 
+## Verified activation
+
+On 2026-09-30, release `h-093d44899937-s-e955e29c51b7-m-bc1eba141a47` passed verification and became active.
+Its source commit is `093d44899937`.
+
+- Root regressions: 147 passed, 3 optional skips, zero failures.
+- Carbon tests: 21 passed.
+- Subagent suite: 105 files passed, 2,129 tests passed, 7 optional skips.
+- Release checks: all 14 package checks and all 5 runtime checks passed.
+- Explicit SDK regression against the activated candidate: all six phases passed, zero network calls.
+- Doctor: valid integrity and verification, zero conflicts, zero pending writes.
+- Compatibility: 170 checks passed.
+- Repeat bootstrap: zero configuration changes, no repeated dependency installation or verification.
+
+Activation preserved all non-package settings, including `carbon-graphite`.
+The previous release `h-5835c058e946-s-e955e29c51b7-m-bc1eba141a47` still passes integrity and verification checks.
+The activation backup is `~/.agent-config/backups/672a85ff-3f03-4e06-90bc-83aeee4f4db6`.
+
 ## Current-session limit
 
 Activation changes the files for the next extension load.
