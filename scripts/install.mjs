@@ -133,6 +133,86 @@ function settingsReleaseIds(home) {
   }
   return [...ids];
 }
+const QUESTION_HOTFIX_FILES = [
+  'packages/pi-ask-user-question/index.ts',
+  'packages/pi-ask-user-question/test/ask-user-question.test.mjs',
+];
+function releaseSnapshot(folder, runtimeRoots) {
+  noSymlinks(folder);
+  const entries = [];
+  const visit = (directory, prefix = '') => {
+    for (const name of fs.readdirSync(directory).sort()) {
+      const relative = prefix ? `${prefix}/${name}` : name;
+      const file = path.join(directory, name);
+      const stat = fs.lstatSync(file);
+      if (stat.isDirectory()) {
+        entries.push([relative, 'directory']);
+        visit(file, relative);
+      } else if (stat.isFile()) {
+        entries.push([relative, 'file', digest(fs.readFileSync(file))]);
+      } else if (stat.isSymbolicLink()) {
+        if (!runtimeRoots.some(root => relative.startsWith(`${root}/node_modules/`))) {
+          throw new Error(`Recovery symlink outside runtime: ${relative}`);
+        }
+        entries.push([relative, 'symlink', fs.readlinkSync(file)]);
+      } else throw new Error(`Unsupported recovery entry: ${relative}`);
+    }
+  };
+  visit(folder);
+  return entries;
+}
+function questionRecovery({ home, previous, previousHome, backupPath, successor }) {
+  if (typeof previousHome !== 'string' || !path.isAbsolute(previousHome)
+      || typeof backupPath !== 'string' || !path.isAbsolute(backupPath)) {
+    throw new Error('Question recovery requires absolute previousHome and backupPath');
+  }
+  const active = path.join(path.resolve(home), '.agent-config/releases', previous.release);
+  const pristine = path.join(path.resolve(previousHome), '.agent-config/releases', previous.release);
+  const within = (a, b) => {
+    const relative = path.relative(a, b);
+    return relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
+  };
+  const successorPath = successor.path;
+  if (within(active, pristine) || within(pristine, active)
+      || within(active, backupPath) || within(backupPath, active)
+      || within(pristine, backupPath) || within(backupPath, pristine)
+      || within(successorPath, backupPath) || within(backupPath, successorPath)
+      || within(successorPath, pristine) || within(pristine, successorPath)) {
+    throw new Error('Question recovery paths must be separate');
+  }
+  noSymlinks(backupPath);
+  const prior = validateRelease({ home: previousHome, id: previous.release, requireVerified: true });
+  const runtimeRoots = [...prior.manifest.packages.map(pkg => pkg.path),
+    ...(prior.manifest.files.some(file => file.path === 'native/package.json') ? ['native'] : [])];
+  const pristineEntries = releaseSnapshot(prior.path, runtimeRoots);
+  const activeEntries = releaseSnapshot(active, runtimeRoots);
+  const pristineMap = new Map(pristineEntries.map(entry => [entry[0], entry]));
+  const activeMap = new Map(activeEntries.map(entry => [entry[0], entry]));
+  const exceptions = new Set(QUESTION_HOTFIX_FILES);
+  if (activeEntries.length !== pristineEntries.length
+      || [...new Set([...activeMap.keys(), ...pristineMap.keys()])].some(relative =>
+        !exceptions.has(relative) && !isDeepStrictEqual(activeMap.get(relative), pristineMap.get(relative)))) {
+    throw new Error('Question recovery predecessor trees differ outside approved sources');
+  }
+  let changed = false;
+  for (const relative of QUESTION_HOTFIX_FILES) {
+    const oldRecord = prior.manifest.files.find(file => file.path === relative);
+    const newRecord = successor.manifest.files.find(file => file.path === relative);
+    const current = activeMap.get(relative), original = pristineMap.get(relative);
+    const saved = path.join(backupPath, ...relative.split('/'));
+    noSymlinks(saved);
+    if (oldRecord?.source !== 'harness' || newRecord?.source !== 'harness'
+        || !current || current[1] !== 'file' || !original || original[1] !== 'file'
+        || original[2] !== oldRecord.sha256 || current[2] !== newRecord.sha256
+        || !fs.existsSync(saved) || !fs.lstatSync(saved).isFile()
+        || digest(fs.readFileSync(saved)) !== current[2]) {
+      throw new Error(`Question recovery source or backup mismatch: ${relative}`);
+    }
+    if (current[2] !== original[2]) changed = true;
+  }
+  if (!changed) throw new Error('Question recovery requires a changed predecessor source');
+  return { prior, snapshot: digest(JSON.stringify({ pristineEntries, activeEntries })) };
+}
 function managedShape(source) {
   const resources = projectedResources(source).map(resource => resource.relative);
   if (supportsHarnessInventory(source)) resources.push('.pi/agent/harness-manifest.json');
@@ -148,7 +228,7 @@ function managedShape(source) {
   walk(readJSON(path.join(source, 'config/pi.settings.json')));
   return { resources: resources.sort(), settingsKeys: keys.sort() };
 }
-export function plan({ home, source = root, withRtk = false, migratePackages = false, retireOrcaSkills = false, migrateBase = false, release }) {
+export function plan({ home, source = root, withRtk = false, migratePackages = false, retireOrcaSkills = false, migrateBase = false, release, recoverQuestionHotfix }) {
   const statePath = path.join(home, '.agent-config', 'state.json');
   noSymlinks(statePath);
   const stateExists = fs.existsSync(statePath);
@@ -160,6 +240,7 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
         || !/^h-[0-9a-f]{12}-s-[0-9a-f]{12}-m-[0-9a-f]{12}$/.test(previous.release)))
       || (previous.nativeDigest !== undefined && (typeof previous.nativeDigest !== 'string'
         || !/^[0-9a-f]{64}$/.test(previous.nativeDigest)))) throw new Error('Invalid installer state');
+  if (recoverQuestionHotfix && !release) throw new Error('Question recovery requires an explicit verified successor switch');
   if (!release) {
     const configuredReleases = settingsReleaseIds(home);
     if (typeof previous.release === 'string') {
@@ -171,14 +252,23 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
       throw new Error(`Settings reference release ${configuredReleases.join(', ')} but installer state has no active release; pass --release <id> explicitly`);
     }
   }
-  if (release) source = validateRelease({ home, id: release, requireVerified: true }).path;
+  if (recoverQuestionHotfix && (!release || typeof previous.release !== 'string' || previous.release === release
+      || !object(recoverQuestionHotfix) || Object.keys(recoverQuestionHotfix).sort().join(',') !== 'backupPath,previousHome')) {
+    throw new Error('Question recovery requires switching to a different verified successor');
+  }
+  const successor = release ? validateRelease({ home, id: release, requireVerified: true }) : null;
+  if (successor) source = successor.path;
   const modern = fs.existsSync(path.join(source, 'config/subagents.json'));
   if (withRtk) throw new Error('RTK is retired from this base');
   const operations = [], conflicts = [], tracked = { ...previous.files }, retiredResources = [];
   const predecessorHashes = legacyCompatibilityHashes(source);
-  let priorRelease;
+  let priorRelease, recovery;
   if (release && typeof previous.release === 'string' && previous.release !== release) {
-    priorRelease = validateRelease({ home, id: previous.release });
+    if (recoverQuestionHotfix) {
+      const checked = questionRecovery({ home, previous, ...recoverQuestionHotfix, successor });
+      priorRelease = checked.prior;
+      recovery = { ...recoverQuestionHotfix, previousRelease: previous.release, snapshot: checked.snapshot };
+    } else priorRelease = validateRelease({ home, id: previous.release });
     const prior = priorRelease.path;
     const beforeShape = managedShape(prior), nextShape = managedShape(source);
     if (JSON.stringify(beforeShape) !== JSON.stringify(nextShape)) {
@@ -524,10 +614,25 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
     add('.pi/agent/harness-manifest.json', inventoryJSON(buildHarnessInventory(source)));
   }
   add('.agent-config/state.json', json({ version: 1, files: tracked, ...(release ? { release } : {}), ...(nativeDigest ? { nativeDigest } : {}) }), false);
-  return { home, source, release, operations, conflicts, migrations };
+  return { home, source, release, operations, conflicts, migrations, ...(recovery ? { recovery } : {}) };
 }
 export function execute(plan) {
   if (plan.conflicts.length) throw new Error(`Conflicts; nothing written: ${plan.conflicts.join(', ')}`);
+  if (plan.recovery) {
+    const statePath = path.join(plan.home, '.agent-config/state.json');
+    noSymlinks(statePath);
+    const previous = readJSON(statePath);
+    if (previous.release !== plan.recovery.previousRelease || plan.release === previous.release) {
+      throw new Error('Question recovery active release changed since preview');
+    }
+    const successor = validateRelease({ home: plan.home, id: plan.release, requireVerified: true });
+    if (successor.path !== plan.source) throw new Error('Question recovery successor changed since preview');
+    const current = questionRecovery({ home: plan.home, previous, previousHome: plan.recovery.previousHome,
+      backupPath: plan.recovery.backupPath, successor });
+    if (current.snapshot !== plan.recovery.snapshot) {
+      throw new Error('Question recovery changed since preview');
+    }
+  }
   for (const op of plan.operations) {
     noSymlinks(op.target);
     if (op.nativeSource) {

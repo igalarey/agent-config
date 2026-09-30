@@ -304,6 +304,12 @@ to reclaim disk space; recovery then requires rebuilding the old commit. This mi
 migration to the retired runtime; retain backups and the corresponding historical installer
 and Node/Pi versions when recovery to an older base is required.
 
+A pre-existing question-tool write-in hotfix required explicitly authorized activation recovery.
+The installer can validate a private pristine predecessor view through the programmatic `recoverQuestionHotfix` option.
+It accepts only the two backed-up question files that exactly match the verified successor.
+Other drift still causes refusal. See [the recovery boundaries](docs/hermes-adoption.md#existing-question-hotfix-and-activation-recovery).
+Do not modify a sealed release to repair a failed integrity check.
+
 No push is performed by installation. Do not use `git push --all` or `--mirror`: development
 checkouts may contain private historical refs. Push only the reviewed `main` branch.
 Original code is MIT; [third-party notices](THIRD_PARTY_NOTICES.md) preserve upstream licenses.

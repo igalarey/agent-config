@@ -4,6 +4,7 @@ import { Text } from "@earendil-works/pi-tui";
 import { Type, type Static } from "typebox";
 
 const MAX_OPTIONS = 12;
+const OTHER_LABEL = "Other (write your own answer)";
 const DONE_PREFIX = "✓ Done";
 const UNDO_PREFIX = "↶ Undo last:";
 
@@ -16,6 +17,13 @@ const AskUserQuestionParams = Type.Object({
 
 export type AskUserQuestionInput = Static<typeof AskUserQuestionParams>;
 type QuestionResult = { question: string; kind: AskUserQuestionInput["kind"]; answers: string[]; cancelled: boolean };
+
+function otherLabel(options: string[]): string {
+  let label = OTHER_LABEL;
+  let suffix = 2;
+  while (options.includes(label)) label = `${OTHER_LABEL} ${suffix++}`;
+  return label;
+}
 
 function cancelled(question: string, kind: AskUserQuestionInput["kind"]) {
   const details: QuestionResult = { question, kind, answers: [], cancelled: true };
@@ -41,26 +49,33 @@ async function askMultiple(
   signal?: AbortSignal,
 ): Promise<string[] | null> {
   const remaining = [...options];
-  const selected: string[] = [];
+  const writeInLabel = otherLabel(options);
+  const selected: { value: string; option?: string }[] = [];
   while (true) {
     if (signal?.aborted) return null;
     const numbered = remaining.map((label, index) => `${index + 1}. ${label}`);
-    const undo = selected.length ? `${UNDO_PREFIX} ${selected.at(-1)}` : null;
+    const undo = selected.length ? `${UNDO_PREFIX} ${selected.at(-1)!.value}` : null;
     const finish = selected.length ? `${DONE_PREFIX} (${selected.length} selected)` : "Cancel";
-    const menu = [...numbered, ...(undo ? [undo] : []), finish];
+    const menu = [...numbered, ...(selected.some(answer => answer.option === undefined) ? [] : [writeInLabel]), ...(undo ? [undo] : []), finish];
     const choice = await ctx.ui.select(question, menu, { signal });
     if (choice === undefined || choice === "Cancel") return null;
-    if (choice.startsWith(DONE_PREFIX)) return [...selected];
+    if (choice.startsWith(DONE_PREFIX)) return selected.map(answer => answer.value);
     if (choice.startsWith(UNDO_PREFIX)) {
       const restored = selected.pop();
-      if (restored) remaining.splice(options.indexOf(restored), 0, restored);
+      if (restored?.option !== undefined) remaining.splice(options.indexOf(restored.option), 0, restored.option);
+      continue;
+    }
+    if (choice === writeInLabel) {
+      const answer = await ctx.ui.input(question, undefined, { signal });
+      if (!answer?.trim()) return null;
+      selected.push({ value: answer.trim() });
       continue;
     }
     const index = numbered.indexOf(choice);
     if (index < 0) return null;
-    selected.push(remaining[index]!);
+    const option = remaining[index]!;
+    selected.push({ value: option, option });
     remaining.splice(index, 1);
-    if (remaining.length === 0) return selected;
   }
 }
 
@@ -89,8 +104,14 @@ export default function askUserQuestion(pi: ExtensionAPI) {
         const answer = await ctx.ui.input(question, params.placeholder, { signal });
         answers = answer?.trim() ? [answer.trim()] : null;
       } else if (params.kind === "single") {
-        const answer = await ctx.ui.select(question, options, { signal });
-        answers = answer === undefined ? null : [answer];
+        const writeInLabel = otherLabel(options);
+        const answer = await ctx.ui.select(question, [...options, writeInLabel], { signal });
+        if (answer === writeInLabel) {
+          const writeIn = await ctx.ui.input(question, undefined, { signal });
+          answers = writeIn?.trim() ? [writeIn.trim()] : null;
+        } else {
+          answers = answer === undefined ? null : [answer];
+        }
       } else {
         answers = await askMultiple(question, options, ctx, signal);
       }

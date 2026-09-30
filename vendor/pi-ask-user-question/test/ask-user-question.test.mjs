@@ -46,6 +46,10 @@ test('single and multiple selection use RPC-compatible select dialogs', async t 
     context({ selections: ['B'] }));
   assert.deepEqual(single.details.answers, ['B']);
 
+  const singleWriteIn = await tool.execute('single-write-in', { question: 'Pick', kind: 'single', options: ['A', 'B'] }, undefined, undefined,
+    context({ selections: [options => options.find(value => value.startsWith('Other'))], inputs: ['  Custom answer  '] }));
+  assert.deepEqual(singleWriteIn.details.answers, ['Custom answer']);
+
   const multiple = await tool.execute('multiple', { question: 'Pick many', kind: 'multiple', options: ['A', 'B', 'C'] }, undefined, undefined,
     context({ selections: [
       options => options[0],
@@ -54,6 +58,17 @@ test('single and multiple selection use RPC-compatible select dialogs', async t 
     ] }));
   assert.deepEqual(multiple.details.answers, ['A', 'B']);
   assert.match(multiple.content[0].text, /- A\n- B/);
+
+  const multipleWriteIn = await tool.execute('multiple-write-in', { question: 'Pick many', kind: 'multiple', options: ['A', 'B'] }, undefined, undefined,
+    context({
+      selections: [
+        options => options.find(value => value === '1. A'),
+        options => options.find(value => value.startsWith('Other')),
+        options => options.find(value => value.startsWith('✓ Done')),
+      ],
+      inputs: ['Custom answer'],
+    }));
+  assert.deepEqual(multipleWriteIn.details.answers, ['A', 'Custom answer']);
 });
 
 test('cancellation is explicit and no-UI execution fails', async t => {

@@ -87,6 +87,27 @@ This extension's approval contract is not a sandbox around those tools.
 
 See the README for commands and storage locations.
 
+## Existing question hotfix and activation recovery
+
+Activation found two pre-existing changes inside the formerly active sealed release:
+`packages/pi-ask-user-question/index.ts` and `packages/pi-ask-user-question/test/ask-user-question.test.mjs`.
+They add an Other/write-in answer to single and multiple selection.
+The user explicitly authorized preserving this behavior and recovering activation with backups.
+Both files now match the reviewed vendor source byte-for-byte.
+Their tests failed before the source port, then passed with the preserved behavior.
+
+Normal activation continues to reject an altered predecessor.
+The recovery uses an explicit programmatic `recoverQuestionHotfix` option, not a general integrity override.
+A private external verification view reconstructs only the two original files from their recorded Git blobs.
+That view must pass the original source, dependency, verification, runtime, and activation-seal checks.
+The original deployed release is never repaired or modified.
+
+The active tree and verification view must otherwise match in every file, directory, and symlink target.
+Both changed files must match the pinned successor and their private backups.
+The installer repeats these checks before writes to detect changes after preview.
+Unrelated drift, altered metadata, missing backups, and mismatched successor bytes cause refusal.
+The former release remains preserved but invalid. Do not select it for ordinary rollback.
+
 ## Verification boundaries
 
 Regression checks cover provenance, resource hashes, registration, and upgrade/rollback preservation.

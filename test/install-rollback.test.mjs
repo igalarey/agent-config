@@ -146,6 +146,89 @@ const newPolicy = {
   prompts: [],
 };
 const settingsPath = '.pi/agent/settings.json';
+const questionPaths = [
+  'packages/pi-ask-user-question/index.ts',
+  'packages/pi-ask-user-question/test/ask-user-question.test.mjs',
+];
+
+function questionRecovery(t) {
+  const home = temporary(t, 'installer-question-recovery-home-');
+  const previousHome = temporary(t, 'installer-question-pristine-home-');
+  const backupPath = temporary(t, 'installer-question-backup-');
+  const source = releaseSources(t, oldPolicy);
+  put(source.repositories.harness, 'vendor/pi-ask-user-question/test/ask-user-question.test.mjs', 'original test\n');
+  source.commits.harness = commit(source.repositories.harness, 'original question sources');
+  const before = prepareRelease(home, source);
+  execute(plan({ home, release: before.id }));
+  fs.mkdirSync(path.join(previousHome, '.agent-config/releases'), { recursive: true });
+  fs.cpSync(before.releasePath, path.join(previousHome, '.agent-config/releases', before.id), { recursive: true });
+  const original = questionPaths.map(relative => fs.readFileSync(path.join(before.releasePath, relative)));
+  put(source.repositories.harness, 'vendor/pi-ask-user-question/index.ts', 'export default function approvedHotfix() {}\n');
+  put(source.repositories.harness, 'vendor/pi-ask-user-question/test/ask-user-question.test.mjs', 'approved hotfix test\n');
+  source.commits.harness = commit(source.repositories.harness, 'approved question hotfix');
+  const after = prepareRelease(home, source);
+  for (const relative of questionPaths) {
+    const content = fs.readFileSync(path.join(after.releasePath, relative));
+    put(home, `.agent-config/releases/${before.id}/${relative}`, content);
+    put(backupPath, relative, content);
+  }
+  const options = { home, release: after.id, recoverQuestionHotfix: { previousHome, backupPath } };
+  return { home, previousHome, backupPath, before, after, original, options };
+}
+
+test('question hotfix recovery requires an independently verified pristine predecessor and exact backup', t => {
+  const fixture = questionRecovery(t);
+  const { home, previousHome, backupPath, before, after, original, options } = fixture;
+  const state = path.join(home, '.agent-config/state.json');
+  const stateBefore = fs.readFileSync(state);
+  assert.throws(() => plan({ home, release: after.id }), /Release integrity mismatch/);
+  assert.throws(() => plan({ home, release: before.id, recoverQuestionHotfix: options.recoverQuestionHotfix }), /recovery|switch/i);
+  assert.throws(() => plan({ home, recoverQuestionHotfix: options.recoverQuestionHotfix }), /recovery|switch/i);
+  const nestedPreviousHome = path.join(after.releasePath, '.release', 'pristine-home');
+  fs.mkdirSync(path.join(nestedPreviousHome, '.agent-config/releases'), { recursive: true });
+  fs.cpSync(path.join(previousHome, '.agent-config/releases', before.id),
+    path.join(nestedPreviousHome, '.agent-config/releases', before.id), { recursive: true });
+  assert.throws(() => plan({ ...options, recoverQuestionHotfix: { previousHome: nestedPreviousHome, backupPath } }), /separate/i);
+  fs.rmSync(nestedPreviousHome, { recursive: true });
+  const recovery = plan(options);
+  assert.deepEqual(recovery.conflicts, []);
+  assert.ok(recovery.recovery);
+  assert.equal(fs.readFileSync(state).equals(stateBefore), true);
+
+  const refuse = (location, relative, bytes) => {
+    const target = path.join(location, relative);
+    const beforeBytes = fs.existsSync(target) ? fs.readFileSync(target) : null;
+    put(location, relative, bytes);
+    try { assert.throws(() => plan(options)); assert.equal(fs.readFileSync(state).equals(stateBefore), true); }
+    finally { if (beforeBytes === null) fs.rmSync(target); else fs.writeFileSync(target, beforeBytes); }
+  };
+  refuse(backupPath, questionPaths[0], 'different backup\n');
+  fs.rmSync(path.join(backupPath, questionPaths[1]));
+  assert.throws(() => plan(options));
+  put(backupPath, questionPaths[1], fs.readFileSync(path.join(after.releasePath, questionPaths[1])));
+  refuse(home, `.agent-config/releases/${before.id}/SYSTEM.md`, 'unrelated source change\n');
+  refuse(home, `.agent-config/releases/${before.id}/packages/pi-ask-user-question/node_modules/extra.js`, 'extra runtime file\n');
+  refuse(home, `.agent-config/releases/${before.id}/release.json`, '{}\n');
+  refuse(previousHome, `.agent-config/releases/${before.id}/release.json`, '{}\n');
+  refuse(previousHome, `.agent-config/releases/${before.id}/.release/dependencies.json`, '{}\n');
+  assert.deepEqual(plan(options).conflicts, []);
+
+  const stale = plan(options);
+  put(home, `.agent-config/releases/${before.id}/${questionPaths[0]}`, 'changed after preview\n');
+  assert.throws(() => execute(stale), /recover|changed|mismatch/i);
+  assert.equal(fs.readFileSync(state).equals(stateBefore), true);
+  put(home, `.agent-config/releases/${before.id}/${questionPaths[0]}`, fs.readFileSync(path.join(after.releasePath, questionPaths[0])));
+  fs.writeFileSync(path.join(backupPath, questionPaths[0]), 'changed backup after preview\n');
+  assert.throws(() => execute(stale), /recover|changed|mismatch/i);
+  assert.equal(fs.readFileSync(state).equals(stateBefore), true);
+  put(backupPath, questionPaths[0], fs.readFileSync(path.join(after.releasePath, questionPaths[0])));
+  execute(stale);
+  assert.equal(readJSON(state).release, after.id);
+  for (let i = 0; i < questionPaths.length; i++) {
+    assert.equal(fs.readFileSync(path.join(before.releasePath, questionPaths[i])).equals(original[i]), false);
+    assert.equal(fs.readFileSync(path.join(backupPath, questionPaths[i])).equals(fs.readFileSync(path.join(before.releasePath, questionPaths[i]))), true);
+  }
+});
 
 test('retired native packages are removed only when their managed registration is unchanged', t => {
   const home = temporary(t, 'installer-native-retirement-');
