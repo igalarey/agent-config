@@ -1,11 +1,51 @@
 # Verification: tintinweb base
 
 This file supersedes the historical Windows/RTK/interactive-subagents evidence in Git history.
-Target: Linux, Node 22.23.2, Pi 0.87.1. Latest activation: 2026-09-24.
+Target: Linux, Node 22.23.2, Pi 0.87.1. Latest activation: 2026-09-30.
 
-## Carbon Graphite theme (current)
+## Reviewed Hermes adaptations and learning (current)
 
-`h-acc1ae48d05f-s-e955e29c51b7-m-bc1eba141a47` is verified, sealed and active.
+`h-388f27d52cc2-s-e955e29c51b7-m-bc1eba141a47` is verified, sealed and active.
+Hermes source reviewed: `47676981f55de91231fdeef2f0eec47e7c209e78`.
+See [the adoption scope](hermes-adoption.md) for provenance, exclusions and safeguards.
+
+- `npm test`: 145 passed, three optional tests skipped, zero failures.
+- `npm run verify`: all six local groups passed. `npm run test:carbon`: 21 passed.
+- Full candidate: all 14 package checks and five official Pi runtime checks passed.
+- `node scripts/verify-compatibility.mjs`: 170 checks passed.
+  Installed resources: 18 curated skills, seven local packages and four native npm packages.
+- `npm run doctor`: valid integrity and compatibility, zero conflicts and pending writes.
+- `npm run bootstrap -- --apply` repeated after activation: zero changes.
+  Dependencies and verification stages were skipped for the matching valid active release.
+
+Learning-store fault injection and isolated official SDK scenarios cover proposal,
+full-content preview, approval, cancellation, rejection, reload, naming collisions,
+stale targets, interrupted publication and competing approvals.
+Scripted dialogs and offline providers do not establish live model learning quality.
+No observational-memory code or model configuration was replaced.
+
+The preceding active release contained an earlier question-tool write-in hotfix in two
+source files. Normal activation rejected its failed integrity check. With explicit user
+approval, those exact files and metadata were backed up.
+A private pristine verification view restored only the original recorded Git blobs and passed all original integrity gates.
+The bounded recovery required all remaining predecessor bytes and symlink targets to match.
+The hotfix bytes had to match both backup and verified successor.
+The original release remains untouched and invalid. It is not a normal rollback target.
+
+Recovery evidence and modified-source backups remain at
+`~/.agent-config/backups/hermes-question-recovery-8655d862-cfac-49d8-aaf0-c72136911eeb`.
+The first activation backup is
+`~/.agent-config/backups/0c131080-1692-40c5-8ff9-1c67a24ca103`.
+Final non-package settings are structurally identical to the pre-activation backup,
+including the user's `carbon-graphite` theme. The source default retains that choice.
+Protected policy and private MCP/web configuration were not changed.
+Credential files, prior session logs and generated memory were not inspected or copied.
+
+Restart Pi to load the new prompt, skills and `/learn` commands.
+
+## Previous Carbon Graphite theme (2026-09-24)
+
+`h-acc1ae48d05f-s-e955e29c51b7-m-bc1eba141a47` was verified, sealed and active.
 
 - Added selectable `carbon-graphite` with a gray accent (`#b3b7b5`) and `#131413`
   page/message backgrounds. Pi themes do not control the terminal emulator's base background.
