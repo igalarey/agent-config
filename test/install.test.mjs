@@ -144,7 +144,7 @@ test('legacy planner fixture is idempotent and preserves profiles and source', t
   assert.deepEqual(installedSettings.compaction, { enabled: true, reserveTokens: 16384, keepRecentTokens: 20000 });
   assert.equal(installedSettings['observational-memory'].compactAtContextTokens, 150000);
   assert.equal(installedSettings['observational-memory'].tailTokens, 20000);
-  assert.equal(installedSettings.theme, 'carbon-violet');
+  assert.equal(installedSettings.theme, 'carbon-graphite');
   assert.equal(installedSettings.editorPaddingX, 2);
   assert.equal(installedSettings.outputPad, 1);
   assert.equal(installedSettings.hideThinkingBlock, true);
@@ -217,7 +217,7 @@ test('applies managed defaults while preserving unrelated settings, APPEND promp
   put(home, '.pi/agent/AGENTS.md', originalAgents);
   const backup = execute(plan({ home }));
   const next = readJSON(path.join(home, settings));
-  assert.equal(next.theme, 'carbon-violet');
+  assert.equal(next.theme, 'carbon-graphite');
   assert.equal(next.foreign, 'preserve');
   assert.equal(next['observational-memory'].custom, 42);
   assert.equal(next.packages[0], 'npm:unrelated@1.0.0');

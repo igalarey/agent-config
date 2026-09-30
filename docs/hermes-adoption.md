@@ -108,6 +108,11 @@ The installer repeats these checks before writes to detect changes after preview
 Unrelated drift, altered metadata, missing backups, and mismatched successor bytes cause refusal.
 The former release remains preserved but invalid. Do not select it for ordinary rollback.
 
+The installer also reapplied the source's `carbon-violet` default during activation.
+The user's prior selection was `carbon-graphite`.
+The source default now retains that selection so repeat bootstrap does not reset it.
+No memory or learning configuration changed.
+
 ## Verification boundaries
 
 Regression checks cover provenance, resource hashes, registration, and upgrade/rollback preservation.

@@ -14,9 +14,9 @@ settings directory through Pi's public `getAgentDir()` API, locates the configur
 `registerTool`. When this wrapper is present, the installer sets `extensions: []`
 on the original package entry so Pi does not register the task tools twice.
 
-The default settings select `carbon-violet`, use editor padding `2` and output
+The default settings select `carbon-graphite`, use editor padding `2` and output
 padding `1`, hide expanded thinking blocks, keep startup messages enabled, and
-collapse the changelog. `carbon-graphite` is an optional variant with a gray accent
+collapse the changelog. `carbon-graphite` uses a gray accent
 and `#131413` page/message backgrounds. Select it in `/settings`; the terminal's
 base background remains controlled by the terminal emulator.
 
