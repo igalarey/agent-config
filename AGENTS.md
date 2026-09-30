@@ -33,9 +33,9 @@ Portable Pi configuration. Node 22.23.2, Pi 0.87.1, dependency-free ESM installe
   forces PI_OFFLINE=1, PI_E2E_LIVE=0 and PI_RUN_LIVE_SUBAGENT_TESTS=0. Never copy auth.json
   into fixtures. Scripted faux models are not authenticated end-to-end model tests.
 - Modern runtime smoke uses installed exact Pi by official CLI/RPC and a synthetic provider:
-  TaskExecute/result delivery, local child tool scopes, Luna medium priority and Sol high
+  TaskExecute/result delivery, local child tool scopes, Luna high priority and Sol high
   request serialization, supervisor startup, and shared-process child execution. Do not replace this with mocks.
-- `agents/` provides Explore/general-purpose (Luna medium) and Plan/deep-implementation/
+- `agents/` provides Explore/general-purpose (Luna high) and Plan/deep-implementation/
   deep-review (Sol high). All append inherited instructions, use explicit local tool lists,
   disable skills and nesting, and set turn defaults. Read-only roles never receive Bash.
 - Luna profiles load only the explicit `~/.pi/agent/agents/luna-fast.mjs` path. Its provider

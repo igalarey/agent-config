@@ -605,7 +605,7 @@ function fauxIntegrationProvider(pi) {
           },
         }).result();
         const luna = model.id === 'gpt-6-luna';
-        if (captured?.reasoning?.effort !== (luna ? 'medium' : 'high')
+        if (captured?.reasoning?.effort !== 'high'
           || captured.service_tier !== (luna ? 'priority' : undefined)) {
           throw new Error(`Subagent model policy was not serialized for ${model.id}`);
         }

@@ -11,7 +11,7 @@ function handler() {
 }
 
 test('Luna priority preserves reasoning and request content without mutating input', () => {
-  const payload = { model: model.id, reasoning: { effort: 'medium' }, input: [], instructions: 'fixture', service_tier: 'default' };
+  const payload = { model: model.id, reasoning: { effort: 'high' }, input: [], instructions: 'fixture', service_tier: 'default' };
   const before = structuredClone(payload);
   assert.deepEqual(handler()({ payload }, { model }), { ...payload, service_tier: 'priority' });
   assert.deepEqual(payload, before);
@@ -25,7 +25,7 @@ test('priority does not affect Astra, Sol, other providers or unknown models', (
 
 test('profiles pin models with explicit local tools and bounded turns', () => {
   for (const [name, modelId, thinking, writable] of [
-    ['Explore', 'gpt-6-luna', 'medium', false], ['general-purpose', 'gpt-6-luna', 'medium', true],
+    ['Explore', 'gpt-6-luna', 'high', false], ['general-purpose', 'gpt-6-luna', 'high', true],
     ['Plan', 'gpt-6.1-sol', 'high', false], ['deep-implementation', 'gpt-6.1-sol', 'high', true], ['deep-review', 'gpt-6.1-sol', 'high', false],
   ]) {
     const text = fs.readFileSync(new URL(`../agents/${name}.md`, import.meta.url), 'utf8');
