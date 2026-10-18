@@ -4,7 +4,7 @@ Portable Pi configuration. Node 22.23.2, Pi 1.3.0, dependency-free ESM installer
 
 - New base: tintinweb pi-subagents, pi-tasks, pi-supervisor; observational-memory;
   local questions, browser and subscription usage. Native npm: pi-mcp-adapter 2.33.0,
-  pi-web-access 0.29.0, pi-ollama 0.1.7 and pi-claude-bridge 0.8.0. Eleven packages:
+  pi-web-access 0.32.0, pi-ollama 0.1.7 and pi-claude-bridge 0.8.0. Eleven packages:
   seven base plus four native.
 - `manifests/active-release.json` pins exact harness/subagents/memory commits. Tasks and
   supervisor are vendored source snapshots; revisions/licenses in `manifests/tintinweb.json`

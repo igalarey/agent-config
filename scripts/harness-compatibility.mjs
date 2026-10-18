@@ -84,6 +84,25 @@ function regularFiles(root, prefix = '') {
   return result;
 }
 
+function resolveInventoryEntrypoint(packageRoot, relative) {
+  const target = path.join(packageRoot, ...relative.split('/'));
+  noSymlinkSegments(target);
+  if (!fs.lstatSync(target).isDirectory()) return relative;
+  if (fs.existsSync(path.join(target, 'package.json'))) {
+    throw new Error(`Unsupported directory entrypoint manifest: ${relative}`);
+  }
+  // Pi resolves index.ts before index.js; nested manifests and discovery are intentionally unsupported here.
+  for (const name of ['index.ts', 'index.js']) {
+    const index = path.join(target, name);
+    const stat = fs.lstatSync(index, { throwIfNoEntry: false });
+    if (!stat) continue;
+    noSymlinkSegments(index);
+    if (!stat.isFile()) throw new Error(`Expected regular file: ${relative}/${name}`);
+    return `${relative}/${name}`;
+  }
+  throw new Error(`Unsupported directory entrypoint without index.ts or index.js: ${relative}`);
+}
+
 function packageEntrypoints(metadata) {
   const declared = metadata.pi?.extensions;
   if (Array.isArray(declared) && declared.length) return declared.map(value => {
@@ -161,7 +180,7 @@ export function buildHarnessInventory(releaseRoot) {
     const packageRoot = path.join(root, 'native/node_modules', ...name.split('/'));
     const metadata = readJSON(path.join(packageRoot, 'package.json'), `installed native package ${name}`);
     if (metadata.name !== name || metadata.version !== version) throw new Error(`Installed native package mismatch: ${name}`);
-    const entrypoints = packageEntrypoints(metadata);
+    const entrypoints = packageEntrypoints(metadata).map(relative => resolveInventoryEntrypoint(packageRoot, relative)).sort();
     if (!entrypoints.length) throw new Error(`Native package has no entrypoint: ${name}`);
     const entrypointHashes = Object.fromEntries(entrypoints.map(relative =>
       [relative, hashFile(path.join(packageRoot, ...relative.split('/')))]));

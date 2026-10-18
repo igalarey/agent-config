@@ -108,6 +108,40 @@ function fixture(t) {
   return { home, releaseRoot, inventory };
 }
 
+test('native directory entrypoints hash the selected index with Pi TypeScript precedence', t => {
+  const { releaseRoot } = fixture(t);
+  const prefix = 'native/node_modules/fixture-native';
+  put(releaseRoot, `${prefix}/package.json`, JSON.stringify({ name: 'fixture-native', version: '1.2.3', pi: { extensions: ['./dist'] } }));
+  put(releaseRoot, `${prefix}/dist/index.js`, 'export default function bundled() {}');
+  const javascript = buildHarnessInventory(releaseRoot).native.packages[0];
+  assert.deepEqual(javascript.entrypoints, ['dist/index.js']);
+  assert.deepEqual(javascript.entrypointHashes, { 'dist/index.js': sha256('export default function bundled() {}') });
+  put(releaseRoot, `${prefix}/dist/index.ts`, 'export default function typed() {}');
+  const typescript = buildHarnessInventory(releaseRoot).native.packages[0];
+  assert.deepEqual(typescript.entrypoints, ['dist/index.ts']);
+  assert.deepEqual(typescript.entrypointHashes, { 'dist/index.ts': sha256('export default function typed() {}') });
+});
+
+test('native directory entrypoints reject unsafe and unsupported resolution', t => {
+  for (const mode of ['missing-index', 'index-directory', 'index-symlink', 'directory-symlink', 'nested-manifest', 'traversal']) {
+    const { releaseRoot } = fixture(t);
+    const prefix = 'native/node_modules/fixture-native';
+    put(releaseRoot, `${prefix}/package.json`, JSON.stringify({ name: 'fixture-native', version: '1.2.3', pi: { extensions: [mode === 'traversal' ? '../fixture-native/dist' : './dist'] } }));
+    fs.mkdirSync(path.join(releaseRoot, prefix, 'dist'));
+    if (mode === 'index-directory') fs.mkdirSync(path.join(releaseRoot, prefix, 'dist/index.ts'));
+    if (mode === 'index-symlink') fs.symlinkSync('../index.ts', path.join(releaseRoot, prefix, 'dist/index.ts'));
+    if (mode === 'directory-symlink') {
+      fs.rmdirSync(path.join(releaseRoot, prefix, 'dist'));
+      fs.symlinkSync('.', path.join(releaseRoot, prefix, 'dist'));
+    }
+    if (mode === 'nested-manifest') {
+      put(releaseRoot, `${prefix}/dist/index.js`, 'export default function ignored() {}');
+      put(releaseRoot, `${prefix}/dist/package.json`, JSON.stringify({ pi: { extensions: ['other.js'] } }));
+    }
+    assert.throws(() => buildHarnessInventory(releaseRoot), /directory entrypoint|regular file|Symlink|relative inventory path/i, mode);
+  }
+});
+
 const fakePi = () => ({ status: 0, stdout: 'pi 0.87.1\n', stderr: '' });
 
 test('inventory is derived from the selected release and remains home-relative', t => {
