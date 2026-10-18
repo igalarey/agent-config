@@ -1,10 +1,10 @@
 ---
 name: Explore
-description: Bounded read-only code exploration with Luna high and priority service requested.
-model: openai-codex/gpt-6-luna
+description: Bounded read-only code exploration with Sol high.
+model: openai-codex/gpt-6.1-sol
 thinking: high
 tools: read, grep, find, ls
-extensions: ["~/.pi/agent/agents/luna-fast.mjs"]
+extensions: false
 skills: false
 allowed_subagents: none
 max_turns: 20

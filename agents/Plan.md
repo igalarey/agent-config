@@ -1,8 +1,8 @@
 ---
 name: Plan
-description: Difficult implementation planning and risk analysis with Sol high; read-only.
-model: openai-codex/gpt-6.1-sol
-thinking: high
+description: Difficult implementation planning and risk analysis with Astra low. Read-only.
+model: openai-codex/gpt-6-astra
+thinking: low
 tools: read, grep, find, ls
 extensions: false
 skills: false

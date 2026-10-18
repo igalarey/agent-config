@@ -137,7 +137,7 @@ Do not delete pending proposals or ownership markers to bypass a refusal.
 | `manifests/curated-skills.json`, `pi-skills/` | Curated skills, provenance, assets and hashes |
 | `config/HARNESS-AUTHORITY.md` | Component responsibilities and configuration authority |
 | `scripts/verify-compatibility.mjs` | Check the generated inventory against the active release |
-| `agents/` | Five model/tool profiles and a child-only Luna priority hook |
+| `agents/` | Five model/tool profiles and an inactive historical Luna priority hook |
 | `prompts/` | Five global Pi prompt templates installed by filename |
 | `SYSTEM.md`, `guides/`, `skills/` | Defaults for new shared instruction/skill resources |
 
@@ -186,20 +186,25 @@ Astra remains the parent default. Profiles inherit instructions, not the parent'
 
 | Profile | Model / reasoning | Local tools | Turn default |
 | --- | --- | --- | --- |
-| Explore | `gpt-6-luna` high, priority requested | read, grep, find, ls | 20 |
-| general-purpose | `gpt-6-luna` high, priority requested | Above plus bash, edit, write | 30 |
-| Plan | `gpt-6.1-sol` high | Read/search only | 30 |
-| deep-implementation | `gpt-6.1-sol` high | Read/search plus bash, edit, write | 40 |
-| deep-review | `gpt-6.1-sol` high | Read/search only | 30 |
+| Explore | `gpt-6.1-sol` high | read, grep, find, ls | 20 |
+| general-purpose | `gpt-6.1-sol` high | Above plus bash, edit, write | 30 |
+| Plan | `gpt-6-astra` low | Read/search only | 30 |
+| deep-implementation | `gpt-6-astra` low | Read/search plus bash, edit, write | 40 |
+| deep-review | `gpt-6-astra` low | Read/search only | 30 |
 
 All profiles use the `openai-codex` provider. The parent default is `gpt-6-astra`.
 Read-only profiles cannot run `git diff`; include the diff in a review prompt.
 
-Luna profiles load only `agents/luna-fast.mjs`, using an explicit home-relative path.
-It registers no tools and requests `service_tier: priority` through Pi's provider-payload
-hook only for Codex Luna. Sol profiles load no extensions. Priority is a request, not a
-latency or entitlement guarantee; local token-price estimates are not subscription usage.
+All five profiles set `extensions: false`. They request no priority service tier.
+`agents/luna-fast.mjs` remains unchanged and inactive for compatibility with historical resources.
+
+Historical Luna profiles explicitly load that hook to request `service_tier: priority` only for Codex Luna.
+The hook registers no tools. Priority remains a request, not a latency or entitlement guarantee.
+Local token-price estimates are not subscription usage.
 `high` is supported: missing standard levels in thinkingLevelMap use default mappings.
+
+The runtime smoke selects policy from profile content, not the hook's presence.
+It verifies Sol high and Astra low serialization, and retains historical Luna reasoning and priority checks.
 
 Children do not load MCP, browser, web, task, supervisor or memory tools. Skill discovery
 is off, but inherited parent instructions can still contain skill descriptions. Fresh

@@ -460,7 +460,8 @@ test('implementation profile grants only explicit local tools', () => {
   const profile = fs.readFileSync(path.join(root, 'agents/general-purpose.md'), 'utf8');
   assert.match(profile, /tools: read, grep, find, ls, bash, edit, write\n/);
   assert.doesNotMatch(profile, /ext:|tools: "\*"/);
-  assert.match(profile, /extensions: \["~\/\.pi\/agent\/agents\/luna-fast\.mjs"\]/);
+  assert.match(profile, /model: openai-codex\/gpt-6\.1-sol\nthinking: high\n/);
+  assert.match(profile, /extensions: false\n/);
 });
 
 test('retired Orca skills are absent while find-skills remains independent', () => {

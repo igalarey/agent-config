@@ -1,10 +1,10 @@
 ---
 name: general-purpose
-description: Bounded local implementation with Luna high and priority service requested. Use deep-implementation for difficult work.
-model: openai-codex/gpt-6-luna
+description: Bounded local implementation with Sol high. Use deep-implementation for difficult work.
+model: openai-codex/gpt-6.1-sol
 thinking: high
 tools: read, grep, find, ls, bash, edit, write
-extensions: ["~/.pi/agent/agents/luna-fast.mjs"]
+extensions: false
 skills: false
 allowed_subagents: none
 max_turns: 30

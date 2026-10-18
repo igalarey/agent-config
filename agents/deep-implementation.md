@@ -1,8 +1,8 @@
 ---
 name: deep-implementation
-description: Difficult local implementation, debugging and refactoring with Sol high.
-model: openai-codex/gpt-6.1-sol
-thinking: high
+description: Difficult local implementation, debugging and refactoring with Astra low.
+model: openai-codex/gpt-6-astra
+thinking: low
 tools: read, grep, find, ls, bash, edit, write
 extensions: false
 skills: false

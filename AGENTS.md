@@ -33,14 +33,16 @@ Portable Pi configuration. Node 22.23.2, Pi 1.3.0, dependency-free ESM installer
   forces PI_OFFLINE=1, PI_E2E_LIVE=0 and PI_RUN_LIVE_SUBAGENT_TESTS=0. Never copy auth.json
   into fixtures. Scripted faux models are not authenticated end-to-end model tests.
 - Modern runtime smoke uses installed exact Pi by official CLI/RPC and a synthetic provider:
-  TaskExecute/result delivery, local child tool scopes, Luna high priority and Sol high
-  request serialization, supervisor startup, and shared-process child execution. Do not replace this with mocks.
-- `agents/` provides Explore/general-purpose (Luna high) and Plan/deep-implementation/
-  deep-review (Sol high). All append inherited instructions, use explicit local tool lists,
-  disable skills and nesting, and set turn defaults. Read-only roles never receive Bash.
-- Luna profiles load only the explicit `~/.pi/agent/agents/luna-fast.mjs` path. Its provider
-  hook requests priority only for Codex Luna, with no tools, I/O or logging. Do not put it
-  in global extension discovery or change memory/parent models. Sol loads no extensions.
+  TaskExecute/result delivery, local child tool scopes, Sol high and Astra low request
+  serialization, supervisor startup, and shared-process child execution. Do not replace this with mocks.
+  Policy comes from profile content, not hook presence. Historical Luna priority checks remain.
+- `agents/` provides Explore/general-purpose (Sol high) and Plan/deep-implementation/
+  deep-review (Astra low). All append inherited instructions, use explicit local tool lists,
+  disable extensions, skills and nesting, and set turn defaults. Read-only roles never receive Bash.
+- Keep `agents/luna-fast.mjs` unchanged and inactive for historical resource compatibility.
+  Historical Luna profiles load its explicit home-relative path. The hook requests priority
+  only for Codex Luna, with no tools, I/O or logging. Never discover it globally or change
+  memory/parent models.
 - Child scope regressions must exclude MCP/browser/web/task/supervisor tools, including
   browser_fill. Bash is not a network sandbox. Model/turn defaults can be overridden by
   the parent; do not describe them as hard quotas or assert server-granted priority.

@@ -1,8 +1,8 @@
 ---
 name: deep-review
-description: Independent read-only review of difficult changes and security risks with Sol high.
-model: openai-codex/gpt-6.1-sol
-thinking: high
+description: Independent read-only review of difficult changes and security risks with Astra low.
+model: openai-codex/gpt-6-astra
+thinking: low
 tools: read, grep, find, ls
 extensions: false
 skills: false

@@ -624,12 +624,41 @@ function assertRpcEvidence(evidence, releasePath, sessionDir, manifest = { packa
   }
 }
 
+export function readSubagentSmokePolicy(releasePath) {
+  const profiles = ['Explore', 'general-purpose', 'Plan', 'deep-implementation', 'deep-review'].map(name => {
+    const file = path.join(releasePath, 'agents', `${name}.md`);
+    if (!fs.existsSync(file)) return { name };
+    const header = fs.readFileSync(file, 'utf8').match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1];
+    assert(header !== undefined, `Unsupported subagent policy: ${name} frontmatter`);
+    const field = key => header.match(new RegExp(`^${key}: ([^\\r\\n]+)$`, 'm'))?.[1];
+    return { name, model: field('model'), thinking: field('thinking'), extensions: field('extensions') };
+  });
+  if (profiles.every(profile => profile.model === undefined)) return null;
+  return Object.fromEntries(profiles.map(({ name, model, thinking, extensions }) => {
+    const id = model?.startsWith('openai-codex/') ? model.slice('openai-codex/'.length) : undefined;
+    const luna = id === 'gpt-6-luna';
+    const supported = luna ? ['medium', 'high'].includes(thinking)
+      : ['gpt-6-sol', 'gpt-6.1-sol'].includes(id) ? thinking === 'high'
+        : id === 'gpt-6-astra' && thinking === 'low';
+    assert(supported && extensions === (luna ? '["~/.pi/agent/agents/luna-fast.mjs"]' : 'false'),
+      `Unsupported subagent policy: ${name} ${model} ${thinking} extensions=${extensions}`);
+    if (luna) assert(fs.existsSync(path.join(releasePath, 'agents/luna-fast.mjs')), 'Unsupported subagent policy: Luna hook missing');
+    return [name, { model: id, thinking, ...(luna ? { serviceTier: 'priority' } : {}) }];
+  }));
+}
+
 function fauxIntegrationProvider(pi) {
   let calls = 0;
   const streamSimple = (model, context, options) => {
     const stream = createAssistantMessageEventStream();
     queueMicrotask(async () => {
+      let policyMarker = '';
       if (policyProfiles && model.provider === 'openai-codex') {
+        const prompt = context.messages.filter(message => message.role === 'user')
+          .flatMap(message => typeof message.content === 'string' ? [message.content] : message.content.filter(block => block.type === 'text').map(block => block.text)).join('\n');
+        const role = prompt.match(/Report scope for (Explore|general-purpose|Plan|deep-implementation|deep-review)\b/)?.[1];
+        const policy = policyProfiles[role];
+        if (!policy || model.id !== policy.model) throw new Error(`Unexpected subagent model: ${role} ${model.id}`);
         let captured;
         const token = `fixture.${Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'offline-fixture' } })).toString('base64url')}.fixture`;
         await codexStreamSimple(model, context, { ...options, apiKey: token, transport: 'sse', maxRetries: 0,
@@ -639,11 +668,11 @@ function fauxIntegrationProvider(pi) {
             throw new Error('OFFLINE_CAPTURE_ONLY');
           },
         }).result();
-        const luna = model.id === 'gpt-6-luna';
-        if (captured?.reasoning?.effort !== 'high'
-          || captured.service_tier !== (luna ? 'priority' : undefined)) {
-          throw new Error(`Subagent model policy was not serialized for ${model.id}`);
+        if (captured?.model !== policy.model || captured?.reasoning?.effort !== policy.thinking
+          || captured.service_tier !== policy.serviceTier) {
+          throw new Error(`Subagent model policy was not serialized for ${role}: ${model.id}`);
         }
+        policyMarker = `${role}_POLICY_OK`;
       }
       let content;
       // Pi 0.87 carries tools in system messages (toolsAdded/toolsRemoved), not context.tools.
@@ -659,21 +688,23 @@ function fauxIntegrationProvider(pi) {
       if (calls > 15) throw new Error('Faux integration exceeded its turn budget');
       if (names.has('TaskExecute')) {
         const done = name => results.find(message => message.toolName === name);
-        if (!done('TaskCreate')) content = tool('TaskCreate', { subject: 'Runtime fixture', description: 'Return child scope evidence', agentType: 'general-purpose' });
+        if (!done('TaskCreate')) content = tool('TaskCreate', { subject: 'Runtime fixture', description: 'Report scope for general-purpose', agentType: 'general-purpose' });
         else if (!done('TaskExecute')) content = tool('TaskExecute', { task_ids: ['1'], ...(policyProfiles ? {} : { model: 'agent-config-fixture/fixture' }) });
         else if (!done('TaskOutput')) content = tool('TaskOutput', { task_id: '1', block: true, timeout: 15000 });
-        else if (!done('Agent')) content = tool('Agent', { subagent_type: 'Explore', description: 'Check restricted scope', prompt: 'Report scope', ...(policyProfiles ? {} : { model: 'agent-config-fixture/fixture' }), run_in_background: false });
-        else if (policyProfiles && results.filter(message => message.toolName === 'Agent').length < 2) content = tool('Agent', { subagent_type: 'deep-review', description: 'Check Sol high scope', prompt: 'Report scope', run_in_background: false });
-        else if (policyProfiles && results.filter(message => message.toolName === 'Agent').length < 4) content = tool('Agent', { subagent_type: results.filter(message => message.toolName === 'Agent').length === 2 ? 'Plan' : 'deep-implementation', description: 'Check remaining Sol profile', prompt: 'Report scope', run_in_background: false });
+        else if (!done('Agent')) content = tool('Agent', { subagent_type: 'Explore', description: 'Check restricted scope', prompt: 'Report scope for Explore', ...(policyProfiles ? {} : { model: 'agent-config-fixture/fixture' }), run_in_background: false });
+        else if (policyProfiles && results.filter(message => message.toolName === 'Agent').length < 4) {
+          const role = ['Explore', 'deep-review', 'Plan', 'deep-implementation'][results.filter(message => message.toolName === 'Agent').length];
+          content = tool('Agent', { subagent_type: role, description: 'Check profile model and scope', prompt: `Report scope for ${role}`, run_in_background: false });
+        }
         else if (!done('start_supervision')) content = tool('start_supervision', { outcome: 'Verify offline fixture only', sensitivity: 'low', model: 'agent-config-fixture/fixture' });
         else {
           const delegated = JSON.stringify(done('TaskOutput'));
           const restricted = JSON.stringify(done('Agent'));
           const agents = results.filter(message => message.toolName === 'Agent');
-          const sol = !policyProfiles || (agents.length === 4
+          const policy = !policyProfiles || (delegated.includes('general-purpose_POLICY_OK') && agents.length === 4
             && agents.every(message => /READONLY_SCOPE_OK|CHILD_SCOPE_OK/.test(JSON.stringify(message)))
-            && agents.some(message => JSON.stringify(message).includes('SOL_HIGH_OK')));
-          content = text(delegated.includes('CHILD_SCOPE_OK') && restricted.includes('READONLY_SCOPE_OK') && sol ? 'BASE_INTEGRATION_OK' : 'BASE_INTEGRATION_FAILED');
+            && ['Explore', 'deep-review', 'Plan', 'deep-implementation'].every((role, index) => JSON.stringify(agents[index]).includes(`${role}_POLICY_OK`)));
+          content = text(delegated.includes('CHILD_SCOPE_OK') && restricted.includes('READONLY_SCOPE_OK') && policy ? 'BASE_INTEGRATION_OK' : 'BASE_INTEGRATION_FAILED');
         }
       } else if (names.size === 0) {
         content = text(JSON.stringify({ action: 'done', reasoning: 'SUPERVISOR_FIXTURE_OK', confidence: 1 }));
@@ -684,11 +715,11 @@ function fauxIntegrationProvider(pi) {
       } else if (names.has('bash')) {
         const expected = ['read', 'grep', 'find', 'ls', 'bash', 'edit', 'write'];
         const valid = expected.every(name => names.has(name)) && [...names].every(name => expected.includes(name));
-        content = text(`${valid ? 'CHILD_SCOPE_OK' : 'CHILD_SCOPE_FAILED'} pid=${process.pid} tools=${[...names].sort().join(',')}`);
+        content = text(`${valid ? 'CHILD_SCOPE_OK' : 'CHILD_SCOPE_FAILED'} pid=${process.pid} ${policyMarker} tools=${[...names].sort().join(',')}`);
       } else {
         const valid = ['read', 'grep', 'find', 'ls'].every(name => names.has(name))
           && [...names].every(name => ['read', 'grep', 'find', 'ls'].includes(name));
-        content = text(`${valid ? 'READONLY_SCOPE_OK' : 'READONLY_SCOPE_FAILED'} pid=${process.pid} ${model.id === 'gpt-6.1-sol' ? 'SOL_HIGH_OK' : ''}`);
+        content = text(`${valid ? 'READONLY_SCOPE_OK' : 'READONLY_SCOPE_FAILED'} pid=${process.pid} ${policyMarker}`);
       }
       const message = { role: 'assistant', content, api: model.api, provider: model.provider, model: model.id,
         stopReason: content[0].type === 'toolCall' ? 'toolUse' : 'stop', timestamp: Date.now(),
@@ -701,7 +732,7 @@ function fauxIntegrationProvider(pi) {
     return stream;
   };
   if (policyProfiles) pi.registerProvider('openai-codex', { baseUrl: 'https://invalid.example', apiKey: 'offline-fixture', api: 'openai-codex-responses',
-    models: ['gpt-6-luna', 'gpt-6.1-sol'].map(id => ({ id, name: id, reasoning: true, thinkingLevelMap: { medium: 'medium', high: 'high' },
+    models: [...new Set(Object.values(policyProfiles).map(profile => profile.model))].map(id => ({ id, name: id, reasoning: true, thinkingLevelMap: { low: 'low', medium: 'medium', high: 'high' },
       input: ['text'], contextWindow: 200000, maxTokens: 1024, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } })), streamSimple });
   pi.registerProvider('agent-config-fixture', { baseUrl: 'https://invalid.example', apiKey: 'offline-fixture', api: 'agent-config-fixture',
     models: [{ id: 'fixture', name: 'fixture', reasoning: false, input: ['text'], contextWindow: 200000, maxTokens: 1024,
@@ -740,7 +771,7 @@ async function runModernSmoke({ releasePath, manifest, parentEnv }) {
     results.push(await check('runtime:supplemental-tool-execution', async () => {
       assert(host, 'Missing exact Pi host');
       const fixture = path.join(temp, 'faux-integration.mjs');
-      fs.writeFileSync(fixture, `import { createAssistantMessageEventStream } from '@earendil-works/pi-ai';\nimport { streamSimple as codexStreamSimple } from ${JSON.stringify(path.join(resolvePiHostDependency(host, '@earendil-works/pi-ai'), 'dist/api/openai-codex-responses.js'))};\nimport * as zlib from 'node:zlib';\nconst policyProfiles = ${fs.existsSync(path.join(releasePath, 'agents/luna-fast.mjs'))};\nexport default ${fauxIntegrationProvider.toString()}\n`);
+      fs.writeFileSync(fixture, `import { createAssistantMessageEventStream } from '@earendil-works/pi-ai';\nimport { streamSimple as codexStreamSimple } from ${JSON.stringify(path.join(resolvePiHostDependency(host, '@earendil-works/pi-ai'), 'dist/api/openai-codex-responses.js'))};\nimport * as zlib from 'node:zlib';\nconst policyProfiles = ${JSON.stringify(readSubagentSmokePolicy(releasePath))};\nexport default ${fauxIntegrationProvider.toString()}\n`);
       const run = spawnSync(process.execPath, [host.cli, '--mode', 'json', '--no-session', '--provider', 'agent-config-fixture', '--model', 'fixture',
         '--extension', fixture, '--no-skills', '--no-prompt-templates', '--no-context-files', '--no-themes', '-p', 'Run the deterministic integration fixture.'],
       { cwd, env, encoding: 'utf8', shell: false, timeout: 60_000, maxBuffer: 16 * 1024 * 1024 });
