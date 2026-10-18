@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { identifyInstalledPiHost, runtimeEnvironment, resolvePiHostDependency } from '../scripts/runtime-smoke.mjs';
 
 const releasePath = process.env.PI_TYPEBOX_RELEASE_PATH;
-test('official Pi 1.3 loader shares host TypeBox identities despite pinned package dependency metadata', { skip: !releasePath }, t => {
+test('official Pi 1.3 loader shares host TypeBox identities with corrected host peer metadata', { skip: !releasePath }, t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'typebox-loader-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const home = path.join(root, 'home'), agentDir = path.join(home, '.pi/agent'), temp = path.join(root, 'tmp');
@@ -19,13 +19,14 @@ test('official Pi 1.3 loader shares host TypeBox identities despite pinned packa
     ['packages/@tintinweb/pi-subagents', '@tintinweb/pi-subagents', '0.19.0'],
     ['packages/@tintinweb/pi-tasks', '@tintinweb/pi-tasks', '0.9.0'],
     ['packages/pi-supervisor', 'pi-supervisor', '0.5.0'],
-    ['native/node_modules/pi-web-access', 'pi-web-access', '0.29.0'],
+    ['native/node_modules/pi-web-access', 'pi-web-access', '0.32.0'],
   ];
   const probes = packages.map(([relative, name, version], i) => {
     const source = path.join(releasePath, relative);
     const metadata = JSON.parse(fs.readFileSync(path.join(source, 'package.json'), 'utf8'));
     assert.equal(metadata.name, name); assert.equal(metadata.version, version);
-    assert(metadata.dependencies.typebox, `${name}: packaging warning precondition missing`);
+    assert(!metadata.dependencies?.typebox, `${name}: TypeBox must not be a runtime dependency`);
+    assert.equal(metadata.peerDependencies.typebox, '*');
     const folder = path.join(temp, `package-${i}`);
     fs.mkdirSync(folder);
     fs.copyFileSync(path.join(source, 'package.json'), path.join(folder, 'package.json'));

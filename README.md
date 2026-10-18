@@ -14,7 +14,7 @@ Do not register a second copy of the same package.
 | Supervisor (`start_supervision`, `/supervise`) | [tintinweb/pi-supervisor](https://github.com/tintinweb/pi-supervisor) |
 | Observational memory (`/om`) | [igalarey/pi-observational-memory](https://github.com/igalarey/pi-observational-memory) |
 | User questions | `vendor/pi-ask-user-question` |
-| Web search and fetch | `npm:pi-web-access@0.29.0` |
+| Web search and fetch | `npm:pi-web-access@0.32.0` |
 | Public browser | `vendor/pi-browser` |
 | MCP gateway | `npm:pi-mcp-adapter@2.33.0`, nicobailon upstream directly |
 | Project-owned prompt templates | `prompts/*.md`, installed as global Pi commands |
@@ -33,6 +33,13 @@ from `pi-skills/` go to `~/.pi/agent/skills`. Prompt templates go to `~/.pi/agen
 Existing shared files are preserved, especially
 `SYSTEM.md`; the installer does not silently replace shared user policy. Fresh homes receive
 the repository's defaults. Edit shared policy separately.
+
+Web access 0.32 starts fresh sessions with `web_enable` active. Calling it exposes
+`web_search`, `fetch_content`, `get_search_content` and `source_check` on the next model request.
+Activation itself does not search or fetch.
+
+The Pi 1.3 metadata overlay moves subagents' TypeBox dependencies to development dependencies
+and host peers. Tasks and supervisor use the same arrangement. Historical releases remain unchanged.
 
 ## Install
 

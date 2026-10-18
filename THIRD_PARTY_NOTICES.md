@@ -20,7 +20,7 @@ from [tintinweb/pi-tasks](https://github.com/tintinweb/pi-tasks) and
 [tintinweb/pi-supervisor](https://github.com/tintinweb/pi-supervisor). Exact revisions
 are recorded in `manifests/tintinweb.json`. Their original LICENSE files are retained.
 Media, GitHub workflows and contributor-only instructions are excluded from the snapshots.
-`vendor/pi-tasks/` has one local change: `src/auto-clear.ts` starts the auto-clear countdown
+`vendor/pi-tasks/` has a local behavior change: `src/auto-clear.ts` starts the auto-clear countdown
 for completed tasks it did not see complete, such as tasks carried over by a restart or
 resume. Upstream `29180d7` keeps those tasks until the next `TaskCreate`.
 `test/auto-clear.test.ts` adds tests for it. `vendor/pi-supervisor/` retains the local
@@ -45,10 +45,17 @@ The upstream notice is MIT, copyright (c) 2026 tintinweb.
 See [completion delivery](docs/notification-delivery.md) for behavior and verification.
 RTK is no longer distributed or installed.
 
+Both vendored packages move TypeBox to development dependencies and declare the host peer as `*`.
+Their locks retain resolved versions and integrity hashes.
+
+`manifests/subagents-package-metadata.json` applies the equivalent change to subagents 0.19.0
+at commit `e955e29c51b7a6cce37e1108cd2d6c57a77e151c` for Pi 1.3.0.
+It checks hashes before and after changing only `package.json` and `package-lock.json` during candidate preparation.
+
 ## Native npm packages
 
 [nicobailon/pi-mcp-adapter](https://github.com/nicobailon/pi-mcp-adapter) 2.33.0,
-[nicobailon/pi-web-access](https://github.com/nicobailon/pi-web-access) 0.29.0 and
+[nicobailon/pi-web-access](https://github.com/nicobailon/pi-web-access) 0.32.0 and
 [CaptCanadaMan/pi-ollama](https://github.com/CaptCanadaMan/pi-ollama) 0.1.7 are installed
 unmodified from npm, with their upstream MIT notices. `native/package-lock.json` fixes
 versions and integrity hashes, including transitive dependencies and their own licenses.

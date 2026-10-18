@@ -97,6 +97,7 @@ export function runtimeEnvironment(parent, { agentDir, home, temp, cwd = home })
 
 function knownPackagingDiagnostics({ host, manifest, releasePath } = {}) {
   if (host?.version !== '1.3.0' || manifest?.piVersion !== '1.3.0' || !releasePath) return [];
+  if (manifest.files?.some(file => file.path === 'manifests/subagents-package-metadata.json')) return [];
   const pins = [
     ['@tintinweb/pi-subagents', '0.19.0', ['@sinclair/typebox', 'typebox']],
     ['@tintinweb/pi-tasks', '0.9.0', ['typebox']],
@@ -378,6 +379,8 @@ const packageTools = manifest => modernBase(manifest)
   ? ['Agent', 'get_subagent_result', 'steer_subagent', 'TaskCreate', 'TaskList', 'TaskGet', 'TaskUpdate', 'TaskOutput', 'TaskStop', 'TaskExecute', 'start_supervision', 'ask_user_question', ...(nativeBase(manifest) ? ['web_search', 'fetch_content', 'get_search_content', 'source_check'] : ['web_fetch'])] : PACKAGE_TOOLS;
 const packageCommands = manifest => modernBase(manifest)
   ? ['agents', 'tasks', 'supervise', 'om', 'om:status', 'om:compact', 'om:consolidate'] : PACKAGE_COMMANDS;
+const WEB_TOOLS = ['web_search', 'fetch_content', 'get_search_content', 'source_check'];
+const deferredWeb = releasePath => JSON.parse(fs.readFileSync(path.join(releasePath, 'native/package.json'), 'utf8')).dependencies?.['pi-web-access'] === '0.32.0';
 const BROWSER_TOOLS = ['browser_goto', 'browser_read', 'browser_click', 'browser_fill', 'browser_screenshot', 'browser_close'];
 const INSPECT_PREFIX = 'AGENT_CONFIG_RUNTIME_INSPECT ';
 export const HISTORICAL_PROJECT_PROMPT_NAMES = ['compare-designs', 'diagnose', 'edit-document', 'review'];
@@ -548,8 +551,13 @@ export function assertOfficialLoaderEvidence(evidence, releasePath, manifest, ag
   const activeTools = new Set(evidence.inspection.activeTools);
   for (const name of packageTools(manifest)) {
     assert(allTools.has(name), `Official Pi loader tool missing: ${name}`);
-    assert(activeTools.has(name), `Official Pi loader tool is inactive: ${name}`);
+    const deferred = Boolean(nativeBase(manifest) && deferredWeb(releasePath) && WEB_TOOLS.includes(name));
+    assert(activeTools.has(name) !== deferred, deferred ? `Official Pi loader deferred tool is active: ${name}` : `Official Pi loader tool is inactive: ${name}`);
     assertInsideRelease(releasePath, allTools.get(name).sourceInfo, `Tool ${name}`);
+  }
+  if (nativeBase(manifest) && deferredWeb(releasePath)) {
+    assert(allTools.has('web_enable') && activeTools.has('web_enable'), 'Fresh session web_enable missing or inactive');
+    assertInsideRelease(releasePath, allTools.get('web_enable').sourceInfo, 'Tool web_enable');
   }
   const commands = new Map(evidence.inspection.commands.map(command => [command.name, command]));
   if (manifest.files?.some(file => file.path === 'extensions/learning/index.ts')) {
@@ -710,7 +718,7 @@ function fauxIntegrationProvider(pi) {
         content = text(JSON.stringify({ action: 'done', reasoning: 'SUPERVISOR_FIXTURE_OK', confidence: 1 }));
       } else if (names.has('mcp')) {
         const expected = ['read', 'bash', 'edit', 'write', names.has('fetch_content') ? 'fetch_content' : 'web_fetch', 'browser_goto', 'browser_read', 'browser_close', 'mcpScript', 'ask_user_question'];
-        const valid = !policyProfiles && expected.every(name => names.has(name)) && !names.has('TaskExecute') && !names.has('start_supervision') && !names.has('browser_fill');
+        const valid = !policyProfiles && expected.every(name => names.has(name)) && !names.has('TaskExecute') && !names.has('start_supervision') && !names.has('browser_fill') && !names.has('web_enable');
         content = text(`${valid ? 'CHILD_SCOPE_OK' : 'CHILD_SCOPE_FAILED'} pid=${process.pid} tools=${[...names].sort().join(',')}`);
       } else if (names.has('bash')) {
         const expected = ['read', 'grep', 'find', 'ls', 'bash', 'edit', 'write'];
@@ -737,6 +745,57 @@ function fauxIntegrationProvider(pi) {
   pi.registerProvider('agent-config-fixture', { baseUrl: 'https://invalid.example', apiKey: 'offline-fixture', api: 'agent-config-fixture',
     models: [{ id: 'fixture', name: 'fixture', reasoning: false, input: ['text'], contextWindow: 200000, maxTokens: 1024,
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } }], streamSimple });
+}
+
+export function runWebActivationProbe({ host, env, cwd, temp, extension, releasePath, manifest }) {
+  const fixture = path.join(temp, 'web-activation-provider.mjs');
+  fs.writeFileSync(fixture, `import { createAssistantMessageEventStream } from '@earendil-works/pi-ai';
+export default function(pi) {
+  let requests = 0;
+  pi.registerProvider('web-activation-fixture', {
+    baseUrl: 'https://invalid.example', apiKey: 'offline-fixture', api: 'web-activation-fixture',
+    models: [{ id: 'fixture', name: 'fixture', reasoning: false, input: ['text'], contextWindow: 200000, maxTokens: 1024,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } }],
+    streamSimple(model, context) {
+      const stream = createAssistantMessageEventStream();
+      const names = new Set((context.tools ?? []).map(tool => tool.name));
+      for (const message of context.messages.filter(message => message.role === 'system')) {
+        for (const tool of message.toolsRemoved ?? []) names.delete(tool.name);
+        for (const tool of message.toolsAdded ?? []) names.add(tool.name);
+      }
+      const web = ${JSON.stringify(WEB_TOOLS)};
+      const registered = new Set(pi.getAllTools().map(tool => tool.name));
+      const results = context.messages.filter(message => message.role === 'toolResult' && message.toolName === 'web_enable');
+      const first = ++requests === 1;
+      if (first ? (!names.has('web_enable') || !web.every(name => registered.has(name) && !names.has(name)))
+        : (requests !== 2 || results.length !== 1 || results[0].isError || !web.every(name => names.has(name)))) {
+        throw new Error('Official web activation transition failed: ' + JSON.stringify({ requests, names: [...names], results }));
+      }
+      const content = first ? [{ type: 'toolCall', id: 'enable-web', name: 'web_enable', arguments: {} }]
+        : [{ type: 'text', text: 'WEB_ACTIVATION_OK' }];
+      const message = { role: 'assistant', content, api: model.api, provider: model.provider, model: model.id,
+        stopReason: first ? 'toolUse' : 'stop', timestamp: Date.now(), usage: { input: 1, output: 1, cacheRead: 0,
+          cacheWrite: 0, totalTokens: 2, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
+      stream.push({ type: 'start', partial: message });
+      stream.push({ type: 'done', reason: message.stopReason, message });
+      stream.end();
+      return stream;
+    },
+  });
+}
+`);
+  const run = spawnSync(process.execPath, [host.cli, '--mode', 'json', '--no-session', '--provider', 'web-activation-fixture', '--model', 'fixture',
+    ...(extension ? ['--no-extensions', '--extension', extension] : []), '--extension', fixture,
+    '--no-skills', '--no-prompt-templates', '--no-context-files', '--no-themes', '-p', 'Check offline web activation only.'],
+  { cwd, env, encoding: 'utf8', shell: false, timeout: 60_000, maxBuffer: 16 * 1024 * 1024 });
+  assert(run.status === 0, run.error?.message ?? run.stderr);
+  assert(!offlineRuntimeStderr(run.stderr, { host, manifest, releasePath }), run.stderr);
+  const events = run.stdout.split('\n').filter(Boolean).map(line => JSON.parse(line));
+  assert(!events.some(event => event.type === 'extension_error'), 'Web activation extension error');
+  const messages = events.filter(event => event.type === 'message_end').map(event => event.message);
+  assert(messages.some(message => message.role === 'toolResult' && message.toolName === 'web_enable' && !message.isError), 'Real web_enable execution missing');
+  assert(messages.filter(message => message.role === 'assistant').at(-1)?.content?.some(block => block.text === 'WEB_ACTIVATION_OK'), 'Next request did not receive web tools');
+  return { mode: 'official-cli-web-activation', networkModelCalls: 0, nextRequestTools: WEB_TOOLS };
 }
 
 async function runModernSmoke({ releasePath, manifest, parentEnv }) {
@@ -770,6 +829,8 @@ async function runModernSmoke({ releasePath, manifest, parentEnv }) {
     }));
     results.push(await check('runtime:supplemental-tool-execution', async () => {
       assert(host, 'Missing exact Pi host');
+      const webActivation = nativeBase(manifest) && deferredWeb(releasePath)
+        ? runWebActivationProbe({ host, env, cwd, temp, releasePath, manifest }) : undefined;
       const fixture = path.join(temp, 'faux-integration.mjs');
       fs.writeFileSync(fixture, `import { createAssistantMessageEventStream } from '@earendil-works/pi-ai';\nimport { streamSimple as codexStreamSimple } from ${JSON.stringify(path.join(resolvePiHostDependency(host, '@earendil-works/pi-ai'), 'dist/api/openai-codex-responses.js'))};\nimport * as zlib from 'node:zlib';\nconst policyProfiles = ${JSON.stringify(readSubagentSmokePolicy(releasePath))};\nexport default ${fauxIntegrationProvider.toString()}\n`);
       const run = spawnSync(process.execPath, [host.cli, '--mode', 'json', '--no-session', '--provider', 'agent-config-fixture', '--model', 'fixture',
@@ -784,7 +845,7 @@ async function runModernSmoke({ releasePath, manifest, parentEnv }) {
       const final = ended.filter(message => message.role === 'assistant').at(-1);
       assert(ended.some(message => message.role === 'toolResult' && message.toolName === 'start_supervision' && JSON.stringify(message).includes('agent-config-fixture')), 'Supervisor did not start with the offline model');
       assert(final?.content?.some(block => block.text === 'BASE_INTEGRATION_OK'), `Faux integration failed: ${JSON.stringify(ended).slice(-12000)}`);
-      return { mode: 'official-cli-faux-model-integration', networkModelCalls: 0, taskExecute: true, childExtensionScope: true, restrictedScope: true,
+      return { mode: 'official-cli-faux-model-integration', webActivation, networkModelCalls: 0, taskExecute: true, childExtensionScope: true, restrictedScope: true,
         diagnostics: run.stderr.trim().split('\n').filter(Boolean) };
     }));
     results.push(await check('runtime:process-only', async () => {

@@ -28,7 +28,7 @@ const SOURCES = {
     entries: [
       'SYSTEM.md', 'config/pi.settings.json', 'manifests/packages.json',
     ],
-    optionalEntries: ['config/subagents.json', 'config/tasks-config.json', 'config/SUPERVISOR.md', 'config/HARNESS-AUTHORITY.md', 'manifests/tintinweb.json', 'manifests/memory-lock-additions.json', 'manifests/subagents-ui.json', 'manifests/subagents-notifications.json', 'manifests/curated-skills.json', 'manifests/harness-legacy.json', 'native/package.json', 'native/package-lock.json', 'config/mcp.json', 'config/web-search.json', 'scripts/harness-compatibility.mjs', 'scripts/verify-compatibility.mjs'],
+    optionalEntries: ['config/subagents.json', 'config/tasks-config.json', 'config/SUPERVISOR.md', 'config/HARNESS-AUTHORITY.md', 'manifests/tintinweb.json', 'manifests/memory-lock-additions.json', 'manifests/subagents-ui.json', 'manifests/subagents-notifications.json', 'manifests/subagents-package-metadata.json', 'manifests/curated-skills.json', 'manifests/harness-legacy.json', 'native/package.json', 'native/package-lock.json', 'config/mcp.json', 'config/web-search.json', 'scripts/harness-compatibility.mjs', 'scripts/verify-compatibility.mjs'],
     prefixes: ['agents/', 'guides/', 'skills/', 'pi-skills/', 'prompts/', 'extensions/', 'themes/', 'vendor/pi-ask-user-question/', 'vendor/pi-web-fetch/', 'vendor/pi-browser/',
       'vendor/pi-mcp/', 'vendor/pi-subscription-usage/', 'vendor/pi-tasks/', 'vendor/pi-supervisor/'],
   },
@@ -204,6 +204,36 @@ export function applyNotificationOverlay(content, overlay, commit, piVersion, ex
   return result;
 }
 
+export function applyPackageMetadataOverlay(content, overlay, commit, piVersion) {
+  const invalid = () => { throw new Error('Invalid subagents package metadata overlay'); };
+  if (!object(overlay) || overlay.schemaVersion !== 1
+      || overlay.commit !== 'e955e29c51b7a6cce37e1108cd2d6c57a77e151c' || commit !== overlay.commit
+      || overlay.piVersion !== '1.3.0' || piVersion !== overlay.piVersion
+      || !['package.json', 'package-lock.json'].includes(overlay.path)
+      || !validContentHash(overlay.originalSha256) || !validContentHash(overlay.resultSha256)
+      || digest(content) !== overlay.originalSha256) invalid();
+  const data = JSON.parse(content.toString('utf8'));
+  if (data.name !== '@tintinweb/pi-subagents' || data.version !== '0.19.0') invalid();
+  const lock = overlay.path === 'package-lock.json';
+  if (lock && data.lockfileVersion !== 3) invalid();
+  const metadata = lock ? data.packages?.[''] : data;
+  if (!metadata || metadata.name !== data.name || metadata.version !== data.version) invalid();
+  for (const [name, version] of Object.entries({ '@sinclair/typebox': '^0.34.49', typebox: '^1.3.7' })) {
+    if (metadata.dependencies?.[name] !== version || metadata.devDependencies?.[name] || metadata.peerDependencies?.[name]) invalid();
+    delete metadata.dependencies[name];
+    (metadata.devDependencies ??= {})[name] = version;
+    (metadata.peerDependencies ??= {})[name] = '*';
+    if (lock) {
+      const entry = data.packages[`node_modules/${name}`];
+      if (!entry) invalid();
+      entry.dev = true;
+    }
+  }
+  const result = Buffer.from(json(data));
+  if (digest(result) !== overlay.resultSha256 || overlay.originalSha256 === overlay.resultSha256) invalid();
+  return result;
+}
+
 function mappedReleaseFiles(records, commits) {
   const files = [];
   const add = (relative, entry, content = entry.content, source = entry.sourceKey) => {
@@ -246,6 +276,25 @@ function mappedReleaseFiles(records, commits) {
   }
   for (const entry of records.filter(item => item.sourceKey === 'memory')) {
     add(`packages/observational-memory/${entry.sourcePath}`, entry);
+  }
+
+  const metadataOverlay = records.find(entry => entry.sourceKey === 'harness' && entry.sourcePath === 'manifests/subagents-package-metadata.json');
+  if (metadataOverlay) {
+    const overlay = JSON.parse(metadataOverlay.content.toString('utf8'));
+    if (subagentsName !== '@tintinweb/pi-subagents' || !Array.isArray(overlay.files)
+        || overlay.files.length !== 2 || new Set(overlay.files.map(file => file.path)).size !== 2) {
+      throw new Error('Invalid subagents package metadata overlay');
+    }
+    const piVersion = parseCommittedJSON(records, 'harness', 'manifests/packages.json').piVersion;
+    for (const patch of overlay.files) {
+      const target = files.find(entry => entry.path === `packages/${subagentsName}/${patch.path}`);
+      if (!target) throw new Error('Invalid subagents package metadata overlay target');
+      target.content = applyPackageMetadataOverlay(target.content, { ...patch, schemaVersion: overlay.schemaVersion, commit: overlay.commit, piVersion: overlay.piVersion }, commits.subagents, piVersion);
+      target.size = target.content.length;
+      target.sha256 = digest(target.content);
+      target.source = 'generated';
+      target.gitObject = null;
+    }
   }
 
   const memoryPatch = records.find(entry => entry.sourceKey === 'harness' && entry.sourcePath === 'manifests/memory-lock-additions.json');

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "commit": "e955e29c51b7a6cce37e1108cd2d6c57a77e151c",
+  "piVersion": "1.3.0",
+  "files": [
+    {
+      "path": "package.json",
+      "originalSha256": "200babd811ba6b8d1d46e36fa599869fff0a62ba584469cabdc5b9d8bbb98071",
+      "resultSha256": "a7f97b4a50697fa27c981c18ab734f0944615bb6b671df1872917bd9c4f8ce62"
+    },
+    {
+      "path": "package-lock.json",
+      "originalSha256": "d5357c4a1dfcb963b0b6f6ca5eaad1c2809f4a415ad494e062f277ef455c66c8",
+      "resultSha256": "e847d202a84ef1c2533d12b288b41d3a7d2b81722bb92c96afc0c41cfa9bc29a"
+    }
+  ]
+}

@@ -3,7 +3,29 @@
 This file supersedes the historical Windows/RTK/interactive-subagents evidence in Git history.
 Target: Linux, Node 22.23.2, Pi 1.3.0. This migration does not activate the local installation.
 
-## Pi 1.3.0 and Herdr 0.9.5 compatibility
+## Host TypeBox metadata and web 0.32 candidate changes
+
+The new metadata manifest checks the exact subagents commit, Pi version, paths and source/result hashes.
+Only package metadata changes. Existing notification changes remain in place.
+New candidates reject the historical TypeBox warning allowlist.
+
+Web access 0.32 registers four research tools but defers their activation in fresh sessions.
+The official CLI probe calls the real `web_enable` tool through a synthetic provider.
+It checks that all four tools appear on the next model request. It makes no search or fetch call.
+Legacy web 0.29 still requires all four tools active at startup. Child tool scopes exclude `web_enable`.
+
+The focused Pi 1.3.0 check passed with the published 0.32 bundle and locally linked runtime dependencies.
+This is not full candidate verification or activation. The complete candidate still requires dependency and release checks.
+
+Run the focused check with a prepared package directory:
+
+```sh
+PI_WEB_ACTIVATION_PACKAGE=/absolute/path/to/pi-web-access node --test test/web-activation.test.mjs
+```
+
+The full release smoke runs the same transition check against the candidate's native package registration.
+
+## Pi 1.3.0 and Herdr 0.9.5 compatibility (historical evidence)
 
 The isolated Pi 1.3.0 fixture passed these checks:
 
