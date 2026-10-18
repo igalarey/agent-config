@@ -181,7 +181,7 @@ export function applyNotificationOverlay(content, overlay, commit, piVersion, ex
   const invalid = reason => { throw new Error(`Invalid notification overlay: ${reason}`); };
   if (!object(overlay) || overlay.schemaVersion !== 1 || overlay.path !== expectedPath
       || (expectedPath !== 'src/index.ts' && !NOTIFICATION_FIXTURE_PATHS.has(expectedPath))
-      || overlay.piVersion !== '0.87.1' || piVersion !== overlay.piVersion
+      || !['0.87.1', '1.3.0'].includes(overlay.piVersion) || piVersion !== overlay.piVersion
       || !/^[0-9a-f]{40}$/.test(overlay.commit ?? '') || overlay.commit !== commit
       || !validContentHash(overlay.originalSha256) || !validContentHash(overlay.resultSha256)
       || digest(content) !== overlay.originalSha256 || !Array.isArray(overlay.edits)

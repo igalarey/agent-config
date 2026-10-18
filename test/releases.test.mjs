@@ -9,6 +9,7 @@ import { execute, plan, readJSON } from '../scripts/install.mjs';
 import { inspect } from '../scripts/doctor.mjs';
 import { readSourceMap, runBootstrap, validateRecipe } from '../scripts/bootstrap.mjs';
 import {
+  applyNotificationOverlay,
   executeRelease,
   installReleaseDependencies,
   manifestDigest,
@@ -513,6 +514,25 @@ test('notification overlay is exact, hash-gated and optional for historical rele
     assert.throws(() => planRelease({ home: temporary(t), ...source }), /notification overlay/i);
   }
   assert.doesNotThrow(() => planRelease({ home: temporary(t), ...fixture(t) }));
+});
+
+test('notification overlay accepts only reviewed exact historical and current Pi hosts', () => {
+  const hash = text => createHash('sha256').update(text).digest('hex');
+  const original = 'const before = true;\n', expected = 'const after = true;\n';
+  const base = {
+    schemaVersion: 1, commit: 'a'.repeat(40), path: 'src/index.ts',
+    originalSha256: hash(original), resultSha256: hash(expected),
+    edits: [{ oldText: 'before', newText: 'after' }],
+  };
+  for (const piVersion of ['0.87.1', '1.3.0']) {
+    const overlay = { ...base, piVersion };
+    assert.equal(applyNotificationOverlay(original, overlay, base.commit, piVersion).toString(), expected);
+    assert.throws(() => applyNotificationOverlay(original, overlay, base.commit, piVersion === '1.3.0' ? '0.87.1' : '1.3.0'), /notification overlay/i);
+    assert.throws(() => applyNotificationOverlay(original + 'changed', overlay, base.commit, piVersion), /notification overlay/i);
+  }
+  for (const piVersion of ['0.84.2', '0.87.2', '1.2.0', '1.3.1', '2.0.0']) {
+    assert.throws(() => applyNotificationOverlay(original, { ...base, piVersion }, base.commit, piVersion), /notification overlay/i);
+  }
 });
 
 test('release CLI accepts a machine-local source map and remains preview-only by default', t => {
@@ -1028,6 +1048,49 @@ test('selecting a previous compatible release rolls back managed package paths a
   assert.equal(fs.readFileSync(path.join(home, '.pi/agent/agents/worker.md'), 'utf8'), 'worker release A\n');
   const doctor = inspect({ home, release: releaseA.id, checkRuntime: false });
   assert.ok(doctor.every(item => item.ok), doctor.filter(item => !item.ok).map(item => item.message).join('\n'));
+});
+
+test('Pi 0.87 to 1.3 MCP exclusion upgrades without base migration and preserves foreign extensions', t => {
+  const home = temporary(t), source = fixture(t);
+  const makeReady = version => {
+    const candidate = prepare(t, home, source);
+    dependencies(home, candidate.id);
+    assert.equal(verifyRelease({ home, id: candidate.id, apply: true, runChecks: () => ({ ok: true }), runRuntimeChecks: () => runtimeSmoke(version) }).passed, true);
+    return candidate;
+  };
+  put(source.repositories.harness, 'manifests/packages.json', JSON.stringify({ piVersion: '0.87.1', packages: [] }));
+  source.commits.harness = commit(source.repositories.harness, 'historical Pi 0.87.1');
+  const before = makeReady('0.87.1');
+  const foreign = ['/private/user-extension.ts', '-builtin:codemode'];
+  put(home, settingsPath, JSON.stringify({ extensions: foreign, foreign: 'preserve' }));
+  execute(plan({ home, release: before.id }));
+  const defaults = readJSON(path.join(source.repositories.harness, 'config/pi.settings.json'));
+  put(source.repositories.harness, 'manifests/packages.json', JSON.stringify({ piVersion: '1.3.0', packages: [] }));
+  put(source.repositories.harness, 'config/pi.settings.json', JSON.stringify({ ...defaults, extensions: ['-builtin:mcp'] }));
+  source.commits.harness = commit(source.repositories.harness, 'Pi 1.3 MCP exclusion');
+  const after = makeReady('1.3.0');
+  const upgrade = plan({ home, release: after.id });
+  assert.deepEqual(upgrade.conflicts, []);
+  execute(upgrade);
+  assert.deepEqual(readJSON(path.join(home, settingsPath)).extensions, [...foreign, '-builtin:mcp']);
+  assert.equal(readJSON(path.join(home, settingsPath)).foreign, 'preserve');
+  assert.deepEqual(plan({ home }).operations, []);
+  const rollback = plan({ home, release: before.id });
+  assert.deepEqual(rollback.conflicts, []);
+  execute(rollback);
+  assert.deepEqual(readJSON(path.join(home, settingsPath)).extensions, foreign);
+  for (const explicit of ['+builtin:mcp', 'builtin:mcp']) {
+    const configured = { ...readJSON(path.join(home, settingsPath)), extensions: [...foreign, explicit] };
+    put(home, settingsPath, JSON.stringify(configured));
+    const conflict = plan({ home, release: after.id });
+    assert(conflict.conflicts.some(value => /builtin:mcp/.test(value)));
+    assert.throws(() => execute(conflict), /nothing written/);
+    assert.deepEqual(readJSON(path.join(home, settingsPath)), configured);
+  }
+  put(source.repositories.harness, 'config/pi.settings.json', JSON.stringify({ ...defaults, extensions: ['-builtin:mcp'], unrelatedNewManagedKey: true }));
+  source.commits.harness = commit(source.repositories.harness, 'unrelated settings shape change');
+  const incompatible = makeReady('1.3.0');
+  assert(plan({ home, release: incompatible.id }).conflicts.some(value => /incompatible release/.test(value)));
 });
 
 test('prompt-only release shape changes preserve unmanaged and edited destinations', t => {

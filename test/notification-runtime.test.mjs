@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { identifyInstalledPiHost, runtimeEnvironment } from '../scripts/runtime-smoke.mjs';
 
-const VERSION = '0.87.1';
+const VERSION = '1.3.0';
 const repo = fileURLToPath(new URL('../', import.meta.url));
 
 test('real SDK delivers only unconsumed subagent completions at the next model boundary', { timeout: 60000 }, async t => {
@@ -32,6 +32,10 @@ test('real SDK delivers only unconsumed subagent completions at the next model b
         release = path.join(os.homedir(), '.agent-config', 'releases', state.release);
       }
       const metadata = JSON.parse(fs.readFileSync(path.join(release, 'release.json'), 'utf8'));
+      if (metadata.piVersion !== VERSION && explicit === undefined) {
+        t.skip(`active release targets historical Pi ${metadata.piVersion}; set PI_NOTIFICATION_RELEASE_PATH to a ${VERSION} candidate`);
+        return;
+      }
       assert.equal(metadata.piVersion, VERSION);
       pkg = metadata.packages.find(entry => entry.name === '@tintinweb/pi-subagents');
       if (!pkg && explicit === undefined) {

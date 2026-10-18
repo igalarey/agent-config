@@ -7,7 +7,8 @@ Its completion timer sends a `followUp` after 200 ms.
 Pi cannot retract that queued message after a caller reads the result.
 The notification can therefore arrive after the parent response and cause another model request.
 
-`manifests/subagents-notifications.json` contains the local correction for Pi 0.87.1.
+`manifests/subagents-notifications.json` contains the local correction for Pi 1.3.0.
+The release builder also accepts the original Pi 0.87.1 manifest for historical candidates.
 Release preparation checks the source commit, original SHA-256, result SHA-256, and each replacement.
 The installer never changes a source checkout or an activated release.
 Historical releases without this manifest retain their original validation rules.
@@ -27,7 +28,8 @@ Shutdown closes the backlog and group timers before it aborts children.
 
 Upstream development dependencies use Pi 0.84.2 types.
 A narrow registration shim covers the actionable boundaries that those types do not declare.
-The correction supports the harness-pinned Pi 0.87.1, not the entire upstream peer range.
+The correction supports the harness-pinned Pi 1.3.0, not the entire upstream peer range.
+Its source patch is unchanged from the Pi 0.87.1 correction.
 The manifest also records exact compatibility edits for existing test fixtures.
 These edits supply the real lifecycle and idle-state contracts.
 The obsolete post-shutdown notification assertion now checks actual worker termination and no notification after shutdown.

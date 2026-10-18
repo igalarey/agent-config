@@ -1,6 +1,6 @@
 # agent-config
 
-Portable Pi configuration. Node 22.23.2, Pi 0.87.1, dependency-free ESM installer scripts.
+Portable Pi configuration. Node 22.23.2, Pi 1.3.0, dependency-free ESM installer scripts.
 
 - New base: tintinweb pi-subagents, pi-tasks, pi-supervisor; observational-memory;
   local questions, browser and subscription usage. Native npm: pi-mcp-adapter 2.33.0,

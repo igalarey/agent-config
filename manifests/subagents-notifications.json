@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "commit": "e955e29c51b7a6cce37e1108cd2d6c57a77e151c",
-  "piVersion": "0.87.1",
+  "piVersion": "1.3.0",
   "path": "src/index.ts",
   "originalSha256": "622d44b11e615ec0509f13e858dcad4a40789e4613c03583930327f15d9ec6a9",
   "resultSha256": "a441a2dc76a6f6e633d681f41af39f22ec0b479757c6b57fc88cf7746d3598a5",
@@ -44,7 +44,7 @@
     {
       "schemaVersion": 1,
       "commit": "e955e29c51b7a6cce37e1108cd2d6c57a77e151c",
-      "piVersion": "0.87.1",
+      "piVersion": "1.3.0",
       "path": "test/helpers/boot-extension.ts",
       "originalSha256": "9c329d372d6eb6934f3ece170aaa25a976ccd2a1b9cc6ff86c5f0eb6471c97f0",
       "resultSha256": "cba2b73a1524f840c3851a34906ffd1e081e1296363a15b2bb04f8f28d506191",
@@ -58,7 +58,7 @@
     {
       "schemaVersion": 1,
       "commit": "e955e29c51b7a6cce37e1108cd2d6c57a77e151c",
-      "piVersion": "0.87.1",
+      "piVersion": "1.3.0",
       "path": "test/rpc-result-consumption.test.ts",
       "originalSha256": "8bea1fcb6bc3ea4bacd8d9f3ff543c8f28d5a7373521678877427ef0fd7b84b1",
       "resultSha256": "7ed35a7fce9bd57a407c0971f94c00640ba9c6f4252aa04603cc976203114ffe",
@@ -72,7 +72,7 @@
     {
       "schemaVersion": 1,
       "commit": "e955e29c51b7a6cce37e1108cd2d6c57a77e151c",
-      "piVersion": "0.87.1",
+      "piVersion": "1.3.0",
       "path": "test/wait-queued.test.ts",
       "originalSha256": "b515fdd27ec3f9306b497284a0e39e1f916eb9bdf16ccad807e7083441c57d3f",
       "resultSha256": "81d39fef360e8a534ab5625c6b41dc5aa1d1a8af53f6cd476fc64710a16f37f3",
@@ -98,7 +98,7 @@
     {
       "schemaVersion": 1,
       "commit": "e955e29c51b7a6cce37e1108cd2d6c57a77e151c",
-      "piVersion": "0.87.1",
+      "piVersion": "1.3.0",
       "path": "test/print-mode.test.ts",
       "originalSha256": "c88ee269e46d2adf77c69c3094ddc159212b293cff128fc96d64d6a727e3cf2c",
       "resultSha256": "88509352dc74b094f92e7154f8562e262ee65a5bf45f0de3c6a0837e9bb2ff37",
@@ -116,7 +116,7 @@
     {
       "schemaVersion": 1,
       "commit": "e955e29c51b7a6cce37e1108cd2d6c57a77e151c",
-      "piVersion": "0.87.1",
+      "piVersion": "1.3.0",
       "path": "test/agent-mention-wiring.test.ts",
       "originalSha256": "d4864d5edba3eb7d3fe8acb69dfc977477fe6f3aef832367aee6ad69d9e5244c",
       "edits": [
@@ -130,7 +130,7 @@
     {
       "schemaVersion": 1,
       "commit": "e955e29c51b7a6cce37e1108cd2d6c57a77e151c",
-      "piVersion": "0.87.1",
+      "piVersion": "1.3.0",
       "path": "test/mention-start-notification.test.ts",
       "originalSha256": "09b0c495dd07c7fe9a2118dae82b9b437822e7cd76a0380c04315a874a2af349",
       "edits": [
@@ -144,7 +144,7 @@
     {
       "schemaVersion": 1,
       "commit": "e955e29c51b7a6cce37e1108cd2d6c57a77e151c",
-      "piVersion": "0.87.1",
+      "piVersion": "1.3.0",
       "path": "test/cost-display.test.ts",
       "originalSha256": "fe83c99fc24d3cd9c9e47af578dba76f2bee85363fcf9129ae450b20dfbcfd53",
       "edits": [
@@ -158,7 +158,7 @@
     {
       "schemaVersion": 1,
       "commit": "e955e29c51b7a6cce37e1108cd2d6c57a77e151c",
-      "piVersion": "0.87.1",
+      "piVersion": "1.3.0",
       "path": "test/workflow-tool.test.ts",
       "originalSha256": "10ca8349e79c72f2b9139b9aa897798994c5e4bcf7eac5b99d637ac6917841b8",
       "edits": [

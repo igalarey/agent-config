@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { identifyInstalledPiHost, runtimeEnvironment } from '../scripts/runtime-smoke.mjs';
 
-const VERSION = '0.87.1';
+const VERSION = '1.3.0';
 
 test('learning extension integrates through the exact installed Pi SDK without a model', { timeout: 60000 }, () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'learning-runtime-'));

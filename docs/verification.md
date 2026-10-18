@@ -1,9 +1,29 @@
 # Verification: tintinweb base
 
 This file supersedes the historical Windows/RTK/interactive-subagents evidence in Git history.
-Target: Linux, Node 22.23.2, Pi 0.87.1. Latest activation: 2026-09-30.
+Target: Linux, Node 22.23.2, Pi 1.3.0. This migration does not activate the local installation.
 
-## Reviewed Hermes adaptations and learning (current)
+## Pi 1.3.0 and Herdr 0.9.5 compatibility
+
+The isolated Pi 1.3.0 fixture passed these checks:
+
+- `npm run verify`: six groups passed. Root: 152 passed, three optional skips.
+- Explicit browser, instruction, learning, notification and TypeBox runtime checks: five passed, no skips.
+- Carbon: 21 passed. Subagents: typecheck passed, 2,129 tests passed, seven optional skips.
+- Memory: typecheck passed, 114 tests passed. Official CLI/RPC smoke: all five checks passed.
+- Upgrade and rollback preserve foreign extensions without `--migrate-base`. Explicit builtin MCP inclusions cause a conflict before writes.
+
+Pi's builtin MCP is disabled because this configuration retains `pi-mcp-adapter`.
+Four pinned packages still emit TypeBox packaging warnings. The official loader probe verified shared module identity.
+The smoke report retains these exact diagnostics and rejects unknown warnings.
+
+Herdr's existing configuration passed the installed validator. Its keys match the 0.9.5 documentation.
+The README describes the separate binary and integration update. Neither binary nor live sessions were changed.
+
+These checks used an unsealed fixture with local dependency links, not a prepared release.
+They do not establish authenticated model behavior or interactive browser behavior.
+
+## Reviewed Hermes adaptations and learning (previous activation)
 
 `h-388f27d52cc2-s-e955e29c51b7-m-bc1eba141a47` is verified, sealed and active.
 Hermes source reviewed: `47676981f55de91231fdeef2f0eec47e7c209e78`.

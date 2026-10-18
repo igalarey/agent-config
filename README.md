@@ -36,7 +36,7 @@ the repository's defaults. Edit shared policy separately.
 
 ## Install
 
-Requirements: **Node 22.23.2**, npm, Git and **Pi 0.87.1** already installed.
+Requirements: **Node 22.23.2**, npm, Git and **Pi 1.3.0** already installed.
 The release seal binds exact Node, OS and architecture. This revision is verified on
 Linux; another platform must prepare and verify its own candidate. Bootstrap does not
 install Node/Pi, authenticate providers, or download Chrome, RTK or Python executables.
@@ -143,6 +143,10 @@ Do not delete pending proposals or ownership markers to bypass a refusal.
 
 ### Herdr (optional)
 
+Target: **Herdr 0.9.5**, the stable release checked on 2026-10-17.
+The existing configuration keys remain valid in its [configuration reference](https://raw.githubusercontent.com/herdrdev/herdr/v0.9.5/docs/next/website/src/data/config-reference.json).
+No theme or sidebar migration is required.
+
 The current Herdr configuration is tracked at `config/herdr/config.toml`. It contains
 the Vesper theme, the `herdr-radar` managed sidebar and tab-bar blocks, interface
 preferences, system toast delivery with copy notifications disabled, and sounds disabled.
@@ -161,6 +165,22 @@ install/enable `hhdebb.herdr-radar` and run:
 herdr config check
 herdr server reload-config
 ```
+
+Update Herdr separately from this repository. For a direct installation on the stable channel, run:
+
+```sh
+herdr update
+herdr --version
+herdr integration install pi
+herdr integration status
+```
+
+Use the original package manager for Homebrew, mise, or Nix installations.
+The Pi integration reports session identity for restore. Pi's OSC 7501 status reports do not replace that integration.
+Restart Pi after updating the integration.
+Herdr's updater normally leaves compatible servers and their panes running.
+Do not stop a server or request experimental `--handoff` during an active task.
+See the [0.9.5 update procedure](https://raw.githubusercontent.com/herdrdev/herdr/v0.9.5/docs/next/website/src/content/docs/install.mdx).
 
 Astra remains the parent default. Profiles inherit instructions, not the parent's model:
 
@@ -197,7 +217,7 @@ cost (`widgetMode: all`, `showModel`, `showCost`); `fleetView` is off.
 A `.pi/subagents.json` file in a project, including `~/.pi/subagents.json` when Pi
 starts in the home directory, applies only to that project.
 
-Completion notices stay cancellable until a Pi 0.87.1 turn boundary.
+Completion notices stay cancellable until a Pi 1.3.0 turn boundary.
 Results already collected do not create redundant notices or model requests.
 [Completion delivery](docs/notification-delivery.md) describes the pinned correction and SDK regression.
 

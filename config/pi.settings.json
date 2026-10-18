@@ -5,6 +5,7 @@
     "npm:pi-ollama@0.1.7",
     "npm:pi-claude-bridge@0.8.0"
   ],
+  "extensions": ["-builtin:mcp"],
   "theme": "carbon-graphite",
   "editorPaddingX": 2,
   "outputPad": 1,

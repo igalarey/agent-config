@@ -23,10 +23,10 @@ Media, GitHub workflows and contributor-only instructions are excluded from the 
 `vendor/pi-tasks/` has one local change: `src/auto-clear.ts` starts the auto-clear countdown
 for completed tasks it did not see complete, such as tasks carried over by a restart or
 resume. Upstream `29180d7` keeps those tasks until the next `TaskCreate`.
-`test/auto-clear.test.ts` adds tests for it. `vendor/pi-supervisor/` has local Pi 0.87.1
-compatibility changes:
+`test/auto-clear.test.ts` adds tests for it. `vendor/pi-supervisor/` retains the local
+Pi 0.87.1 compatibility changes, with development dependencies updated for Pi 1.3.0:
 
-- `package.json` declares the Pi packages as exact 0.87.1 development dependencies, and
+- `package.json` declares the Pi packages as exact 1.3.0 development dependencies, and
   the lock is regenerated. Without this, npm installs the unpinned Pi peer dependency, an
   outdated Pi copy with known vulnerabilities, into the runtime package.
 - `src/model-client.ts` streams through `ctx.modelRegistry.streamSimple()`. Pi 0.87 removed
@@ -38,7 +38,8 @@ compatibility changes:
 
 [tintinweb/pi-subagents](https://github.com/tintinweb/pi-subagents) is fetched at the
 recipe's exact commit. Its MIT license is included in each prepared release.
-`manifests/subagents-notifications.json` records local Pi 0.87.1 delivery changes and test-fixture compatibility edits.
+`manifests/subagents-notifications.json` records local delivery changes and test-fixture compatibility edits.
+The patch originated with Pi 0.87.1 and remains unchanged for the Pi 1.3.0 target.
 The upstream notice is MIT, copyright (c) 2026 tintinweb.
 `vendor/pi-tasks/LICENSE` also retains that complete notice for the patch text in this repository.
 See [completion delivery](docs/notification-delivery.md) for behavior and verification.

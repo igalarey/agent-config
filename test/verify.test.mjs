@@ -13,6 +13,7 @@ import {
   BIGPOWERS_SKILL_ALLOWLIST,
   HISTORICAL_BIGPOWERS_SKILL_ALLOWLIST,
   identifyInstalledPiHost,
+  resolvePiHostDependency,
   runtimeEnvironment,
   offlineRuntimeStderr,
 } from '../scripts/runtime-smoke.mjs';
@@ -40,11 +41,64 @@ test('official loader verifies curated skill paths and rejects missing or duplic
   assert.doesNotThrow(() => assertCuratedSkillRegistrations({}, release, { files: [] }));
 });
 
+test('Pi host dependencies resolve from both flat npm and historical nested layouts', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-host-dependencies-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const packageRoot = path.join(root, 'node_modules/@earendil-works/pi-coding-agent');
+  fs.mkdirSync(packageRoot, { recursive: true });
+  const host = { packageRoot, cli: path.join(packageRoot, 'dist/cli.js') };
+  assert.throws(() => resolvePiHostDependency(host, '@earendil-works/pi-ai'), /missing/i);
+  for (const prefix of [root, packageRoot]) {
+    const dependency = path.join(prefix, 'node_modules/@earendil-works/pi-ai');
+    fs.mkdirSync(dependency, { recursive: true });
+    fs.writeFileSync(path.join(dependency, 'package.json'), JSON.stringify({ name: '@earendil-works/pi-ai', type: 'module', exports: { '.': { import: './dist/index.js' } } }));
+    assert.equal(resolvePiHostDependency(host, '@earendil-works/pi-ai'), dependency);
+  }
+});
+
 test('offline runtime accepts only the expected Ollama discovery notice', () => {
   const expected = '[pi-ollama] Ollama not reachable and no cache available (TypeError: fetch failed). Run /ollama-refresh when Ollama is available.';
   assert.equal(offlineRuntimeStderr(`${expected}\n${expected}\n`), '');
   assert.equal(offlineRuntimeStderr(`${expected}\nUnexpected extension failure\n`), 'Unexpected extension failure');
   assert.equal(offlineRuntimeStderr('[pi-ollama] unknown failure'), '[pi-ollama] unknown failure');
+});
+
+test('Pi 1.3 packaging diagnostics require exact known pins, present packages and exact warning text', t => {
+  const releasePath = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-packaging-diagnostics-'));
+  t.after(() => fs.rmSync(releasePath, { recursive: true, force: true }));
+  const known = [
+    ['@tintinweb/pi-subagents', '0.19.0', ['@sinclair/typebox', 'typebox']],
+    ['@tintinweb/pi-tasks', '0.9.0', ['typebox']],
+    ['pi-supervisor', '0.5.0', ['typebox']],
+    ['pi-web-access', '0.29.0', ['typebox']],
+  ];
+  const manifest = { piVersion: '1.3.0', packages: [], files: [{ path: 'native/package.json' }] };
+  fs.mkdirSync(path.join(releasePath, 'native'), { recursive: true });
+  fs.writeFileSync(path.join(releasePath, 'native/package.json'), JSON.stringify({ dependencies: { 'pi-web-access': '0.29.0' } }));
+  const options = { host: { version: '1.3.0' }, manifest, releasePath };
+  for (const [name, version, dependencies] of known) {
+    const relative = name === 'pi-web-access' ? `native/node_modules/${name}` : `packages/${name}`;
+    const folder = path.join(releasePath, relative);
+    fs.mkdirSync(folder, { recursive: true });
+    const file = path.join(folder, 'package.json');
+    const metadata = { name, version, dependencies: Object.fromEntries(dependencies.map(dep => [dep, '1.3.7'])) };
+    fs.writeFileSync(file, JSON.stringify(metadata));
+    if (name !== 'pi-web-access') manifest.packages.push({ name, version, path: relative });
+    const warning = `Warning: Extension package "${file}": Host-provided extension packages must be declared in peerDependencies with a "*" range, not dependencies: ${dependencies.join(', ')}. Installed copies can bypass the extension loader and create duplicate runtime modules.`;
+    assert.equal(offlineRuntimeStderr(warning, options), '');
+    for (const bad of [warning + ' changed', warning.replace(file, file + '.unknown'), warning.replace(dependencies.join(', '), 'unknown-package'), 'Warning: unknown diagnostic', 'Error: failure']) {
+      assert.equal(offlineRuntimeStderr(bad, options), bad);
+    }
+    assert.equal(offlineRuntimeStderr(warning), warning);
+    assert.equal(offlineRuntimeStderr(warning, { ...options, host: { version: '0.87.1' } }), warning);
+    assert.equal(offlineRuntimeStderr(warning, { ...options, manifest: { ...manifest, piVersion: '1.3.1' } }), warning);
+    fs.writeFileSync(file, JSON.stringify({ ...metadata, version: '9.0.0' }));
+    assert.equal(offlineRuntimeStderr(warning, options), warning);
+    fs.rmSync(file);
+    assert.equal(offlineRuntimeStderr(warning, options), warning);
+    fs.writeFileSync(file, JSON.stringify(metadata));
+    assert.equal(offlineRuntimeStderr(`${warning}\nUnexpected stderr`, options), 'Unexpected stderr');
+  }
 });
 
 function fixture(t) {

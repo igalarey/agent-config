@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import fs from 'node:fs';
+import { resolvePiHostDependency } from '../../scripts/runtime-smoke.mjs';
 import { pathToFileURL } from 'node:url';
 
 let networkCalls = 0;
 globalThis.fetch = async () => { networkCalls++; throw new Error('NETWORK_DISABLED'); };
 const [host, source] = process.argv.slice(2);
 const { createAgentSession, DefaultResourceLoader, SessionManager } = await import(pathToFileURL(path.join(host, 'dist/index.js')));
-const { createAssistantMessageEventStream } = await import(pathToFileURL(path.join(host, 'node_modules/@earendil-works/pi-ai/dist/index.js')));
+const { createAssistantMessageEventStream } = await import(pathToFileURL(path.join(resolvePiHostDependency({ cli: path.join(host, 'dist/cli.js') }, '@earendil-works/pi-ai'), 'dist/index.js')));
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const deferred = () => {
   let resolve;
@@ -188,7 +190,7 @@ try {
     phases.push({ phase: name, parentRequests: phase.parentRequests, childRequests: phase.children.reduce((sum, child) => sum + child.requests, 0), notifications: notifications.length });
   }
   assert.equal(networkCalls, 0);
-  console.log(JSON.stringify({ piVersion: '0.87.1', networkCalls, phases }));
+  console.log(JSON.stringify({ piVersion: JSON.parse(fs.readFileSync(path.join(host, 'package.json'), 'utf8')).version, networkCalls, phases }));
 } finally {
   for (const child of phase?.children ?? []) child.release.resolve();
   if (!shutDown) await session.extensionRunner.emit({ type: 'session_shutdown' });

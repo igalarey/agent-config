@@ -54,6 +54,13 @@ export function identifyInstalledPiHost(expectedVersion, { env = process.env } =
   throw new Error(`Installed Pi host ${expectedVersion} was not found on PATH`);
 }
 
+export function resolvePiHostDependency(host, name) {
+  const roots = createRequire(host.cli).resolve.paths(name) ?? [];
+  const root = roots.map(base => path.join(base, name)).find(candidate => fs.existsSync(path.join(candidate, 'package.json')));
+  if (!root) throw new Error(`Pi host dependency is missing: ${name}`);
+  return root;
+}
+
 export function runtimeEnvironment(parent, { agentDir, home, temp, cwd = home }) {
   const env = {};
   for (const [key, value] of Object.entries(parent)) {
@@ -88,9 +95,35 @@ export function runtimeEnvironment(parent, { agentDir, home, temp, cwd = home })
   };
 }
 
-export function offlineRuntimeStderr(text = '') {
+function knownPackagingDiagnostics({ host, manifest, releasePath } = {}) {
+  if (host?.version !== '1.3.0' || manifest?.piVersion !== '1.3.0' || !releasePath) return [];
+  const pins = [
+    ['@tintinweb/pi-subagents', '0.19.0', ['@sinclair/typebox', 'typebox']],
+    ['@tintinweb/pi-tasks', '0.9.0', ['typebox']],
+    ['pi-supervisor', '0.5.0', ['typebox']],
+    ['pi-web-access', '0.29.0', ['typebox']],
+  ];
+  return pins.flatMap(([name, version, dependencies]) => {
+    const native = name === 'pi-web-access';
+    const relative = native ? `native/node_modules/${name}` : `packages/${name}`;
+    const file = path.join(releasePath, relative, 'package.json');
+    try {
+      const present = native
+        ? manifest.files?.some(entry => entry.path === 'native/package.json')
+          && JSON.parse(fs.readFileSync(path.join(releasePath, 'native/package.json'), 'utf8')).dependencies?.[name] === version
+        : manifest.packages?.some(pkg => pkg.name === name && pkg.version === version && pkg.path === relative);
+      if (!present) return [];
+      const metadata = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (metadata.name !== name || metadata.version !== version || dependencies.some(dep => !metadata.dependencies?.[dep])) return [];
+      return [`Warning: Extension package "${file}": Host-provided extension packages must be declared in peerDependencies with a "*" range, not dependencies: ${dependencies.join(', ')}. Installed copies can bypass the extension loader and create duplicate runtime modules.`];
+    } catch { return []; }
+  });
+}
+
+export function offlineRuntimeStderr(text = '', context) {
   const expected = '[pi-ollama] Ollama not reachable and no cache available (TypeError: fetch failed). Run /ollama-refresh when Ollama is available.';
-  return text.split('\n').filter(line => line.trim() !== expected).join('\n').trim();
+  const packaging = new Set(knownPackagingDiagnostics(context));
+  return text.split('\n').filter(line => line.trim() !== expected && !packaging.has(line)).join('\n').trim();
 }
 
 function result(id, started, error, details) {
@@ -404,6 +437,7 @@ function runRpc({ releasePath, manifest, host, env, agentDir, sessionDir, cwd, t
     fs.cpSync(path.join(releasePath, 'pi-skills'), path.join(agentDir, 'skills'), { recursive: true });
   }
   fs.writeFileSync(path.join(agentDir, 'settings.json'), JSON.stringify({
+    ...(nativeBase(manifest) ? { extensions: nativeSettings(releasePath).extensions } : {}),
     packages: [...manifest.packages.map(pkg => path.join(releasePath, pkg.path)), ...nativePackages(releasePath, manifest)],
   }));
   const inspector = path.join(temp, 'runtime-inspector.mjs');
@@ -422,7 +456,7 @@ function runRpc({ releasePath, manifest, host, env, agentDir, sessionDir, cwd, t
     cwd, env, input, encoding: 'utf8', shell: false, timeout: 60_000, maxBuffer: 16 * 1024 * 1024,
   });
   assert(rpc.status === 0, rpc.error?.message ?? rpc.stderr?.trim() ?? `RPC exited ${rpc.status}`);
-  assert(!offlineRuntimeStderr(rpc.stderr), `RPC stderr was not empty: ${rpc.stderr.trim()}`);
+  assert(!offlineRuntimeStderr(rpc.stderr, { host, manifest, releasePath }), `RPC stderr was not empty: ${rpc.stderr.trim()}`);
   const messages = rpc.stdout.split('\n').filter(Boolean).map(line => JSON.parse(line));
   assert(!messages.some(message => message.type === 'extension_error'), 'RPC emitted extension_error');
   const notification = messages.find(message => message.type === 'extension_ui_request' && message.method === 'notify'
@@ -430,6 +464,7 @@ function runRpc({ releasePath, manifest, host, env, agentDir, sessionDir, cwd, t
   assert(notification, 'Official loader tool inspection notification missing');
   return {
     messages,
+    diagnostics: rpc.stderr.trim().split('\n').filter(Boolean),
     inspection: JSON.parse(notification.message.slice(INSPECT_PREFIX.length)),
     state: messages.find(message => message.id === 'state'),
     commands: messages.find(message => message.id === 'commands'),
@@ -700,17 +735,17 @@ async function runModernSmoke({ releasePath, manifest, parentEnv }) {
       for (const name of PACKAGE_TOOLS.filter(name => name.startsWith('subagent'))) {
         assert(!rpcEvidence.inspection.allTools.some(tool => tool.name === name), `Legacy tool still loaded: ${name}`);
       }
-      return { mode: 'official-cli-rpc' };
+      return { mode: 'official-cli-rpc', diagnostics: rpcEvidence.diagnostics };
     }));
     results.push(await check('runtime:supplemental-tool-execution', async () => {
       assert(host, 'Missing exact Pi host');
       const fixture = path.join(temp, 'faux-integration.mjs');
-      fs.writeFileSync(fixture, `import { createAssistantMessageEventStream } from '@earendil-works/pi-ai';\nimport { streamSimple as codexStreamSimple } from ${JSON.stringify(path.join(host.packageRoot, 'node_modules/@earendil-works/pi-ai/dist/api/openai-codex-responses.js'))};\nimport * as zlib from 'node:zlib';\nconst policyProfiles = ${fs.existsSync(path.join(releasePath, 'agents/luna-fast.mjs'))};\nexport default ${fauxIntegrationProvider.toString()}\n`);
+      fs.writeFileSync(fixture, `import { createAssistantMessageEventStream } from '@earendil-works/pi-ai';\nimport { streamSimple as codexStreamSimple } from ${JSON.stringify(path.join(resolvePiHostDependency(host, '@earendil-works/pi-ai'), 'dist/api/openai-codex-responses.js'))};\nimport * as zlib from 'node:zlib';\nconst policyProfiles = ${fs.existsSync(path.join(releasePath, 'agents/luna-fast.mjs'))};\nexport default ${fauxIntegrationProvider.toString()}\n`);
       const run = spawnSync(process.execPath, [host.cli, '--mode', 'json', '--no-session', '--provider', 'agent-config-fixture', '--model', 'fixture',
         '--extension', fixture, '--no-skills', '--no-prompt-templates', '--no-context-files', '--no-themes', '-p', 'Run the deterministic integration fixture.'],
       { cwd, env, encoding: 'utf8', shell: false, timeout: 60_000, maxBuffer: 16 * 1024 * 1024 });
       assert(run.status === 0, run.error?.message ?? run.stderr ?? `exit ${run.status}`);
-      assert(!offlineRuntimeStderr(run.stderr), run.stderr);
+      assert(!offlineRuntimeStderr(run.stderr, { host, manifest, releasePath }), run.stderr);
       integration = run.stdout.split('\n').filter(Boolean).map(line => JSON.parse(line));
       const ended = integration.filter(event => event.type === 'message_end').map(event => event.message);
       assert(!integration.some(event => event.type === 'extension_error'), 'Integration extension error');
@@ -718,7 +753,8 @@ async function runModernSmoke({ releasePath, manifest, parentEnv }) {
       const final = ended.filter(message => message.role === 'assistant').at(-1);
       assert(ended.some(message => message.role === 'toolResult' && message.toolName === 'start_supervision' && JSON.stringify(message).includes('agent-config-fixture')), 'Supervisor did not start with the offline model');
       assert(final?.content?.some(block => block.text === 'BASE_INTEGRATION_OK'), `Faux integration failed: ${JSON.stringify(ended).slice(-12000)}`);
-      return { mode: 'official-cli-faux-model-integration', networkModelCalls: 0, taskExecute: true, childExtensionScope: true, restrictedScope: true };
+      return { mode: 'official-cli-faux-model-integration', networkModelCalls: 0, taskExecute: true, childExtensionScope: true, restrictedScope: true,
+        diagnostics: run.stderr.trim().split('\n').filter(Boolean) };
     }));
     results.push(await check('runtime:process-only', async () => {
       assert(integration, 'Integration did not execute');

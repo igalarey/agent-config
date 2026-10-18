@@ -314,8 +314,15 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
       const permittedCompatibilityShapeChange = changedSettings.length === 0
         && changedResources.length > 0
         && changedResources.every(relative => compatibilityResources.has(relative));
+      const permittedMcpShapeChange = changedResources.length === 0
+        && changedSettings.length === 1 && changedSettings[0] === 'extensions'
+        && [[prior, source], [source, prior]].some(([before, after]) =>
+          readJSON(path.join(before, 'manifests/packages.json')).piVersion === '0.87.1'
+          && readJSON(path.join(after, 'manifests/packages.json')).piVersion === '1.3.0'
+          && readJSON(path.join(before, 'config/pi.settings.json')).extensions === undefined
+          && isDeepStrictEqual(readJSON(path.join(after, 'config/pi.settings.json')).extensions, ['-builtin:mcp']));
       if (permittedOrcaShapeChange || permittedWorkflowGuideChange || permittedPromptChange || permittedCarbonShapeChange
-          || permittedCompatibilityShapeChange
+          || permittedCompatibilityShapeChange || permittedMcpShapeChange
           || (modern && migrateBase && changedResources.every(relative => relative.startsWith('.pi/agent/agents/')))) {
         retiredResources.push(...removed);
       } else conflicts.push('incompatible release rollback/update: managed resource or settings key set changed');
@@ -537,6 +544,18 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
     }
   }
   const next = merge(settingsBase, defaults);
+  if (defaults.extensions !== undefined || priorDefaults?.extensions !== undefined) {
+    const existing = settingsBase.extensions ?? [], managed = defaults.extensions ?? [], priorManaged = priorDefaults?.extensions ?? [];
+    if (![existing, managed, priorManaged].every(entries => Array.isArray(entries) && entries.every(entry => typeof entry === 'string'))) {
+      throw new Error('extensions must be an array of strings');
+    }
+    if (managed.includes('-builtin:mcp') && existing.some(entry => entry === '+builtin:mcp' || entry === 'builtin:mcp')) {
+      conflicts.push('explicit builtin:mcp inclusion conflicts with the managed MCP adapter exclusion');
+    }
+    next.extensions = existing.filter(entry => !priorManaged.includes(entry) || managed.includes(entry));
+    for (const entry of managed) if (!next.extensions.includes(entry)) next.extensions.push(entry);
+    if (defaults.extensions === undefined && next.extensions.length === 0) delete next.extensions;
+  }
   next.packages = packages;
   add('.pi/agent/settings.json', json(next), false);
   const adapterBody = `Antes de empezar cualquier tarea, lee completamente con read:\n${path.join(home, '.agents/SYSTEM.md').replaceAll('\\', '/')}\nEs la fuente compartida de instrucciones del usuario.`;

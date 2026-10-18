@@ -150,6 +150,7 @@ test('legacy planner fixture is idempotent and preserves profiles and source', t
   assert.equal(installedSettings.hideThinkingBlock, true);
   assert.equal(installedSettings.quietStartup, false);
   assert.equal(installedSettings.collapseChangelog, true);
+  assert.deepEqual(installedSettings.extensions, ['-builtin:mcp']);
   assert.deepEqual(installedSettings.packages.find(entry => entry.source?.endsWith('/pi-tasks')).extensions, []);
   for (const relative of [
     'extensions/carbon-ui/index.ts', 'extensions/carbon-ui/builtin-tools.ts',
@@ -482,20 +483,20 @@ test('memory roles use the selected Codex Luna model and high reasoning', () => 
 test('local manifest contains only harness-owned packages', () => {
   const manifest = readJSON(path.join(root, 'manifests/packages.json'));
   assert.equal(manifest.scope, 'local-harness');
-  assert.equal(manifest.piVersion, '0.87.1');
+  assert.equal(manifest.piVersion, '1.3.0');
   assert.deepEqual(manifest.packages.map(pkg => pkg.name), ['pi-ask-user-question', 'pi-browser', 'pi-subscription-usage', '@tintinweb/pi-tasks', 'pi-supervisor']);
   const usageMeta = readJSON(path.join(root, 'vendor/pi-subscription-usage/package.json'));
   for (const name of ['pi-ai', 'pi-coding-agent', 'pi-tui']) {
-    assert.equal(usageMeta.peerDependencies[`@earendil-works/${name}`], '0.87.1');
+    assert.equal(usageMeta.peerDependencies[`@earendil-works/${name}`], '1.3.0');
   }
   assert.equal(manifest.packages.find(pkg => pkg.name === 'pi-browser')?.version, '0.2.0');
   assert.doesNotMatch(JSON.stringify(manifest.packages), /pi-interactive-subagents|observational-memory/);
 });
-test('local Pi 0.87.1 tools are pinned and exclude reviewed unlicensed source paths', () => {
+test('local Pi 1.3.0 tools are pinned and exclude reviewed unlicensed source paths', () => {
   const askFolder = path.join(root, 'vendor/pi-ask-user-question');
   for (const name of ['pi-ask-user-question', 'pi-browser']) {
     const metadata = readJSON(path.join(root, 'vendor', name, 'package.json'));
-    assert.equal(metadata.peerDependencies['@earendil-works/pi-coding-agent'], '0.87.1');
+    assert.equal(metadata.peerDependencies['@earendil-works/pi-coding-agent'], '1.3.0');
     assert.equal(metadata.peerDependencies.typebox, '1.3.7');
     assert.equal(metadata.dependencies?.['@earendil-works/pi-server'], undefined);
     assert.equal(metadata.devDependencies?.['@earendil-works/pi-server'], undefined);
