@@ -1,7 +1,25 @@
 # Verification: tintinweb base
 
 This file supersedes the historical Windows/RTK/interactive-subagents evidence in Git history.
-Target: Linux, Node 22.23.2, Pi 1.3.0. This migration does not activate the local installation.
+Target: Linux, Node 22.23.2, Pi 1.3.0.
+
+## Activated host TypeBox correction
+
+Release `h-8dc01e244de8-s-e955e29c51b7-m-bc1eba141a47` is active in the real HOME.
+The previous active release remains available. Activation backed up the five changed resources.
+
+- All 14 package checks and five official runtime checks passed.
+- The runtime checks reported no TypeBox packaging warnings. The expected offline Ollama diagnostic remains.
+- All four TypeBox identity probes passed against the completed release.
+- `doctor` passed. The repeated activation plan reported zero changes.
+- The inventory resolves Web Access's directory entrypoint to `dist/index.js` and checks its hash.
+
+The release stores its reports in `.release/dependencies.json` and `.release/verification.json`.
+Model requests used synthetic providers. Authentication and interactive UI were not tested.
+
+The npm audit still reports dependency advisories, separate from TypeBox packaging.
+The old native prefix reported seven affected packages. The new prefix reports eight, including Web Access through its SDK dependency.
+The added SDK consumer uses a fixed endpoint, disables redirects, and supplies no OAuth provider. This task did not apply audit fixes.
 
 ## Host TypeBox metadata and web 0.32 candidate changes
 
@@ -15,7 +33,7 @@ It checks that all four tools appear on the next model request. It makes no sear
 Legacy web 0.29 still requires all four tools active at startup. Child tool scopes exclude `web_enable`.
 
 The focused Pi 1.3.0 check passed with the published 0.32 bundle and locally linked runtime dependencies.
-This is not full candidate verification or activation. The complete candidate still requires dependency and release checks.
+That focused check did not establish full candidate verification. See “Activated host TypeBox correction” for the completed release evidence.
 
 Run the focused check with a prepared package directory:
 
