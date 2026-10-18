@@ -20,8 +20,24 @@ The smoke report retains these exact diagnostics and rejects unknown warnings.
 Herdr's existing configuration passed the installed validator. Its keys match the 0.9.5 documentation.
 The README describes the separate binary and integration update. Neither binary nor live sessions were changed.
 
-These checks used an unsealed fixture with local dependency links, not a prepared release.
-They do not establish authenticated model behavior or interactive browser behavior.
+The initial checks used an unsealed fixture with local dependency links.
+The official candidate `h-4df8185f76e6-s-e955e29c51b7-m-bc1eba141a47` then passed all 14 package checks and five runtime checks.
+
+Preparation, dependency installation, verification and activation succeeded in a temporary HOME.
+Doctor confirmed valid integrity and verification. The repeated plan reported zero changes.
+The real HOME was not activated. Authenticated model behavior and interactive browser behavior remain untested.
+
+The candidate evidence is in `/tmp/agent-config-pi-1.3.0-candidate-{verify-new,doctor,plan-repeat}.log`.
+To reproduce from the committed recipe, use a new temporary HOME and put Pi 1.3.0 on PATH:
+
+```sh
+CHECK_HOME=$(mktemp -d)
+npm run bootstrap -- --home "$CHECK_HOME" --apply
+npm run doctor -- --home "$CHECK_HOME"
+npm run bootstrap -- --home "$CHECK_HOME"
+```
+
+Do not reinstall dependencies or rerun suites inside a sealed candidate.
 
 ## Reviewed Hermes adaptations and learning (previous activation)
 
