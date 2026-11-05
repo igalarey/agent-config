@@ -123,7 +123,7 @@ function releaseArgs(argv) {
 export function main({ argv = process.argv.slice(2), source = root, releaseRunChecks, releaseRunRuntimeChecks, reporter = console, ...runOptions } = {}) {
   if (argv.length !== 0) {
     const result = verifyRelease({ ...releaseArgs(argv), runChecks: releaseRunChecks, runRuntimeChecks: releaseRunRuntimeChecks });
-    for (const item of [...result.fullChecks, ...result.runtimeChecks]) reporter[item.ok ? 'log' : 'error'](`[verify-release] ${item.ok ? 'PASS' : 'FAIL'} ${item.id} (${item.durationMs} ms)${item.reason ? ` (${item.reason})` : ''}`);
+    for (const item of [...result.fullChecks, ...result.runtimeChecks, ...result.compositionChecks]) reporter[item.ok ? 'log' : 'error'](`[verify-release] ${item.ok ? 'PASS' : 'FAIL'} ${item.id} (${item.durationMs} ms)${item.reason ? ` (${item.reason})` : ''}`);
     reporter.log(`[verify-release] timings: source validation ${result.timings.sourceValidationMs} ms; runtime hashing ${result.timings.runtimeDigestMs} ms; total ${result.timings.totalMs} ms`);
     reporter.log(result.written
       ? `[verify-release] ${result.passed ? 'Recorded valid verification' : 'Recorded failed verification'} for ${result.id}.`

@@ -4,7 +4,9 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { identifyInstalledPiHost } from '../../scripts/runtime-smoke.mjs';
 
-export const REPO = fileURLToPath(new URL('../../', import.meta.url));
+export const REPO = process.env.PI_CARBON_CANDIDATE
+  ? resolve(process.env.PI_CARBON_CANDIDATE)
+  : fileURLToPath(new URL('../../', import.meta.url));
 const require = createRequire(new URL('../../vendor/pi-subscription-usage/package.json', import.meta.url));
 const packageRoot = (name, resolver = require) => {
   const root = resolver.resolve.paths(name).map(base => join(base, name))
@@ -18,4 +20,5 @@ export const PI_ROOT = process.env.PI_CARBON_HOST_VERSION
 const coreRequire = createRequire(join(PI_ROOT, 'package.json'));
 export const TUI_ROOT = packageRoot('@earendil-works/pi-tui', coreRequire);
 export const JITI_ROOT = packageRoot('jiti', coreRequire);
-export const resource = path => resolve(REPO, path);
+export const resource = path => resolve(REPO, process.env.PI_CARBON_CANDIDATE && path.startsWith('vendor/')
+  ? path.replace('vendor/pi-tasks', 'packages/@tintinweb/pi-tasks') : path);

@@ -828,10 +828,12 @@ export function validateRelease({ home, id, requireDependencies = false, require
       const runtimeCheckIds = verification.runtimeChecks?.map(item => item.id);
       const currentRuntimeIds = JSON.stringify(expectedRuntimeVerificationIds());
       const legacySealedRuntimeIds = sealed && JSON.stringify(runtimeCheckIds) === JSON.stringify(LEGACY_RUNTIME_VERIFICATION_IDS);
+      const historicalComposition = sealed && verification.compositionChecks === undefined;
       const currentRunnerFiles = {
         'scripts/releases.mjs': digest(fs.readFileSync(fileURLToPath(import.meta.url))),
         'scripts/runtime-smoke.mjs': digest(fs.readFileSync(fileURLToPath(new URL('./runtime-smoke.mjs', import.meta.url)))),
         'scripts/verify-env.mjs': digest(fs.readFileSync(fileURLToPath(new URL('./verify-env.mjs', import.meta.url)))),
+        'scripts/candidate-composition.mjs': digest(fs.readFileSync(fileURLToPath(new URL('./candidate-composition.mjs', import.meta.url)))),
       };
       if (verification.schemaVersion !== REPORT_SCHEMA || !commonValid
           || verification.developmentDigest !== dependencies.developmentDigest
@@ -851,7 +853,11 @@ export function validateRelease({ home, id, requireDependencies = false, require
           || !validContentHash(runnerFiles?.['scripts/releases.mjs'])
           || !validContentHash(runnerFiles?.['scripts/runtime-smoke.mjs'])
           || !validContentHash(runnerFiles?.['scripts/verify-env.mjs'])
-          || Object.keys(runnerFiles ?? {}).length !== 3
+          || (!historicalComposition && (!Array.isArray(verification.compositionChecks)
+            || JSON.stringify(verification.compositionChecks.map(item => item.id)) !== JSON.stringify(['composition:carbon-tasks'])
+            || verification.compositionChecks.some(item => item.ok !== true)
+            || !validContentHash(runnerFiles?.['scripts/candidate-composition.mjs'])))
+          || Object.keys(runnerFiles ?? {}).length !== (historicalComposition ? 3 : 4)
           || (!sealed && JSON.stringify(runnerFiles) !== JSON.stringify(currentRunnerFiles))
           || fs.existsSync(path.join(releasePath, DEVELOPMENT_ROOT))) {
         throw new Error(`Reduced runtime verification is not valid: ${id}`);
@@ -977,7 +983,7 @@ export function installReleaseDependencies({ home, id, apply = false, runNpm, ge
   }
 }
 
-export function verifyRelease({ home, id, apply = false, runChecks, runRuntimeChecks }) {
+export function verifyRelease({ home, id, apply = false, runChecks, runRuntimeChecks, runCompositionChecks }) {
   const verificationStarted = performance.now();
   const mutableCandidate = validateRelease({ home, id });
   assertReleaseMutable(mutableCandidate);
@@ -1074,6 +1080,21 @@ export function verifyRelease({ home, id, apply = false, runChecks, runRuntimeCh
   if (smoke?.supplemental?.mode !== supplementalMode(candidate.manifest)) {
     invalidateRuntimeCheck('runtime:supplemental-tool-execution', 'Supplemental mocked-host execution evidence is invalid');
   }
+  const compositionStarted = performance.now();
+  let composition;
+  try {
+    composition = runCompositionChecks ? runCompositionChecks({ candidate, env: childEnv }) : (() => {
+      const script = fileURLToPath(new URL('./candidate-composition.mjs', import.meta.url));
+      const execution = spawnSync(process.execPath, [script, candidate.path], {
+        encoding: 'utf8', shell: false, env: childEnv, timeout: 120_000, maxBuffer: 8 * 1024 * 1024,
+      });
+      if (execution.status !== 0) throw new Error(`Candidate composition failed: ${execution.error?.message ?? execution.stderr?.trim() ?? `exit ${execution.status}`}`);
+      return { ok: true, evidence: JSON.parse(execution.stdout) };
+    })();
+  } catch (error) {
+    composition = { ok: false, reason: error instanceof Error ? error.message : String(error) };
+  }
+  const compositionChecks = [{ ...composition, id: 'composition:carbon-tasks', ok: composition?.ok === true, durationMs: Math.round(performance.now() - compositionStarted) }];
   fs.rmSync(verificationHome, { recursive: true, force: true });
   sourceValidationStarted = performance.now();
   validateDevelopmentTree(candidate.path, candidate.manifest);
@@ -1084,19 +1105,20 @@ export function verifyRelease({ home, id, apply = false, runChecks, runRuntimeCh
   runtimeDigestMs = Math.round(runtimeDigestMs + performance.now() - runtimeDigestStarted);
   if (verifiedRuntimeDigest !== candidate.dependencies.runtimeDigest) throw new Error(`Runtime changed after dependency stage: ${id}`);
   const timings = { sourceValidationMs, runtimeDigestMs, totalMs: Math.round(performance.now() - verificationStarted) };
-  const passed = fullChecks.every(item => item.ok) && runtimeChecks.every(item => item.ok)
+  const passed = fullChecks.every(item => item.ok) && runtimeChecks.every(item => item.ok) && compositionChecks.every(item => item.ok)
     && JSON.stringify(runtimeChecks.map(item => item.id)) === JSON.stringify(expectedRuntimeVerificationIds());
   const runnerFiles = {
     'scripts/releases.mjs': digest(fs.readFileSync(fileURLToPath(import.meta.url))),
     'scripts/runtime-smoke.mjs': smoke?.runner?.sha256,
     'scripts/verify-env.mjs': digest(fs.readFileSync(fileURLToPath(new URL('./verify-env.mjs', import.meta.url)))),
+    'scripts/candidate-composition.mjs': digest(fs.readFileSync(fileURLToPath(new URL('./candidate-composition.mjs', import.meta.url)))),
   };
   const report = {
     schemaVersion: REPORT_SCHEMA, status: passed ? 'passed' : 'failed', sourceDigest: candidate.manifest.sourceDigest,
     developmentDigest: candidate.dependencies.developmentDigest,
     dependenciesDigest: reportDigest(path.join(candidate.path, DEPENDENCIES_REPORT)),
     runtimeDigest: verifiedRuntimeDigest,
-    fullChecks, runtimeChecks, host: smoke?.host, loader: smoke?.loader, supplemental: smoke?.supplemental,
+    fullChecks, runtimeChecks, compositionChecks, host: smoke?.host, loader: smoke?.loader, supplemental: smoke?.supplemental,
     runner: { files: runnerFiles }, timings,
     runtime: { node: process.version, npm: candidate.dependencies.runtime.npm, platform: process.platform, arch: process.arch },
   };
@@ -1116,7 +1138,7 @@ export function verifyRelease({ home, id, apply = false, runChecks, runRuntimeCh
       fs.writeFileSync(reportPath, json(report), { mode: 0o600 });
     }
   }
-  return { ...candidate, developmentPath, checks, fullChecks, runtimeChecks, timings, passed, written: apply, report };
+  return { ...candidate, developmentPath, checks, fullChecks, runtimeChecks, compositionChecks, timings, passed, written: apply, report };
 }
 
 function parsePrepareArgs(argv) {

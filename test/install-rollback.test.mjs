@@ -113,6 +113,7 @@ function prepareRelease(home, source) {
   const verification = verifyRelease({
     home, id: candidate.id, apply: true,
     runChecks: () => ({ ok: true }),
+    runCompositionChecks: () => ({ ok: true }),
     runRuntimeChecks: () => ({
       host: {
         package: '@earendil-works/pi-coding-agent', version: '0.85.0',

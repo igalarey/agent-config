@@ -149,6 +149,27 @@ function ready(t, home, source) {
   return candidate;
 }
 
+test('candidate composition success is required and cannot be removed before activation', t => {
+  const home = temporary(t), source = fixture(t);
+  const candidate = ready(t, home, source);
+  const reportPath = path.join(candidate.releasePath, '.release/verification.json');
+  const report = readJSON(reportPath);
+  assert.deepEqual(report.compositionChecks.map(({ id, ok }) => ({ id, ok })), [{ id: 'composition:carbon-tasks', ok: true }]);
+  assert.match(report.runner.files['scripts/candidate-composition.mjs'], /^[a-f0-9]{64}$/);
+  for (const mutate of [
+    value => { delete value.compositionChecks; },
+    value => { value.compositionChecks = []; },
+    value => { value.compositionChecks[0].ok = false; },
+    value => { delete value.runner.files['scripts/candidate-composition.mjs']; },
+    value => { value.runner.files['scripts/candidate-composition.mjs'] = fixtureHash; },
+  ]) {
+    const changed = structuredClone(report);
+    mutate(changed);
+    fs.writeFileSync(reportPath, JSON.stringify(changed));
+    assert.throws(() => validateRelease({ home, id: candidate.id, requireVerified: true }), /verification is not valid/);
+  }
+});
+
 const settingsPath = '.pi/agent/settings.json';
 
 test('native npm runtime is sealed, deployed intact and refuses unmanaged prefix changes', t => {
@@ -836,6 +857,8 @@ test('sealed schema v2 reports from the previous smoke layout remain valid', t =
   delete report.loader.mode;
   delete report.loader.entrypoint;
   delete report.supplemental;
+  delete report.compositionChecks;
+  delete report.runner.files['scripts/candidate-composition.mjs'];
   fs.writeFileSync(verificationPath, JSON.stringify(report));
   assert.throws(() => validateRelease({ home, id: candidate.id, requireVerified: true }), /verification is not valid/);
   const verificationDigest = createHash('sha256').update(fs.readFileSync(verificationPath)).digest('hex');
@@ -1274,7 +1297,7 @@ test('versioned bootstrap recipe pins the active release without local source pa
   assert.deepEqual(recipe, {
     schemaVersion: 1,
     release: `h-${recipe.sources.harness.slice(0, 12)}-s-e955e29c51b7-m-bc1eba141a47`,
-    piVersion: '1.3.0',
+    piVersion: '1.5.0',
     runtime: { node: 'v22.23.2' },
     sources: {
       harness: recipe.sources.harness,
