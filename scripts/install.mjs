@@ -6,6 +6,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { sealRelease, validateRelease, directoryDigest } from './releases.mjs';
 import { buildHarnessInventory, inventoryJSON, supportsHarnessInventory } from './harness-compatibility.mjs';
+import { planMcpConfigMigration } from './mcp-config-migration.mjs';
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const digest = text => createHash('sha256').update(text).digest('hex');
@@ -314,6 +315,13 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
       const permittedCompatibilityShapeChange = changedSettings.length === 0
         && changedResources.length > 0
         && changedResources.every(relative => compatibilityResources.has(relative));
+      const permittedKnowledgeIndexChange = settingsShapeUnchanged
+        && changedResources.every(relative => relative === '.agents/guides/INDEX.md' || compatibilityResources.has(relative));
+      const permittedCodemodeShapeChange = changedSettings.length === 1 && changedSettings[0] === 'defaultTools'
+        && changedResources.every(relative => relative === '.agents/guides/INDEX.md' || compatibilityResources.has(relative))
+        && [[prior, source], [source, prior]].some(([before, after]) =>
+          readJSON(path.join(before, 'config/pi.settings.json')).defaultTools === undefined
+          && isDeepStrictEqual(readJSON(path.join(after, 'config/pi.settings.json')).defaultTools, ['+codemode']));
       const permittedMcpShapeChange = changedResources.length === 0
         && changedSettings.length === 1 && changedSettings[0] === 'extensions'
         && [[prior, source], [source, prior]].some(([before, after]) =>
@@ -322,7 +330,7 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
           && readJSON(path.join(before, 'config/pi.settings.json')).extensions === undefined
           && isDeepStrictEqual(readJSON(path.join(after, 'config/pi.settings.json')).extensions, ['-builtin:mcp']));
       if (permittedOrcaShapeChange || permittedWorkflowGuideChange || permittedPromptChange || permittedCarbonShapeChange
-          || permittedCompatibilityShapeChange || permittedMcpShapeChange
+          || permittedCompatibilityShapeChange || permittedMcpShapeChange || permittedCodemodeShapeChange || permittedKnowledgeIndexChange
           || (modern && migrateBase && changedResources.every(relative => relative.startsWith('.pi/agent/agents/')))) {
         retiredResources.push(...removed);
       } else conflicts.push('incompatible release rollback/update: managed resource or settings key set changed');
@@ -524,7 +532,39 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
       else operations.push({ relative: '.pi/agent/npm', target, nativeSource, nativeDigest, beforeDigest });
     }
   }
+  let mcpAdapterMigrated = previous.mcpAdapterMigrated === true;
+  let mcpMigrationInputs;
+  const adapterDefaultsPath = path.join(source, 'config/mcp-adapter.json');
+  if (fs.existsSync(adapterDefaultsPath)) {
+    const legacyPath = path.join(home, '.pi/agent/mcp.json');
+    const adapterPath = path.join(home, '.pi/agent/mcp-adapter.json');
+    noSymlinks(legacyPath);
+    noSymlinks(adapterPath);
+    if (mcpAdapterMigrated) {
+      if (!fs.existsSync(adapterPath)) conflicts.push('Migrated mcp-adapter.json is missing; restore it or resolve the configuration explicitly');
+    } else {
+      const inputs = [legacyPath, adapterPath].map(target => {
+        const content = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : null;
+        let config;
+        try { config = content === null ? undefined : JSON.parse(content); }
+        catch { throw new Error(`Invalid JSON in ${path.basename(target)}; configuration content omitted`); }
+        return { target, config, hash: content === null ? null : digest(content) };
+      });
+      mcpMigrationInputs = inputs.map(({ target, hash }) => ({ target, hash }));
+      const migration = planMcpConfigMigration({
+        legacyConfig: inputs[0].config,
+        adapterConfig: inputs[1].config,
+        defaults: readJSON(adapterDefaultsPath),
+      });
+      if (migration.action === 'conflict') conflicts.push(...migration.conflicts.map(message => `MCP configuration migration: ${message}`));
+      else {
+        if (migration.action === 'create') add('.pi/agent/mcp-adapter.json', json(migration.content), false);
+        mcpAdapterMigrated = true;
+      }
+    }
+  }
   for (const name of ['mcp.json', 'web-search.json']) {
+    if (name === 'mcp.json' && fs.existsSync(adapterDefaultsPath)) continue;
     const defaultPath = path.join(source, 'config', name);
     if (!fs.existsSync(defaultPath)) continue;
     const relative = `.pi/agent/${name}`, target = path.join(home, relative);
@@ -544,6 +584,18 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
     }
   }
   const next = merge(settingsBase, defaults);
+  if (defaults.defaultTools !== undefined || priorDefaults?.defaultTools !== undefined) {
+    const existing = settingsBase.defaultTools ?? [], managed = defaults.defaultTools ?? [], priorManaged = priorDefaults?.defaultTools ?? [];
+    if (![existing, managed, priorManaged].every(entries => Array.isArray(entries) && entries.every(entry => typeof entry === 'string'))) {
+      throw new Error('defaultTools must be an array of strings');
+    }
+    if (managed.includes('+codemode') && existing.includes('-codemode')) {
+      conflicts.push('explicit codemode exclusion conflicts with the managed MCP codemode integration');
+    }
+    next.defaultTools = existing.filter(entry => !priorManaged.includes(entry) || managed.includes(entry));
+    for (const entry of managed) if (!next.defaultTools.includes(entry)) next.defaultTools.push(entry);
+    if (defaults.defaultTools === undefined && next.defaultTools.length === 0) delete next.defaultTools;
+  }
   if (defaults.extensions !== undefined || priorDefaults?.extensions !== undefined) {
     const existing = settingsBase.extensions ?? [], managed = defaults.extensions ?? [], priorManaged = priorDefaults?.extensions ?? [];
     if (![existing, managed, priorManaged].every(entries => Array.isArray(entries) && entries.every(entry => typeof entry === 'string'))) {
@@ -632,8 +684,8 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
   if (release && supportsHarnessInventory(source)) {
     add('.pi/agent/harness-manifest.json', inventoryJSON(buildHarnessInventory(source)));
   }
-  add('.agent-config/state.json', json({ version: 1, files: tracked, ...(release ? { release } : {}), ...(nativeDigest ? { nativeDigest } : {}) }), false);
-  return { home, source, release, operations, conflicts, migrations, ...(recovery ? { recovery } : {}) };
+  add('.agent-config/state.json', json({ version: 1, files: tracked, ...(release ? { release } : {}), ...(nativeDigest ? { nativeDigest } : {}), ...(mcpAdapterMigrated ? { mcpAdapterMigrated: true } : {}) }), false);
+  return { home, source, release, operations, conflicts, migrations, ...(mcpMigrationInputs ? { mcpMigrationInputs } : {}), ...(recovery ? { recovery } : {}) };
 }
 export function execute(plan) {
   if (plan.conflicts.length) throw new Error(`Conflicts; nothing written: ${plan.conflicts.join(', ')}`);
@@ -651,6 +703,11 @@ export function execute(plan) {
     if (current.snapshot !== plan.recovery.snapshot) {
       throw new Error('Question recovery changed since preview');
     }
+  }
+  for (const input of plan.mcpMigrationInputs ?? []) {
+    noSymlinks(input.target);
+    const hash = fs.existsSync(input.target) ? digest(fs.readFileSync(input.target, 'utf8')) : null;
+    if (hash !== input.hash) throw new Error('MCP configuration changed since preview; nothing written');
   }
   for (const op of plan.operations) {
     noSymlinks(op.target);

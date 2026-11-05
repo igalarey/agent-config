@@ -28,7 +28,7 @@ const SOURCES = {
     entries: [
       'SYSTEM.md', 'config/pi.settings.json', 'manifests/packages.json',
     ],
-    optionalEntries: ['config/subagents.json', 'config/tasks-config.json', 'config/SUPERVISOR.md', 'config/HARNESS-AUTHORITY.md', 'manifests/tintinweb.json', 'manifests/memory-lock-additions.json', 'manifests/subagents-ui.json', 'manifests/subagents-notifications.json', 'manifests/subagents-package-metadata.json', 'manifests/curated-skills.json', 'manifests/harness-legacy.json', 'native/package.json', 'native/package-lock.json', 'config/mcp.json', 'config/web-search.json', 'scripts/harness-compatibility.mjs', 'scripts/verify-compatibility.mjs'],
+    optionalEntries: ['config/subagents.json', 'config/tasks-config.json', 'config/SUPERVISOR.md', 'config/HARNESS-AUTHORITY.md', 'manifests/tintinweb.json', 'manifests/memory-lock-additions.json', 'manifests/subagents-ui.json', 'manifests/subagents-notifications.json', 'manifests/subagents-package-metadata.json', 'manifests/curated-skills.json', 'manifests/harness-legacy.json', 'native/package.json', 'native/package-lock.json', 'config/mcp.json', 'config/mcp-adapter.json', 'config/web-search.json', 'scripts/harness-compatibility.mjs', 'scripts/verify-compatibility.mjs', 'scripts/validate-skills.mjs'],
     prefixes: ['agents/', 'guides/', 'skills/', 'pi-skills/', 'prompts/', 'extensions/', 'themes/', 'vendor/pi-ask-user-question/', 'vendor/pi-web-fetch/', 'vendor/pi-browser/',
       'vendor/pi-mcp/', 'vendor/pi-subscription-usage/', 'vendor/pi-tasks/', 'vendor/pi-supervisor/'],
   },
@@ -687,6 +687,10 @@ export function directoryDigest(directory) {
   const entries = runtimeEntries(path.dirname(directory), { packages: [{ name, path: name }] });
   return digest(json(entries.map(entry => ({ ...entry, path: entry.path.slice(name.length + 1) }))));
 }
+function hasSkillValidation(manifest) {
+  return manifest.files.some(file => file.path === 'scripts/validate-skills.mjs' || file.path === 'manifests/curated-skills.json' || file.path.startsWith('pi-skills/'));
+}
+
 function expectedVerificationIds(manifest) {
   return manifest.packages.flatMap(pkg => [
     `${pkg.name}:typecheck`,
@@ -829,11 +833,14 @@ export function validateRelease({ home, id, requireDependencies = false, require
       const currentRuntimeIds = JSON.stringify(expectedRuntimeVerificationIds());
       const legacySealedRuntimeIds = sealed && JSON.stringify(runtimeCheckIds) === JSON.stringify(LEGACY_RUNTIME_VERIFICATION_IDS);
       const historicalComposition = sealed && verification.compositionChecks === undefined;
+      const requiresSkillValidation = hasSkillValidation(manifest) && (!sealed || Object.hasOwn(runnerFiles ?? {}, 'scripts/validate-skills.mjs')
+        || manifest.files.some(file => file.path === 'scripts/validate-skills.mjs'));
       const currentRunnerFiles = {
         'scripts/releases.mjs': digest(fs.readFileSync(fileURLToPath(import.meta.url))),
         'scripts/runtime-smoke.mjs': digest(fs.readFileSync(fileURLToPath(new URL('./runtime-smoke.mjs', import.meta.url)))),
         'scripts/verify-env.mjs': digest(fs.readFileSync(fileURLToPath(new URL('./verify-env.mjs', import.meta.url)))),
         'scripts/candidate-composition.mjs': digest(fs.readFileSync(fileURLToPath(new URL('./candidate-composition.mjs', import.meta.url)))),
+        ...(hasSkillValidation(manifest) ? { 'scripts/validate-skills.mjs': digest(fs.readFileSync(fileURLToPath(new URL('./validate-skills.mjs', import.meta.url)))) } : {}),
       };
       if (verification.schemaVersion !== REPORT_SCHEMA || !commonValid
           || verification.developmentDigest !== dependencies.developmentDigest
@@ -857,7 +864,8 @@ export function validateRelease({ home, id, requireDependencies = false, require
             || JSON.stringify(verification.compositionChecks.map(item => item.id)) !== JSON.stringify(['composition:carbon-tasks'])
             || verification.compositionChecks.some(item => item.ok !== true)
             || !validContentHash(runnerFiles?.['scripts/candidate-composition.mjs'])))
-          || Object.keys(runnerFiles ?? {}).length !== (historicalComposition ? 3 : 4)
+          || (requiresSkillValidation && !validContentHash(runnerFiles?.['scripts/validate-skills.mjs']))
+          || Object.keys(runnerFiles ?? {}).length !== (historicalComposition ? 3 : 4) + (requiresSkillValidation ? 1 : 0)
           || (!sealed && JSON.stringify(runnerFiles) !== JSON.stringify(currentRunnerFiles))
           || fs.existsSync(path.join(releasePath, DEVELOPMENT_ROOT))) {
         throw new Error(`Reduced runtime verification is not valid: ${id}`);
@@ -1112,6 +1120,7 @@ export function verifyRelease({ home, id, apply = false, runChecks, runRuntimeCh
     'scripts/runtime-smoke.mjs': smoke?.runner?.sha256,
     'scripts/verify-env.mjs': digest(fs.readFileSync(fileURLToPath(new URL('./verify-env.mjs', import.meta.url)))),
     'scripts/candidate-composition.mjs': digest(fs.readFileSync(fileURLToPath(new URL('./candidate-composition.mjs', import.meta.url)))),
+    ...(hasSkillValidation(candidate.manifest) ? { 'scripts/validate-skills.mjs': digest(fs.readFileSync(fileURLToPath(new URL('./validate-skills.mjs', import.meta.url)))) } : {}),
   };
   const report = {
     schemaVersion: REPORT_SCHEMA, status: passed ? 'passed' : 'failed', sourceDigest: candidate.manifest.sourceDigest,

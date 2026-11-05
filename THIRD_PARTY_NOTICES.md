@@ -24,9 +24,9 @@ Media, GitHub workflows and contributor-only instructions are excluded from the 
 for completed tasks it did not see complete, such as tasks carried over by a restart or
 resume. Upstream `29180d7` keeps those tasks until the next `TaskCreate`.
 `test/auto-clear.test.ts` adds tests for it. `vendor/pi-supervisor/` retains the local
-Pi 0.87.1 compatibility changes, with development dependencies updated for Pi 1.3.0:
+Pi API compatibility changes, with development dependencies pinned in its package lock:
 
-- `package.json` declares the Pi packages as exact 1.3.0 development dependencies, and
+- `package.json` declares the Pi packages as exact development dependencies, and
   the lock is regenerated. Without this, npm installs the unpinned Pi peer dependency, an
   outdated Pi copy with known vulnerabilities, into the runtime package.
 - `src/model-client.ts` streams through `ctx.modelRegistry.streamSimple()`. Pi 0.87 removed
@@ -38,8 +38,9 @@ Pi 0.87.1 compatibility changes, with development dependencies updated for Pi 1.
 
 [tintinweb/pi-subagents](https://github.com/tintinweb/pi-subagents) is fetched at the
 recipe's exact commit. Its MIT license is included in each prepared release.
-`manifests/subagents-notifications.json` records local delivery changes and test-fixture compatibility edits.
-The patch originated with Pi 0.87.1 and remains unchanged for the Pi 1.3.0 target.
+The current source is a local descendant of upstream `50460b5df6934c4237983a504808a04ee0f8a0a0` (0.23.1).
+Local commits preserve commit-acknowledged notifications and harden execution contracts.
+The recipe pins the complete adapted source; it does not layer a second notification mechanism.
 The upstream notice is MIT, copyright (c) 2026 tintinweb.
 `vendor/pi-tasks/LICENSE` also retains that complete notice for the patch text in this repository.
 See [completion delivery](docs/notification-delivery.md) for behavior and verification.
@@ -48,15 +49,19 @@ RTK is no longer distributed or installed.
 Both vendored packages move TypeBox to development dependencies and declare the host peer as `*`.
 Their locks retain resolved versions and integrity hashes.
 
-`manifests/subagents-package-metadata.json` applies the equivalent change to subagents 0.19.0
-at commit `e955e29c51b7a6cce37e1108cd2d6c57a77e151c` for Pi 1.3.0.
-It checks hashes before and after changing only `package.json` and `package-lock.json` during candidate preparation.
+Upstream subagents 0.23.1 already declares the required host peers.
+The old metadata and notification overlays are absent from new source manifests.
+Historical sealed releases and their exact-hash overlay validation remain supported.
+
+Tasks also contains local persistence, explicit project-trust, cancellation, and interactive-settings corrections.
+Supervisor contains local advisory-message and stale-result protections. Their vendor documentation records these contracts.
 
 ## Native npm packages
 
-[nicobailon/pi-mcp-adapter](https://github.com/nicobailon/pi-mcp-adapter) 2.33.0,
-[nicobailon/pi-web-access](https://github.com/nicobailon/pi-web-access) 0.32.0 and
-[CaptCanadaMan/pi-ollama](https://github.com/CaptCanadaMan/pi-ollama) 0.1.7 are installed
+[nicobailon/pi-mcp-adapter](https://github.com/nicobailon/pi-mcp-adapter),
+[nicobailon/pi-web-access](https://github.com/nicobailon/pi-web-access),
+[CaptCanadaMan/pi-ollama](https://github.com/CaptCanadaMan/pi-ollama), and
+[elidickinson/pi-claude-bridge](https://github.com/elidickinson/pi-claude-bridge) are installed
 unmodified from npm, with their upstream MIT notices. `native/package-lock.json` fixes
 versions and integrity hashes, including transitive dependencies and their own licenses.
 The local MCP wrapper and web-fetch implementation have been retired. No MCP server
@@ -68,9 +73,9 @@ The original 14 curated skill directories came from the local Bigpowers 2.88.6 d
 `diagnose-root` now contains a Hermes-derived adaptation instead of its original content. The source package is [danielvm-git/bigpowers](https://github.com/danielvm-git/bigpowers)
 and is distributed under MIT. `pi-skills/LICENSE.bigpowers` retains the complete upstream
 license text; `manifests/curated-skills.json` records the npm integrity and SHA-256 hash
-for every retained asset. Except for the declared adaptation, the copies match the package's
-canonical `skills/` files, including references, scripts and fixtures. They do not use the generated `.pi/skills/`
-variants. No Bigpowers hooks, prompt templates or extension are installed.
+for every retained asset. The manifest distinguishes original provenance from Hermes-derived and local adaptations.
+Local safety changes remove unsafe exclusions, unavailable dependencies, and implicit publication or deployment.
+The files are maintained derivatives, not byte-identical upstream copies. They do not use generated `.pi/skills/` variants. No Bigpowers hooks, prompt templates or extension are installed.
 
 ## Hermes-derived methods
 
@@ -93,6 +98,8 @@ See [the source review and exclusions](docs/hermes-adoption.md).
 Subagents and observational memory are obtained from the separate source repositories
 linked in the README. They retain their respective MIT notices and upstream attribution;
 the bootstrap pins their commits rather than incorporating mutable working directories.
+The memory source includes local coverage, receipt, lifecycle, filesystem, and privacy corrections.
+Local unpublished commits require a source map or a source repository containing those commits; no remote publication is implied.
 Pi, TypeBox, Playwright and other npm dependencies retain their own licenses in their
 packages. Installing a release does not relicense those dependencies.
 

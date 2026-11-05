@@ -36,7 +36,7 @@ test('native defaults are exact npm pins that match the lock, without Bigpowers'
   }
 });
 
-test('native registration is idempotent, preserves metadata and server config, and hides footer', t => {
+test('native registration is idempotent and preserves metadata and explicit adapter settings', t => {
   const home = temporary(t);
   put(home, '.pi/agent/settings.json', JSON.stringify({ packages: [
     'npm:unrelated@1.0.0', { source: 'npm:bigpowers', custom: true, extensions: ['extensions/omp-hooks.ts'] },
@@ -48,7 +48,8 @@ test('native registration is idempotent, preserves metadata and server config, a
   execute(preview);
   const config = readJSON(path.join(home, '.pi/agent/mcp.json'));
   assert.deepEqual(config.mcpServers, { fixture: { command: 'not-executed' } });
-  assert.deepEqual(config.settings, { lazy: true, mcpFooterStatus: 'off' });
+  assert.deepEqual(config.settings, { lazy: true, mcpFooterStatus: 'full' });
+  assert.deepEqual(readJSON(path.join(home, '.pi/agent/mcp-adapter.json')), config);
   const packages = readJSON(path.join(home, '.pi/agent/settings.json')).packages;
   assert.ok(packages.includes('npm:unrelated@1.0.0'));
   assert.deepEqual(packages.find(p => p.source?.startsWith('npm:bigpowers')), {

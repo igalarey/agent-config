@@ -77,6 +77,60 @@ function assertLegacyDoctorOnlyNeedsRelease(checks) {
   ]);
 }
 
+test('codemode migration preserves the user default tool selection', t => {
+  const home = sandbox(t);
+  put(home, settings, JSON.stringify({ defaultTools: ['read', '-bash', '+custom_tool'] }));
+  const pending = plan({ home });
+  const projected = JSON.parse(pending.operations.find(item => item.relative === settings).content);
+  assert.deepEqual(projected.defaultTools, ['read', '-bash', '+custom_tool', '+codemode']);
+});
+
+test('codemode migration refuses an explicit user exclusion', t => {
+  const home = sandbox(t);
+  put(home, settings, JSON.stringify({ defaultTools: ['-codemode', '+read'] }));
+  const pending = plan({ home });
+  assert.ok(pending.conflicts.some(message => /explicit.*codemode.*exclusion/.test(message)));
+  assert.deepEqual(readJSON(path.join(home, settings)).defaultTools, ['-codemode', '+read']);
+});
+
+test('adapter config migration preserves legacy bytes and later user-owned adapter edits', t => {
+  const home = sandbox(t);
+  const legacy = '{"settings":{"mcpFooterStatus":"off"},"mcpServers":{"fixture":{"url":"https://invalid.example/mcp","lazy":true}}}\n';
+  put(home, '.pi/agent/mcp.json', legacy);
+  const pending = plan({ home });
+  const operation = pending.operations.find(item => item.relative === '.pi/agent/mcp-adapter.json');
+  assert.ok(operation, 'new adapter file planned');
+  assert.deepEqual(JSON.parse(operation.content), JSON.parse(legacy));
+  assert.ok(!pending.operations.some(item => item.relative === '.pi/agent/mcp.json'));
+  execute(pending);
+  assert.equal(fs.readFileSync(path.join(home, '.pi/agent/mcp.json'), 'utf8'), legacy);
+  const changed = JSON.parse(operation.content);
+  changed.settings.mcpFooterStatus = 'full';
+  put(home, '.pi/agent/mcp-adapter.json', JSON.stringify(changed));
+  const repeat = plan({ home });
+  assert.deepEqual(repeat.conflicts, []);
+  assert.ok(!repeat.operations.some(item => item.relative === '.pi/agent/mcp-adapter.json'));
+});
+
+test('adapter migration refuses source changes after preview before writing any destination', t => {
+  const home = sandbox(t);
+  put(home, '.pi/agent/mcp.json', '{"settings":{"mcpFooterStatus":"off"}}');
+  const pending = plan({ home });
+  put(home, '.pi/agent/mcp.json', '{"settings":{"mcpFooterStatus":"full"}}');
+  assert.throws(() => execute(pending), /MCP configuration changed since preview/);
+  assert.equal(fs.existsSync(path.join(home, '.pi/agent/mcp-adapter.json')), false);
+  assert.equal(fs.existsSync(path.join(home, '.agent-config/state.json')), false);
+});
+
+test('adapter config migration refuses an unrelated existing destination', t => {
+  const home = sandbox(t);
+  put(home, '.pi/agent/mcp.json', '{"settings":{"mcpFooterStatus":"off"}}');
+  put(home, '.pi/agent/mcp-adapter.json', '{"settings":{"mcpFooterStatus":"full"}}');
+  const pending = plan({ home });
+  assert.ok(pending.conflicts.some(message => /mcp-adapter\.json/.test(message)));
+  assert.throws(() => execute(pending), /nothing written/);
+});
+
 test('legacy planner dry run does not write anything', t => {
   const home = sandbox(t);
   assert.ok(plan({ home }).operations.length > 5);

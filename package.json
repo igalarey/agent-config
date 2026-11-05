@@ -13,6 +13,7 @@
     "plan": "node scripts/install.mjs",
     "apply": "node scripts/install.mjs --apply",
     "doctor": "node scripts/doctor.mjs",
+    "health": "node scripts/doctor.mjs",
     "deps": "node scripts/dependencies.mjs",
     "add-native": "node scripts/add-native.mjs",
     "pin-recipe": "node scripts/pin-recipe.mjs",

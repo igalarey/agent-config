@@ -16,7 +16,8 @@ Pi owns session execution, the task package owns task state, and Carbon changes 
 
 ## Curated skills
 
-`pi-skills/` contains the 14 selected skills from Bigpowers 2.88.6 and their assets.
+`pi-skills/` contains 18 curated skills and their required assets.
+Their history includes Bigpowers selections and Hermes-derived adaptations, not those runtimes.
 The installer projects them to `~/.pi/agent/skills/`. It does not create duplicate
 copies in `~/.agents/skills/` or reinstall the Bigpowers npm package.
 
@@ -39,6 +40,17 @@ node ~/.pi/agent/scripts/verify-compatibility.mjs
 The check reports missing, changed or incompatible resources. The release checks
 also load the curated skills through the official Pi CLI in an isolated home.
 Those checks verify registration, not every external workflow described by a skill.
+Use the skill validator and review procedure content before preparing a release.
+See [knowledge ownership](knowledge-ownership.md) for the distinct common, curated, external, and learned skill inventories.
+
+For release seals, local runtime dependency integrity, compatibility, and pending configuration together, run:
+
+```sh
+npm run health
+```
+
+This is an alias for `npm run doctor`. The standalone compatibility verifier does not replace this full check.
+Neither check certifies authentication, live models, or human UI approvals.
 
 ## Updates and migration
 

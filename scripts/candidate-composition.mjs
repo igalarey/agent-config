@@ -4,12 +4,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { identifyInstalledPiHost } from './runtime-smoke.mjs';
+import { validateSkills } from './validate-skills.mjs';
 
 const names = ['TaskCreate', 'TaskExecute', 'TaskGet', 'TaskList', 'TaskOutput', 'TaskStop', 'TaskUpdate'];
 const readJSON = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 
 export async function checkCandidateComposition(candidatePath) {
   const manifest = readJSON(path.join(candidatePath, 'release.json'));
+  if (manifest.files?.some(file => file.path === 'scripts/validate-skills.mjs' || file.path === 'manifests/curated-skills.json' || file.path.startsWith('pi-skills/'))) {
+    assert.deepEqual(validateSkills(path.join(candidatePath, 'pi-skills')), [], 'candidate skill references and dependencies');
+  }
   const owner = manifest.packages.find(pkg => pkg.name === '@tintinweb/pi-tasks');
   const adapter = path.join(candidatePath, 'extensions/carbon-tasks/index.ts');
   if (!owner && !fs.existsSync(adapter) && !manifest.packages.some(pkg => pkg.name === '@tintinweb/pi-subagents')) {

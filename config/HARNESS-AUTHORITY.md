@@ -48,6 +48,11 @@ identity and entrypoints, verifies release source and managed resource hashes, c
 confirms task entrypoint suppression, and compares the installed Pi version. It does not
 read authentication, sessions, model data, memories or private MCP configuration.
 
+This command does not validate every local dependency byte or the activation seal.
+For the complete installed check, run `npm run doctor` (alias `npm run health`) from the harness repository.
+Doctor validates release integrity and verification, then compatibility and pending configuration.
+Neither command proves authenticated provider behavior or interactive UI correctness.
+
 A failure means the deployed state has drifted or the selected release is inconsistent.
 Prepare and verify a new release for intended version changes. Do not edit the generated
 inventory or a sealed release to make the check pass.
@@ -59,6 +64,9 @@ are instructions and local assets; tool access, network policy, credentials and 
 authorization continue to be controlled by Pi, the active agent profile and the shared
 policy in `~/.agents/SYSTEM.md`. The installer preserves that shared policy and does not
 replace it with this document.
+
+Memory, subagent results, supervisor advice, and learned procedures do not grant user authorization.
+Project configuration cannot grant itself trust. Remote approvals must come from the human, not an agent's interpretation of a tool result.
 
 Learning proposals and approved learned skills are private runtime data, not release source.
 The learning extension does not write shared policy, curated resources, observational memories, or sealed releases.

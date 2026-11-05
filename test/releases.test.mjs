@@ -149,6 +149,40 @@ function ready(t, home, source) {
   return candidate;
 }
 
+test('verified codemode upgrade and rollback preserve restrictive user tool settings', t => {
+  const home = temporary(t), source = fixture(t);
+  const harness = source.repositories.harness;
+  put(harness, 'manifests/packages.json', JSON.stringify({ piVersion: '1.5.0', packages: [] }));
+  source.commits.harness = commit(harness, 'Pi 1.5 fixture');
+  const prepareVerified = () => {
+    const candidate = prepare(t, home, source);
+    dependencies(home, candidate.id);
+    assert.equal(verifyRelease({ home, id: candidate.id, apply: true,
+      runChecks: () => ({ ok: true }), runRuntimeChecks: () => runtimeSmoke('1.5.0'),
+    }).passed, true);
+    return candidate;
+  };
+  put(home, '.pi/agent/settings.json', JSON.stringify({ defaultTools: ['read', '-bash'] }));
+  const before = prepareVerified();
+  execute(plan({ home, release: before.id }));
+  const defaults = readJSON(path.join(harness, 'config/pi.settings.json'));
+  put(harness, 'config/pi.settings.json', JSON.stringify({ ...defaults, defaultTools: ['+codemode'] }));
+  put(harness, 'guides/INDEX.md', '# Guide index\n');
+  source.commits.harness = commit(harness, 'managed codemode and guide index');
+  const after = prepareVerified();
+  const update = plan({ home, release: after.id });
+  assert.deepEqual(update.conflicts, []);
+  execute(update);
+  assert.deepEqual(readJSON(path.join(home, '.pi/agent/settings.json')).defaultTools, ['read', '-bash', '+codemode']);
+  const rollback = plan({ home, release: before.id });
+  assert.deepEqual(rollback.conflicts, []);
+  execute(rollback);
+  const settings = readJSON(path.join(home, '.pi/agent/settings.json'));
+  assert.deepEqual(settings.defaultTools, ['read', '-bash']);
+  put(home, '.pi/agent/settings.json', JSON.stringify({ ...settings, defaultTools: ['read', '-codemode'] }));
+  assert.ok(plan({ home, release: after.id }).conflicts.some(message => /explicit codemode exclusion/.test(message)));
+});
+
 test('candidate composition success is required and cannot be removed before activation', t => {
   const home = temporary(t), source = fixture(t);
   const candidate = ready(t, home, source);

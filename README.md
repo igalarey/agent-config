@@ -14,13 +14,13 @@ Do not register a second copy of the same package.
 | Supervisor (`start_supervision`, `/supervise`) | [tintinweb/pi-supervisor](https://github.com/tintinweb/pi-supervisor) |
 | Observational memory (`/om`) | [igalarey/pi-observational-memory](https://github.com/igalarey/pi-observational-memory) |
 | User questions | `vendor/pi-ask-user-question` |
-| Web search and fetch | `npm:pi-web-access@0.32.0` |
+| Web search and fetch | `npm:pi-web-access` (exact version in the native manifest) |
 | Public browser | `vendor/pi-browser` |
-| MCP gateway | `npm:pi-mcp-adapter@2.33.0`, nicobailon upstream directly |
+| MCP gateway | `npm:pi-mcp-adapter`, nicobailon upstream directly; official Pi codemode |
 | Project-owned prompt templates | `prompts/*.md`, installed as global Pi commands |
 | Codex/Claude subscription footer | `vendor/pi-subscription-usage` |
-| Native Ollama provider | `npm:pi-ollama@0.1.7` |
-| Claude provider bridge | `npm:pi-claude-bridge@0.8.0` |
+| Native Ollama provider | `npm:pi-ollama` |
+| Claude provider bridge | `npm:pi-claude-bridge` |
 | Carbon UI and theme | `extensions/`, `themes/`; [configuration](docs/carbon-ui.md) |
 | Curated local skills | `pi-skills/`, retained Bigpowers skills and selective Hermes adaptations with MIT notices |
 | Reviewed procedural learning | `extensions/learning`, staged proposals and human approval |
@@ -34,12 +34,13 @@ Existing shared files are preserved, especially
 `SYSTEM.md`; the installer does not silently replace shared user policy. Fresh homes receive
 the repository's defaults. Edit shared policy separately.
 
-Web access 0.32 starts fresh sessions with `web_enable` active. Calling it exposes
+Web access uses explicit `toolActivation: "dynamic"` and starts fresh sessions with `web_enable` active. Calling it exposes
 `web_search`, `fetch_content`, `get_search_content` and `source_check` on the next model request.
 Activation itself does not search or fetch.
 
-The Pi 1.3 metadata overlay moves subagents' TypeBox dependencies to development dependencies
-and host peers. Tasks and supervisor use the same arrangement. Historical releases remain unchanged.
+Host-provided Pi and TypeBox modules use peers rather than duplicate runtime copies.
+Tasks and Supervisor use the same arrangement. Historical releases retain their recorded metadata and overlays.
+See [knowledge ownership](docs/knowledge-ownership.md) for common, curated, external, and learned resources.
 
 ## Install
 
@@ -137,7 +138,8 @@ Do not delete pending proposals or ownership markers to bypass a refusal.
 | `config/subagents.json` | Global tintinweb subagent defaults |
 | `config/tasks-config.json` | Global task defaults; session state outside repositories |
 | `config/SUPERVISOR.md` | Advisory supervisor policy, not human authorization |
-| `config/mcp.json` | MCP footer off; existing server definitions are preserved |
+| `config/mcp-adapter.json` | Adapter 7 defaults; legacy settings migrate without changing the old file |
+| `config/mcp.json` | Historical adapter defaults, retained for rollback |
 | `config/web-search.json` | Direct fetch, local PDF extraction, no browser cookies or curator |
 | `config/herdr/config.toml` | Optional tracked Herdr theme and interface configuration |
 | `native/package*.json` | Exact npm defaults and transitive dependency lock |
@@ -244,7 +246,9 @@ multi-stage work. Workflows run only when the user explicitly requests one. Supe
 installed but not started automatically; start it only with explicit user authorization for
 the current outcome. Its instructions prohibit supplying user approvals or certifying
 incomplete required work. These are model instructions, not a runtime permission boundary.
-Only the user can stop active supervision through `/supervise stop`.
+The user can stop active supervision through `/supervise stop`.
+Supervisor advice is labeled as advice, not sent as a human instruction. Waiting for a decision or encountering an analysis error does not authorize continuation.
+Project Tasks settings require explicit user-owned trust. Interactive settings persist in user-owned workspace settings, not project authorization files.
 
 ## Retained tools and privacy
 
@@ -272,10 +276,10 @@ Only the user can stop active supervision through `/supervise stop`.
 - PDF/YouTube skills are retained for local page rendering and actual captions; they need
   separately installed Python/PyMuPDF/yt-dlp. `analyze-sessions` is our original local
   implementation, not a third-party skill, and only reads sessions on explicit request.
-- Bigpowers is not installed. Thirteen original skills remain unchanged. `diagnose-root`
-  now uses an adapted Hermes method without unavailable companion skills or mandatory bug files.
-  Four additions cover grounded citations, scoped simplification, feasibility spikes, and optional AST search.
-  The 18 curated skills retain source hashes and applicable MIT notices.
+- Bigpowers is not installed. The 18 curated skills are maintained as self-contained procedures.
+  Their provenance retains Bigpowers selections, Hermes adaptations, and documented local safety changes.
+  Required local references and assets have a deterministic validator. Original source hashes and applicable MIT notices remain.
+  Publication, deployment, installation, and file creation require task-specific authorization rather than a skill trigger alone.
   PDF, YouTube and session-analysis skills remain available.
   See [Hermes adoption](docs/hermes-adoption.md) for reviewed source, decisions, and exclusions.
   Historical release checks preserve compatibility with old releases.
@@ -290,12 +294,16 @@ npm test                     # offline root regressions
 npm run deps                 # preview local package dependency preparation
 npm run deps -- --apply      # npm ci --ignore-scripts in local packages
 npm run verify               # root + five local package groups; no live models/browser
+npm run health               # installed release seals, integrity, compatibility, pending configuration
+node scripts/validate-skills.mjs  # curated local assets, links, and known obsolete dependencies
 ```
 
 The complete candidate additionally verifies subagents and memory (14 base package suites)
 and five runtime checks using the official Pi CLI: loader/RPC, memory status, synthetic
 TaskExecute/result delivery, child extension scope, read-only scope and in-process child
-execution. It starts supervisor with a scripted offline provider, not a real account.
+execution. A separate mandatory gate loads the candidate Carbon/Tasks composition through the official SDK,
+checks unique ownership, executes task operations, and rejects duplicate activation. New candidates also validate curated skill references.
+It starts Supervisor with a scripted offline provider, not a real account.
 The same official loader checks native MCP/web tools, the five project-owned prompt
 templates, reviewed-learning registration, Ollama command registration, absence of Bigpowers resources, and the disabled
 MCP footer. Ollama discovery uses a blocked port in these checks; no inference is tested.
@@ -312,6 +320,17 @@ npm run pin-recipe                                # recipe -> current harness co
 git commit -am "chore(release): pin <package> release"
 npm run bootstrap -- --source-map sources.local.json --apply
 ```
+
+MCP Adapter 7 replaces `mcpScript` with Pi's official `codemode`. The installer adds `+codemode` without replacing the user's other default tools.
+An explicit `-codemode` selection causes a migration conflict instead of silent override.
+The installer migrates legacy adapter options from `mcp.json` to `mcp-adapter.json` once, preserving the old file for rollback.
+A conflicting destination or unsupported legacy option stops activation. Later user edits to the new file remain user-owned.
+Executor approvals require a human dialog; headless approval requests fail closed.
+Offline tests use a local simulated server and scripted dialogs, not the user's Executor.
+
+Claude Bridge 0.10 reads provider configuration only at user scope.
+If a project previously supplied provider settings, review and migrate the necessary values to `~/.pi/agent/claude-bridge.json` manually.
+The installer does not read or move private provider configuration.
 
 Never install a native package with `pi install` directly: the unpinned registration and
 changed npm prefix make `verify-compatibility.mjs` fail and block later activations.
