@@ -815,7 +815,8 @@ async function runModernSmoke({ releasePath, manifest, parentEnv }) {
   fs.cpSync(path.join(releasePath, 'agents'), path.join(agentDir, 'agents'), { recursive: true });
   copyReleasePrompts(releasePath, agentDir, manifest);
   for (const name of ['subagents.json', 'tasks-config.json', 'SUPERVISOR.md']) fs.copyFileSync(path.join(releasePath, 'config', name), path.join(agentDir, name));
-  for (const name of ['mcp.json', 'web-search.json']) {
+  const mcpConfigName = nativeBase(manifest) && codemodeMcp(releasePath) ? 'mcp-adapter.json' : 'mcp.json';
+  for (const name of [mcpConfigName, 'web-search.json']) {
     const source = path.join(releasePath, 'config', name);
     if (fs.existsSync(source)) fs.copyFileSync(source, path.join(agentDir, name));
   }
