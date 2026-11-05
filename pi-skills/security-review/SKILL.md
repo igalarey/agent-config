@@ -2,119 +2,77 @@
 name: security-review
 model: sonnet
 effort: standard
-description: >
-  AI-powered security analysis of code changes — traces data flow, detects
-  injection, auth bypass, secrets exposure, and unsafe deserialization across
-  files. Use when reviewing pending changes, before release-branch, during
-  verify-work Phase 5, during build-epic Step 0 threat modeling, or when
-  the user says "security review" or "scan for vulns".
+description: Trace security risks across a specified diff or code path. Use for requested security reviews, vulnerability scans, or threat models, not every routine code review.
 ---
-
-# story: e45s41
-<!-- story: e45s18 -->
-# story: e26s01
-# story: e26s02
-# story: e26s03
-# story: e26s04
-# story: e26s05
-# story: e26s06
-# story: e26s07
-# story: e45s26
 
 # Security Review
 
-> **HARD GATE** — Requires git context (branch with merge-base or diff). Never
-> writes files outside `specs/security/`. Findings below confidence 8/10 are
-> suppressed. Pre-flight: `git rev-parse HEAD >/dev/null 2>&1`
+Inspect the requested scope and trace input control across trust boundaries.
+Use file reading/search and local Git commands when Git context exists.
+No external review scripts, framework, or report directory are required.
+The default is read-only. A review does not authorize fixes, report files, network probes, or dependency installation.
 
-## Parallel worktree mode (e45s18)
+## Resolve scope
 
-When running alongside `audit-code`, use isolated worktrees so scans do not race on the same index:
+Inspect repository state and the diff, commit, or files named by the user.
+For branch comparisons, verify the intended local base before using a merge-base. Do not assume `origin/HEAD` exists or fetch it automatically.
+Without Git context, review the named files and state that diff attribution is unavailable.
+If several reviewers need mutable state, follow the project's worktree policy. A read-only scan does not need a worktree helper.
 
-```bash
-bash scripts/lib/parallel-review-worktrees.sh security-review
-```
+## Trace and assess
 
-Each check gets a detached worktree at `.bigpowers/worktrees/review-<name>/`; reports still write only under `specs/security/`.
+1. Identify languages, framework versions, authorization, and deployment assumptions from source and configuration.
+2. State attacker capabilities, protected assets, trust boundaries, and material unknowns.
+3. Trace untrusted input to sensitive operations across files. Inspect sanitization and authorization on the effective execution path.
+4. Evaluate each candidate with [false-positive review](REFERENCE-false-positives.md) and [confidence guidance](REFERENCE-confidence-rubric.md).
+5. Report confirmed findings, conditional risks, and consequential coverage gaps separately.
 
-## 5-phase scan
+Review SQLi, XSS, SSRF, command injection, auth bypass, unsafe deserialization, path traversal,
+IDOR, crypto, secrets, template and NoSQL injection where relevant.
+Include prompt injection, operational Markdown, environment/CLI inputs, resource exhaustion, races, and unsafe/FFI code when the threat model reaches them.
+No language, file extension, or input channel is automatically exempt.
 
-| # | Phase | What |
-|---|-------|------|
-| 1 | **Scope Resolution** | Detect diff via `git diff --merge-base origin/HEAD`; resolve languages/frameworks from dependency files |
-| 2 | **Context Research** | Identify existing security patterns, sanitization, auth model in the codebase |
-| 3 | **Vulnerability Assessment** | Trace user input → sink; check auth boundaries, crypto, deserialization, path ops |
-| 4 | **False-Positive Filtering** | Cross-check each finding against exclusion rules; reject confidence < 8 |
-| 5 | **Report Generation** | Output structured markdown: file:line, severity, category, exploit scenario, fix |
+Use [category guidance](REFERENCE-vuln-categories.md) as leads, not a substitute for a data-flow trace.
+An unknown defense is not proof of a vulnerability. An untested path is not proof of safety.
 
-## Categories
+## SQL classification
 
-Covered: SQLi, XSS, SSRF, command injection, auth bypass, unsafe deserialization, path traversal, IDOR, crypto flaws, secrets exposure, template injection, NoSQLi
+| Query construction | Assessment |
+|--------------------|------------|
+| Constant query structure | No value-injection path shown by this construction alone |
+| Query with bound values | Check dynamic identifiers/fragments and driver semantics |
+| Attacker-controlled interpolation | Trace whether input changes SQL structure and whether a defense blocks it |
+| ORM or stored procedure | Inspect generated SQL and dynamic SQL inside the procedure |
 
-## CWE mapping mandate (e45s26)
+HTTP, file, CLI, and environment input can be trusted or untrusted depending on who controls it.
+Hardcoded SQL can still have authorization or data-loss defects unrelated to injection.
 
-Every **new detection rule** added to this skill MUST:
+## Fixtures and guidance changes
 
-1. Map to a [CWE](https://cwe.mitre.org/) ID in `REFERENCE-vuln-categories.md` (e.g. SQLi → CWE-89, XSS → CWE-79).
-2. Ship **two fixture pairs** under `skills/security-review/fixtures/`:
-   - **Positive** — minimal code the rule MUST flag (vulnerable pattern present).
-   - **Negative** — structurally similar code the rule MUST NOT flag (safe pattern / false-positive guard).
+The bundled fixtures illustrate specific boundaries. They are not a scanner or an executable test suite.
+Read each positive/negative pair and explain the differing control before using it as review evidence.
+Do not execute deliberately vulnerable fixtures against real services.
 
 | Rule | CWE | Positive fixture | Negative fixture |
 |------|-----|------------------|------------------|
 | SQL injection | CWE-89 | `fixtures/CWE-89-sqli-positive.py` | `fixtures/CWE-89-sqli-negative.py` |
-| XSS (DOM) | CWE-79 | `fixtures/CWE-79-xss-positive.js` | `fixtures/CWE-79-xss-negative.js` |
-| Missing tenant scoping (IDOR) | CWE-639 | `fixtures/CWE-639-idor-positive.go` | `fixtures/CWE-639-idor-negative.go` |
-| Fail-open verify directive | CWE-754 | `fixtures/CWE-fail-open-verify-positive.sh` | `fixtures/CWE-fail-open-verify-negative.sh` |
+| DOM XSS | CWE-79 | `fixtures/CWE-79-xss-positive.js` | `fixtures/CWE-79-xss-negative.js` |
+| Missing tenant scoping | CWE-639 | `fixtures/CWE-639-idor-positive.go` | `fixtures/CWE-639-idor-negative.go` |
+| Fail-open verification | CWE-754 | `fixtures/CWE-fail-open-verify-positive.sh` | `fixtures/CWE-fail-open-verify-negative.sh` |
 
-Before merging a new category, run both fixtures through the detection guidance and confirm positive flags / negative passes.
+For new detection guidance, map to a suitable CWE when available and add a minimal positive/negative pair before changing a detector.
+Run an actual detector only if the project supplies one, and report its command and limitations.
 
-## SQL-safety doctrine (e45s41 — proven authorship)
+## Report
 
-Formal rule for SQL injection classification:
+For each finding, give **file:line — severity — category**, then:
 
-| SQL source | Attacker-reachable input? | Verdict |
-|------------|---------------------------|---------|
-| Hardcoded / compile-time constant string | N/A | **Safe** — proven authorship |
-| Developer-authored query with bound parameters only | No dynamic fragments from user input | **Safe** |
-| String concatenation / template with user-controlled values | Yes | **Unsafe** — report as SQLi |
-| ORM query builder with user input in WHERE/JOIN | Yes | **Unsafe** unless parameterized |
-| Stored procedure call with bound args | Args from trusted constants only | **Safe** |
-| Stored procedure with dynamic SQL inside | User input reaches EXEC | **Unsafe** |
+- Evidence status: reproduced, static, or conditional.
+- Input control, preconditions, trust boundary, and concrete impact.
+- Effective defenses checked and any missing evidence.
+- A fix directed at the demonstrated mechanism.
 
-**Provenance test:** If the agent cannot prove the query string was authored entirely by the developer (no attacker-reachable interpolation), treat as vulnerable. Hardcoded SQL in migrations, seeds, and admin scripts is safe; anything reachable from HTTP/CLI/user input is not.
-
-## BCP Plus Integration
-
-This skill maps to **BCP Plus dimension 12 (Security & Compliance)**. When BCP Plus sizing is active, the threat model categories above correspond to sub-elements within dimension 12. The NFR Gate rule applies: standard-expectation items (e.g., "use HTTPS", "hash passwords") score 0 with a one-line rationale; only above-standard security requirements contribute to the dimension 12 count. See `docs/references/bcp-plus.md` for the full 13-dimension framework and NFR Gate pattern.
-
-## Integration points
-
-| Skill | Touchpoint |
-|-------|------------|
-| `build-epic` | Step 0 — threat-model epic scope → `specs/security/epics/<id>/THREAT_MODEL.md` |
-| `plan-work` | `security:` field (none/low/medium/high) on story tasks |
-| `plan-release` | +2 WSJF risk boost for HIGH+ risk epics |
-| `audit-code` | Checklist: "diff scanned — no unaddressed HIGH findings" |
-| `request-review` | Inject threat model categories + false-positive rules into reviewer prompt |
-| `investigate-bug` | Security-impact assessment in RCA (NONE→CRITICAL) |
-| `validate-fix` | Recurrence hardening check for security bugs |
-| `verify-work` | Phase 5 — blocks on HIGH findings ≥ 8 confidence |
-| `release-branch` | Hard gate — blocks merge if unresolved HIGH findings |
-
-## Report format
-
-Each finding: **`File:Line` — Severity — Category**
-- Description: how the vulnerability manifests
-- Exploit scenario: concrete attack path
-- Recommendation: fix with code example
-
-## Reference files
-
-- [Vuln categories](REFERENCE-vuln-categories.md) — detection guidance per vuln type
-- [False positives](REFERENCE-false-positives.md) — hard exclusions + precedent
-- [Confidence rubric](REFERENCE-confidence-rubric.md) — scoring methodology (0–10)
-
-## Verify
-
-→ verify: `test -d specs/security && test -f scripts/lib/parallel-review-worktrees.sh && bash scripts/verify-cwe-fixture-sync.sh >/dev/null && git rev-parse HEAD >/dev/null 2>&1`
+Keep confidence separate from severity. Do not suppress material uncertainty with a numeric cutoff.
+If there are no confirmed findings, say so without claiming the code is secure.
+List reviewed scope, checks actually run, blocked checks, and unresolved threat-model assumptions.
+Write an artifact only when requested, using the project's existing convention if one exists.

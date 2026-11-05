@@ -2,24 +2,26 @@
 name: edit-document
 model: sonnet
 effort: standard
-description: Edit and improve documents by restructuring sections, improving clarity, and tightening prose. Use when user wants to edit, revise, restructure, or improve any document — including specs/ files, articles, READMEs, or technical writing.
+description: Edit an existing document for requested changes, clarity, structure, and consistency. Use for document revision, not automatic rewrites of every file read.
 ---
 
 # Edit Document
 
-**Distinct from `write-document`:** Use this skill when the document already exists and needs restructuring, clarity, or prose improvements. Use `write-document` to create a document from scratch.
-
-> **HARD GATE** — Document edits must preserve intent and accuracy. Do NOT remove or contradict existing content without understanding why it was written. Check git history for context.
+Use file reading and targeted editing tools. No companion skill is required.
+A request to edit authorizes local edits to the named document, not unrelated files or publication.
 
 ## Process
 
-1. First, divide the document into sections based on its headings. Think about the main points made in each section.
+1. Read the complete document and applicable project instructions.
+2. Identify its intent, factual claims, audience, and requested scope.
+3. Inspect relevant history or sources when a passage's purpose or accuracy is unclear.
+4. Order sections so that prerequisite information comes before its use.
+5. Apply the requested changes directly. Preserve useful detail and important qualifications.
+6. Review the diff for accuracy, coherence, links, and unintended omissions.
+7. Run the document checks available in the project and report their actual results.
 
-Consider that information is a directed acyclic graph, and that pieces of information can depend on other pieces of information. Make sure that the order of the sections and their contents respects these dependencies.
-
-Confirm the sections with the user.
-
-2. For each section:
-
-2a. Rewrite the section to improve clarity, coherence, and flow. Use maximum 240 characters per paragraph.
-
+Use paragraph length that serves the material. Do not impose an arbitrary character cap.
+Do not invent facts or silently change scope.
+Ask one focused question only when a material ambiguity blocks a safe edit.
+For reversible wording and organization choices, use the document's existing style and continue.
+Report consequential changes and unresolved factual questions concisely.

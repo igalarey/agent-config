@@ -8,7 +8,9 @@ description: Refine a rough idea into a clear, detailed specification through di
 
 # Elaborate Spec
 
-Turn a rough idea into a clear specification through focused dialogue. No code is written during this skill — the output is shared understanding and a refined problem statement.
+Turn a rough idea into a clear specification through focused dialogue. No code is written during this skill.
+Return shared understanding and a refined problem statement in chat unless a saved specification is requested.
+Use local reading/search for discoverable facts. No companion workflow or special tool is required.
 
 > **HARD GATE** — Do NOT proceed with planning or implementation until the problem space is clearly understood. Success criteria, actors, and scope must be explicit before drafting a plan.
 
@@ -24,7 +26,8 @@ Let the user describe their idea in their own words. Do not interrupt or redirec
 
 ### 2. Ask clarifying questions
 
-Ask one question at a time. Work through these areas:
+Use the information already provided. Ask one focused question at a time only for material gaps or decisions that require the user's judgment.
+Do not repeat answered questions or block progress on reversible wording choices. Consider these areas as relevant:
 
 **Problem clarity**
 - What is the current behavior (or lack of behavior) that prompted this?
@@ -46,9 +49,10 @@ Ask one question at a time. Work through these areas:
 - Any compatibility constraints (existing APIs, data formats)?
 - Any non-negotiable implementation decisions already made?
 
-### 2.5. Multiple Interpretations (HARD GATE)
+### 2.5. Material ambiguity
 
-> **HARD GATE** — If the request admits ≥2 valid interpretations, do NOT guess. You must list them and ask the user to choose before proceeding. Proceeding with unresolved ambiguity is a failure of integrity.
+If competing interpretations change scope, safety, data, cost, authority, or compatibility, explain the options and ask before proceeding.
+For local, reversible choices, state a conservative assumption and continue.
 
 Present the options clearly:
 > "I see two ways to read this:
@@ -65,21 +69,17 @@ Once the user has answered the main questions, probe for assumptions:
 
 ### 4. Synthesize and confirm
 
-Summarize your understanding in 3–5 bullet points aligned with [countable-story-format.md](../../docs/countable-story-format.md):
-- The problem (feeds into §1 Business narrative)
-- The solution and main flow (feeds into §5)
-- The key constraints and alternative flows (feeds into §6)
-- The success criteria (feeds into §17 Gherkin)
-- What's out of scope (feeds into §18)
+Summarize the problem, main flow, constraints, failure modes, success criteria, and exclusions.
+Separate agreed decisions from assumptions and unresolved questions.
+Ask for confirmation only when a material decision remains, or when the user requested an approval stage.
 
-Ask: "Is this an accurate summary? Anything missing or wrong?"
+### 5. Save only when requested
 
-### 5. Write specs/planning-context.yaml
-
-After the user confirms the summary in step 4, persist the key decisions:
+If the user asks for an artifact, use their destination or the project's existing specification format.
+The following YAML is an optional example, not a required file:
 
 ```yaml
-# specs/planning-context.yaml — written by elaborate-spec; consumed by scope-work and slice-tasks
+# Example planning context
 feature_name: "<from step 1>"
 problem_statement: "<one paragraph>"
 constraints:
@@ -91,14 +91,16 @@ key_decisions:
     rationale: "<why>"
 ```
 
-If `specs/planning-context.yaml` already exists, ask: `"Planning context from a prior session exists. Update it? [Y/n]"`. Overwrite on Y; leave unchanged on N.
+Read an existing destination before editing it. Preserve unrelated content and prior decisions.
+Ask only if a conflicting decision or intended overwrite is unresolved.
 
 ### 6. Suggest next skill
 
-Once the spec is clear, recommend the next step:
-- If domain model needs work → `model-domain`
-- If ready to plan → `plan-release` (creates epic capsules with `epic.yaml` + story `.md` + `-tasks.yaml`) then `plan-work` per story
-- If a spike is needed first → `spike-prototype`
-- If architecture decisions are needed → `deepen-architecture` or `grill-me`
-- If the plan depends on a specific library or API → `grill-me` in docs mode
+Once the spec is clear, recommend only the next step that the remaining uncertainty warrants:
+- Clarify domain terms or relationships when they block the design.
+- Plan implementation if the user requests planning.
+- Propose a bounded experiment for unresolved feasibility.
+- Compare architectures or verify library behavior against installed or retrieved documentation.
+
+Do not automatically launch planning, delegation, or implementation. Check the summary against the original request before delivery.
 

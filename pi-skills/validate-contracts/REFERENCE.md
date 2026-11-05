@@ -1,204 +1,63 @@
-# Validate Contracts — Reference
+# Contract Validation Reference
 
-## Navigation
+No original-repository runner or global CLI is required.
+The examples use project inputs, not files bundled with this skill.
 
-| Lines | Section |
-|-------|---------|
-| 1 | Title |
-| 3–23 | Navigation |
-| 24–32 | Integration |
-| 33–44 | Configuration |
-| 45–54 | Verification |
-| 55–71 | Reference block 1 |
-| 72–92 | Reference block 2 |
-| 93–104 | Example 1 |
-| 105–121 | Example 2 |
-| 122–133 | Example 3 |
-| 134–144 | Example 4 |
-| 145–165 | Example 5 |
-| 166–176 | Example 6 |
-| 177–185 | Integration |
-| 186–197 | Configuration |
-| 198–204 | Verification |
+## Local key-set comparison
 
-## Integration
+With Python 3 already installed, run this example against two local JSON objects.
+Arguments are reference file, target file, and comparison mode.
+`subset` means every reference key must exist in the target. `exact` also rejects extra target keys.
+This example compares top-level keys only.
 
-- **Pre-deploy gate:** The `deploy` skill runs `validate-contracts` before smoke-test.
-- **CI pipeline:** JSON Lines output is CI-friendly; pipe to `jq` for assertions.
-- **Pre-migration:** Run `validate-contracts --shape` before consuming migration output.
+```sh
+python3 - reference.json target.json subset <<'PY'
+import json
+import sys
 
-
----
-
-## Configuration
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CONTRACTS_DIR` | `specs/contracts/` | Directory containing contract YAML files |
-| `VALIDATE_ALL` | `false` | If true, run all contracts in the directory |
-| `STRICT_MODE` | `false` | Treat warnings as failures |
-| `OUTPUT_FORMAT` | `text` | `text` or `json` |
-
-
----
-
-## Verification
-
-→ verify: `test -f validate-contracts/SKILL.md && grep -q 'name: validate-contracts' validate-contracts/SKILL.md && echo OK`
-→ verify: `grep -qi 'specs/contracts\|JSON Schema\|key.set\|data.shape' validate-contracts/SKILL.md && echo OK`
-→ verify: `grep -ci 'divergence\|missing key\|type mismatch\|diff\|conforms\|column' validate-contracts/SKILL.md | awk '{if($1>=3) print "OK"; else print "FAIL"}'`
-→ verify: `grep -ci 'JSON Lines\|machine.parse\|CI\|deploy.*gate\|pre.deploy' validate-contracts/SKILL.md | awk '{if($1>=2) print "OK"; else print "FAIL"}'`
-→ verify: `grep -q 'validate-contracts' SKILL-INDEX.md && echo OK`
-
----
-
-## Reference block 1
-
-```yaml
-# specs/contracts/users.schema.yaml
-endpoint: /api/users
-method: GET
-schema:
-  type: object
-  required: [id, name, email]
-  properties:
-    id: { type: number }
-    name: { type: string }
-    email: { type: string, format: email }
+reference_file, target_file, mode = sys.argv[1:]
+if mode not in {"subset", "exact"}:
+    raise SystemExit("mode must be subset or exact")
+with open(reference_file, encoding="utf-8") as stream:
+    reference = json.load(stream)
+with open(target_file, encoding="utf-8") as stream:
+    target = json.load(stream)
+if not isinstance(reference, dict) or not isinstance(target, dict):
+    raise SystemExit("both inputs must be JSON objects")
+missing = sorted(reference.keys() - target.keys())
+unexpected = sorted(target.keys() - reference.keys())
+print(json.dumps({"missing": missing, "unexpected": unexpected}))
+raise SystemExit(1 if missing or (mode == "exact" and unexpected) else 0)
+PY
 ```
 
----
+For nested objects, define whether arrays use indices, wildcards, or element identifiers before comparing paths.
+Do not flatten dotted keys without an escaping convention.
 
-## Reference block 2
+## JSON Schema
 
-```yaml
-# specs/contracts/migration-output.yaml
-file: data/users-export.json
-format: json
-fields:
-  - name: user_id
-    type: number
-    required: true
-  - name: full_name
-    type: string
-    required: true
-  - name: created_at
-    type: string
-    format: date-time
-    required: false
-```
+Use the project's installed validator and its documented CLI or API.
+No JSON Schema engine is bundled. Do not download one automatically.
+Before reporting full validation, verify:
 
----
+- The validator supports the schema's declared dialect.
+- The schema itself is valid.
+- Required fields, nested properties, and `additionalProperties` behave as intended.
+- Format assertions are enabled where the contract requires them.
+- Local references resolve. Remote references do not trigger unauthorized network access.
+- Positive and negative fixtures exercise the relevant constraints.
 
-## Example 1
+A manual field check does not implement arbitrary JSON Schema.
+If no validator is available, report the supported subset and the remaining blocker.
 
-```
-specs/contracts/
-├── users.schema.yaml        # API response schema
-├── i18n-keys.yaml           # Key-set comparison
-├── migration-output.yaml    # Data shape contract
-└── README.md                # Local conventions
-```
+## Shape and migration data
 
----
+For each record, check required fields, nullability, types, and domain invariants.
+Distinguish booleans from numbers when the runtime treats booleans as integers.
+Check numeric ranges, date/time offsets, identifier preservation, duplicates, and expected row counts where relevant.
+Treat missing, null, and empty values separately.
+Do not coerce a bad value merely to make the validation pass.
 
-## Example 2
-
-```yaml
-# specs/contracts/users.schema.yaml
-endpoint: /api/users
-method: GET
-schema:
-  type: object
-  required: [id, name, email]
-  properties:
-    id: { type: number }
-    name: { type: string }
-    email: { type: string, format: email }
-```
-
----
-
-## Example 3
-
-```yaml
-# specs/contracts/i18n-keys.yaml
-sources:
-  reference: src/frontend/locales/en.json
-  target: src/backend/messages/en.json
-mode: subset      # all target keys must exist in reference
-```
-
----
-
-## Example 4
-
-```bash
-validate-contracts --key-set specs/contracts/i18n-keys.yaml
-# → missing: 2 keys in reference not found in target: ['settings.privacy', 'help.faq']
-# → added: 1 key in target not in reference: ['deprecated.field']
-# → exit 1 (divergence)
-```
-
----
-
-## Example 5
-
-```yaml
-# specs/contracts/migration-output.yaml
-file: data/users-export.json
-format: json
-fields:
-  - name: user_id
-    type: number
-    required: true
-  - name: full_name
-    type: string
-    required: true
-  - name: created_at
-    type: string
-    format: date-time
-    required: false
-```
-
----
-
-## Example 6
-
-```bash
-validate-contracts --shape specs/contracts/migration-output.yaml
-# → PASS: 3/3 fields validated, 5000 rows OK
-# → WARN: field 'full_name' has 12 null values (0.24%)
-# → FAIL: field 'user_id' has 3 rows with type string (expected number)
-```
-
----
-
-## Integration
-
-- **Pre-deploy gate:** The `deploy` skill runs `validate-contracts` before smoke-test.
-- **CI pipeline:** JSON Lines output is CI-friendly; pipe to `jq` for assertions.
-- **Pre-migration:** Run `validate-contracts --shape` before consuming migration output.
-
-
----
-
-## Configuration
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CONTRACTS_DIR` | `specs/contracts/` | Directory containing contract YAML files |
-| `VALIDATE_ALL` | `false` | If true, run all contracts in the directory |
-| `STRICT_MODE` | `false` | Treat warnings as failures |
-| `OUTPUT_FORMAT` | `text` | `text` or `json` |
-
-
----
-
-## Verification
-
-→ verify: `test -f validate-contracts/SKILL.md && grep -q 'name: validate-contracts' validate-contracts/SKILL.md && echo OK`
-→ verify: `grep -qi 'specs/contracts\|JSON Schema\|key.set\|data.shape' validate-contracts/SKILL.md && echo OK`
-→ verify: `grep -ci 'divergence\|missing key\|type mismatch\|diff\|conforms\|column' validate-contracts/SKILL.md | awk '{if($1>=3) print "OK"; else print "FAIL"}'`
-→ verify: `grep -ci 'JSON Lines\|machine.parse\|CI\|deploy.*gate\|pre.deploy' validate-contracts/SKILL.md | awk '{if($1>=2) print "OK"; else print "FAIL"}'`
-→ verify: `grep -q 'validate-contracts' SKILL-INDEX.md && echo OK`
+Report record counts, mismatch paths, and failure totals. Redact sensitive values.
+A small sample cannot establish that a complete migration is valid.
+Keep captured production data private and do not send it to third-party validators.

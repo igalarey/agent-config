@@ -4,14 +4,16 @@
 name: deepen-architecture
 model: sonnet
 effort: standard
-description: Find deepening opportunities in a codebase, informed by the domain language in specs/tech-architecture/tech-stack.md and the decisions in specs/adr/. Use when the user wants to improve architecture, find refactoring opportunities, consolidate tightly-coupled modules, or make a codebase more testable and AI-navigable.
+description: Find evidence-backed opportunities to deepen shallow modules and improve testability. Use for requested architecture or refactoring exploration, not automatic module consolidation.
 ---
 
 # Deepen Architecture
 
 Surface architectural friction and propose **deepening opportunities** — refactors that turn shallow modules into deep ones. The aim is testability and AI-navigability.
 
-**Distinct from `define-language` and `model-domain`:** Use this skill to find module-level refactoring opportunities in the codebase. Use `define-language` to produce a canonical glossary of terms. Use `model-domain` to stress-test a plan through a domain-model interview.
+Use this skill for module-level refactoring proposals, not automatic implementation or glossary writes.
+Use local reading/search and Git history when available. Delegation is optional, not a prerequisite.
+No external helper, domain-model format, or project documentation layout is required.
 
 > **HARD GATE** — Deep modules must solve a forcing function, not just be "nice abstractions." If you cannot articulate why the abstraction exists, it is premature.
 
@@ -34,7 +36,9 @@ Key principles (see [LANGUAGE.md](LANGUAGE.md) for the full list):
 - **The interface is the test surface.**
 - **One adapter = hypothetical seam. Two adapters = real seam.**
 
-This skill is _informed_ by the project's domain model — `specs/tech-architecture/tech-stack.md` and any `specs/adr/`. The domain language gives names to good seams; ADRs record decisions the skill should not re-litigate. See [CONTEXT-FORMAT.md](../model-domain/CONTEXT-FORMAT.md) and [ADR-FORMAT.md](../model-domain/ADR-FORMAT.md).
+Existing project domain documentation and ADRs are optional context.
+For example, a project can use `specs/tech-architecture/tech-stack.md` and `specs/adr/`, or another layout.
+Use their actual terminology and decisions when present. Do not require missing companion formats.
 
 ## Process
 
@@ -42,18 +46,15 @@ This skill is _informed_ by the project's domain model — `specs/tech-architect
 
 Read existing documentation first:
 
-- `specs/tech-architecture/tech-stack.md` (or `specs/tech-architecture/tech-stack.md` + each `specs/tech-architecture/tech-stack.md` in a multi-context repo)
-- Relevant ADRs in `specs/adr/`
+- Applicable repository instructions and existing architecture/domain documentation
+- Relevant ADRs, wherever the project stores them
 
 If any of these files don't exist, proceed silently — don't flag their absence or suggest creating them upfront.
 
-**Look-here-first (churn heuristic):** Before organic exploration, rank candidate modules by recent commit frequency. High-churn files are architectural friction magnets — start there.
-
-```bash
-bash scripts/bp-churn-rank.sh --since 90.days --limit 20
-```
-
-Then use the Agent tool with `subagent_type=Explore` to walk the codebase. Don't follow rigid heuristics — explore organically and note where you experience friction:
+Use recent local Git history as an optional churn signal, not proof of architectural friction.
+Inspect candidate modules directly with available file/search tools.
+Use a permitted exploration agent only when independent investigation has a concrete benefit.
+Note where you experience friction:
 
 - Where does understanding one concept require bouncing between many small modules?
 - Where are modules **shallow** — interface nearly as complex as the implementation?
@@ -84,37 +85,26 @@ Present a numbered list of deepening opportunities. For each candidate:
 - **Solution** — plain English description of what would change
 - **Benefits** — explained in terms of locality and leverage, and how tests would improve
 
-**Use `specs/tech-architecture/tech-stack.md` vocabulary for the domain, and [LANGUAGE.md](LANGUAGE.md) vocabulary for the architecture.**
+**Use existing project vocabulary for the domain, and [LANGUAGE.md](LANGUAGE.md) for the architecture.**
 
 **ADR conflicts**: if a candidate contradicts an existing ADR, only surface it when the friction is real enough to warrant revisiting the ADR. Mark it clearly. Don't list every theoretical refactor an ADR forbids.
 
-Do NOT propose interfaces yet. Ask the user: "Which of these would you like to explore?"
+Recommend the strongest candidate with evidence. Ask which to explore only if choosing a candidate is necessary and the request does not already identify one.
 
 ### 4. Grilling loop
 
 Once the user picks a candidate, drop into a grilling conversation. Walk the design tree with them — constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
 
-Side effects happen inline as decisions crystallize:
+Keep exploration read-only unless changes or saved decisions are requested.
+Propose terminology or ADR updates in chat when they have durable value. Do not create files as an interview side effect.
+For dependency and test strategy, read [DEEPENING.md](DEEPENING.md).
+For alternative interfaces, read [INTERFACE-DESIGN.md](INTERFACE-DESIGN.md).
+Ask only about consequential unresolved trade-offs, not facts discoverable in source.
 
-- **Naming a deepened module after a concept not in `specs/tech-architecture/tech-stack.md`?** Add the term to `specs/tech-architecture/tech-stack.md` — same discipline as `model-domain` (see [CONTEXT-FORMAT.md](../model-domain/CONTEXT-FORMAT.md)). Create the file lazily if it doesn't exist.
-- **Sharpening a fuzzy term during the conversation?** Update `specs/tech-architecture/tech-stack.md` right there.
-- **User rejects the candidate with a load-bearing reason?** Offer an ADR, framed as: _"Want me to record this as an ADR so future architecture reviews don't re-suggest it?"_ Only offer when the reason would actually be needed by a future explorer. See [ADR-FORMAT.md](../model-domain/ADR-FORMAT.md).
-- **Want to explore alternative interfaces for the deepened module?** See [INTERFACE-DESIGN.md](INTERFACE-DESIGN.md).
+### 5. Verify the proposal
 
-### 5. Import-boundary hygiene (e45s14)
-
-When a deepening move **splits or merges modules**, update `specs/import-boundaries.json` (Playwright `DEPS.list` pattern) — declare which `scripts/lib/*.sh` files may `source` which peers. CI enforces via:
-
-```bash
-bash scripts/check-import-boundaries.sh
-```
-
-Run the check before proposing cross-module `source` edges. Convention docs alone do not authorize new imports; the allowlist must list them.
-
-## Verify
-
-→ verify: `test -f specs/import-boundaries.json && bash scripts/check-import-boundaries.sh`
-
-
-
-<!-- story: e07s02 -->
+Check callers, dependency direction, public contracts, and the tests that cover the affected behavior.
+If implementation is requested, honor any existing import allowlist and run the project's actual boundary checks.
+No import-boundary manifest or shell helper is required by this skill.
+Report the evidence behind the proposed benefit and any unverified assumptions.
+A qualitative depth score is a review aid, not a measured performance result.

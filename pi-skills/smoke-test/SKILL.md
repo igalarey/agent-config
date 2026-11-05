@@ -1,84 +1,54 @@
 ---
-# story: e80s02
 name: smoke-test
 phase: verify
-description: "Post-deploy health-check against a live URL. Validates HTTP status, response content, and critical endpoints. Runnable standalone OR as the final step of the deploy skill."
 model: sonnet
 effort: standard
+description: Check an existing deployment's health when the user requests a smoke test or health check. A URL alone does not trigger testing, deployment, or repair.
+compatibility: Requires an available, permitted HTTP or browser tool. A project test runner is optional; none is bundled.
 ---
 
 # Smoke Test
 
-> **HARD GATE** — Do NOT run smoke-test against a URL that hasn't been deployed yet. Always run `deploy` first, then `smoke-test`.
->
-> **HARD GATE** — A failed smoke test means the deployment is broken. Do NOT mark a deploy as successful until all smoke checks pass.
+Check an existing deployment without changing it.
+Never deploy, restart, migrate, publish, or repair as part of this skill.
+A smoke-test request does not authorize credentials, private destinations, or state-changing remote actions.
+Use only authorized targets and read-only endpoints. Even a GET can have application side effects, so inspect the endpoint's purpose.
 
-Validate a deployed application is healthy by running HTTP checks against live URLs. Each check asserts HTTP status, optional body signal (regex), and optional response-time threshold.
+## Prepare checks
 
-## Configuration
+Use the URL and expectations from the request or existing project configuration.
+An optional project checklist can supply paths, expected status, body signals, and time limits.
+No particular YAML file or repository runner is required.
+Do not create persistent configuration or logs unless requested.
 
-Smoke checks live in `smoke-checks.yaml` at the project root:
+For each check, establish:
 
-```yaml
-base_url: "https://example.com"
-checks:
-  - name: "Homepage"
-    path: "/"
-    expected_status: 200
-    content_signal: "welcome|ok"
-    max_response_time_ms: 3000
-```
+| Field | Meaning |
+|-------|---------|
+| Target | Existing base URL and read-only endpoint |
+| Expected status | Exact HTTP status, not merely a successful tool call |
+| Content signal | A stable string or explicit regex in the response, when relevant |
+| Time limit | Optional measured threshold, not a guessed latency |
+| Redirect policy | Whether a redirect is expected and which final origin is allowed |
 
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `name` | Yes | — | Human-readable check name |
-| `path` | Yes | `/` | URL path relative to base_url |
-| `method` | No | `GET` | HTTP method |
-| `expected_status` | No | `200` | Expected HTTP status code |
-| `content_signal` | No | — | Regex or string in response body |
-| `max_response_time_ms` | No | — | Fail if slower than threshold (ms) |
+See [REFERENCE.md](REFERENCE.md) for examples and failure interpretation.
 
-Ad-hoc single-URL mode: `DEPLOY_URL=https://host bash scripts/run-smoke.sh`
+## Run and assess
 
-## Process
+1. Inspect the current tool inventory and network permissions.
+2. Use an available HTTP/browser tool that exposes the required response fields.
+3. If the project supplies a runner, inspect its behavior and dependencies before using it under the same permissions.
+4. Record the observed status, final URL, content assertion, and measured timing when available.
+5. Report pass, fail, or blocked for each check. An unavailable status or timing field is not a pass.
 
-### 1. Load checks
+Do not install a client or use shell networking to bypass an unavailable or restricted network tool.
+Use bounded requests and timeouts where the tool permits them. Report retries rather than hiding an initial failure.
+Do not print credentials, signed URLs, cookies, or private response bodies.
 
-```bash
-SMOKE_CHECKS_FILE="${SMOKE_CHECKS_FILE:-smoke-checks.yaml}"
-BASE_URL="${DEPLOY_URL:-$BASE_URL}"
-test -f "$SMOKE_CHECKS_FILE" || test -n "$BASE_URL" || { echo "ERROR: no checks file or URL"; exit 1; }
-```
+## Report
 
-### 2. Run each check
-
-```bash
-bash scripts/run-smoke.sh "${DEPLOY_URL:-}" "${SMOKE_CHECKS_FILE:-smoke-checks.yaml}"
-```
-
-The runner performs curl requests per check, records pass/fail per assertion, and prints a summary.
-
-### 3. Assert results
-
-- Any HTTP status mismatch → FAIL
-- Missing `content_signal` when configured → FAIL
-- Response time over `max_response_time_ms` → FAIL
-- Exit code non-zero → deployment not healthy
-
-### 4. Generate report
-
-Capture stdout from `run-smoke.sh` as evidence. Persist to `specs/verifications/smoke-<date>.log` for release-branch.
-
-## Integration with deploy skill
-
-```bash
-DEPLOY_URL="$DEPLOY_URL" bash scripts/run-smoke.sh
-```
-
-## Verify arc
-
-Part of **★ VERIFY ★**: `verify-work` → `validate-contracts` → `smoke-test` → `run-evals` → `audit-code`
-
-## Verify
-
-→ verify: `test -x scripts/run-smoke.sh && grep -q 'run-smoke.sh' skills/smoke-test/SKILL.md && ! grep -q 'See \[REFERENCE.md\](REFERENCE.md)$' skills/smoke-test/SKILL.md && echo OK`
+Give the target without secrets, checks performed, observations, and limitations.
+A status mismatch, missing configured signal, or measured timeout fails that check.
+A failed check indicates an unhealthy or unreachable path, not necessarily a broken deployment.
+Separate application failures from DNS, TLS, access-policy, and tooling failures.
+A passing smoke test covers only the tested paths. It does not prove overall correctness or authorize a release.

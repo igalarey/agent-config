@@ -2,7 +2,7 @@
 name: design-interface
 model: opus
 effort: standard
-description: Generate multiple radically different interface designs for a module using parallel sub-agents, then compare trade-offs. Based on "Design It Twice" from A Philosophy of Software Design. Use when user wants to design an API, explore interface options, compare module shapes, or mentions "design it twice".
+description: Compare meaningfully different interface designs for a module or API. Use when the user requests alternative interfaces, module shapes, or "design it twice", not automatic implementation or delegation.
 ---
 
 # Design Interface
@@ -23,14 +23,17 @@ Before designing, understand:
 - [ ] Any constraints? (performance, compatibility, existing patterns)
 - [ ] What should be hidden inside vs exposed?
 
-Ask: "What does this module need to do? Who will use it?"
+Use the requirements already given and inspect relevant local source. Ask only when a material missing constraint blocks the comparison.
+This is a read-only design exercise. No extra tools or companion skills are required.
 
-### 2. Generate Designs (Parallel Sub-Agents)
+### 2. Generate Designs
 
-Spawn 3+ sub-agents simultaneously using Task tool. Each must produce a **radically different** approach.
+Develop two or three meaningfully different alternatives inline by default.
+Use an available delegation tool only when independent exploration has a concrete benefit and the current permissions allow it.
+No fixed agent count or workflow is required. Give each alternative a different constraint:
 
 ```
-Prompt template for each sub-agent:
+Brief for each alternative or optional delegate:
 
 Design an interface for: [module description]
 
@@ -73,10 +76,10 @@ Discuss trade-offs in prose, not tables. Highlight where designs diverge most.
 
 ### 5. Synthesize
 
-Often the best design combines insights from multiple options. Ask:
-
-- "Which design best fits your primary use case?"
-- "Any elements from other designs worth incorporating?"
+Recommend the strongest alternative with a concise rationale. Propose a hybrid only when its benefits are concrete.
+Identify any consequential decision that still needs user input.
+Do not implement an alternative or write a persistent plan unless requested.
+Check each example against the known caller requirements and state any unverified performance assumptions.
 
 ## Evaluation Criteria
 
@@ -95,5 +98,5 @@ From "A Philosophy of Software Design":
 - Don't let sub-agents produce similar designs — enforce radical difference
 - Don't skip comparison — the value is in contrast
 - Don't implement — this is purely about interface shape
-- Don't evaluate based on implementation effort
+- Include implementation and migration cost as trade-offs, without letting familiarity eliminate a useful alternative
 

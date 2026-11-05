@@ -1,82 +1,48 @@
 ---
-# story: e80s02
 name: validate-contracts
 phase: verify
-description: "Assert data shape consistency across system boundaries — live API responses against JSON Schema, key-set comparison across layers, data shape validation for migrations and exports. Catches silent data corruption before deploy."
 model: sonnet
 effort: standard
+description: Validate data shapes or key sets across specified system boundaries. Use for requested contract checks or schema/data changes, not as an automatic deploy or migration workflow.
+compatibility: Local checks use an existing runtime. Full JSON Schema validation needs an installed validator for the schema dialect; no runner is bundled.
 ---
 
 # Validate Contracts
 
-> **HARD GATE** — Do NOT deploy or migrate data without running `validate-contracts` first. Silent data divergence between system boundaries causes the hardest-to-debug production bugs.
->
-> **HARD GATE** — Contract files MUST be version-controlled alongside code. Outdated contracts are worse than no contracts. If a contract hasn't been reviewed in 30 days, flag it as stale.
+Check consistency without deploying, migrating, changing producer data, or installing dependencies.
+Use reading/search and an existing local runtime or project validation command.
+Live API checks require an available, permitted network tool and authorized target. Prefer synthetic or local captured data.
 
-Validate that data structures stay in sync across system boundaries — front-end vs back-end, API responses vs expected schemas, config files vs code assumptions, migration output vs target shape.
+## Select the contract
 
-## Contract types
+Read the requested schema, producer, consumer, and representative data.
+Project contract files and their locations are optional conventions, not prerequisites.
+If the contract is absent, derive expectations from source and identify assumptions before validating.
+Do not silently create a persistent contract or declare a schema stale because of its age alone.
 
-| Mode | What it catches | When to use |
-|------|----------------|-------------|
-| **Schema** | API response shape mismatches | Before every deploy, after API changes |
-| **Key-set** | Missing/unexpected keys across two data sources | Translation files, configs, enum definitions |
-| **Shape** | Column type or format violations | After migrations, before consuming exports |
+| Mode | Assertions |
+|------|------------|
+| Schema | Required fields, types, nested structure, constraints, and additional properties |
+| Key-set | Missing and unexpected keys, with explicit comparison direction and nesting rules |
+| Shape | Every record's required fields, nullability, types, formats, and migration invariants |
 
-## Contract file convention
+See [REFERENCE.md](REFERENCE.md) for runnable local key-set comparison and schema/shape checklists.
 
-All contract files live in `specs/contracts/` as YAML. See [REFERENCE.md](REFERENCE.md) for extended examples.
+## Run validation
 
-### Key-set example
+1. Define the boundary, input snapshot, expected rules, and observable failure condition.
+2. Use the project's existing validator when present. Inspect its actual options and dependencies first.
+3. For JSON Schema, verify dialect and format support in the installed validator.
+4. If only a partial manual or scripted check is possible, name its exact coverage. Do not call it full schema validation.
+5. Run against the agreed data scope. Record counts and precise mismatch paths without exposing private values.
 
-```yaml
-# specs/contracts/i18n-keys.yaml
-sources:
-  reference: src/locales/en.json
-  target: src/messages/en.json
-mode: subset
-```
+A parsed JSON object is not necessarily valid. Compare required fields and types explicitly.
+Validate all relevant records, or disclose sampling and its limits.
 
-## Process
+## Resolve divergence and report
 
-### 1. Define contract
-
-Create a YAML file in `specs/contracts/` following the schema for the mode.
-
-### 2. Run validation
-
-```bash
-bash scripts/validate-contracts.sh specs/contracts/<contract>.yaml
-```
-
-The runner auto-detects key-set contracts (`sources:` block). Schema and shape modes are documented in REFERENCE.md for consumer projects.
-
-### 3. Read the report
-
-```
-PASS: key-set contract
-# or
-FAIL: key-set — N keys in reference missing from target
-```
-
-JSON Lines output for CI is planned for schema/shape modes; key-set failures exit non-zero.
-
-### 4. Fix divergence
-
-- **Missing keys** → add to target source
-- **Type mismatches** → update schema or fix producer
-- **Shape violations** → fix migration or consumer
-
-### 5. Re-validate
-
-```bash
-bash scripts/validate-contracts.sh specs/contracts/<contract>.yaml
-```
-
-## Verify arc
-
-Part of **★ VERIFY ★**: `verify-work` → `validate-contracts` → `smoke-test` → `run-evals` → `audit-code`
-
-## Verify
-
-→ verify: `test -x scripts/validate-contracts.sh && bash scripts/validate-contracts.sh --self-test && grep -q 'validate-contracts.sh' skills/validate-contracts/SKILL.md && echo OK`
+Distinguish missing keys, unexpected keys, type mismatches, nullability, and format violations.
+Explain whether the producer, consumer, or contract conflicts with the intended behavior.
+A validation request does not authorize a data repair or schema rewrite.
+If fixes are requested, use local, scoped changes and rerun the same assertions.
+Report exact commands, inputs or fixture identifiers, record counts, outcomes, and unsupported constraints.

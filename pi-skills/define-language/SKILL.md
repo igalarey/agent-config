@@ -2,16 +2,15 @@
 name: define-language
 model: sonnet
 effort: standard
-description: Extract a DDD-style ubiquitous language glossary from the current conversation, flagging ambiguities and proposing canonical terms. Saves to specs/UBIQUITOUS_LANGUAGE_LATEST.md. Use when user wants to define domain terms, build a glossary, harden terminology, create a ubiquitous language, or mentions "domain model" or "DDD".
+description: Propose a domain glossary with canonical terms, relationships, and ambiguities. Use when the user requests terminology work or a glossary, not merely when DDD or a domain model is mentioned.
 ---
 
 # Define Language
 
-Extract and formalize domain terminology from the current conversation into a consistent glossary, saved to `specs/UBIQUITOUS_LANGUAGE_LATEST.md`.
-
-**Distinct from `model-domain` and `deepen-architecture`:** Use this skill to produce a canonical glossary of terms (words and definitions). Use `model-domain` to stress-test a plan through an interview that resolves domain model decisions. Use `deepen-architecture` to find module-level refactoring opportunities in the codebase.
-
-> **HARD GATE** — Ubiquitous language is NOT optional. Every term in the domain that could be misunderstood must be glossed. Ambiguity = rework.
+Extract domain terminology from the current conversation into a consistent glossary.
+Return the proposal in chat by default. No special tools or companion interview skill are required.
+Use local reading/search when project evidence is needed. Do not create or overwrite files unless the user requests a saved glossary.
+A request to explain DDD is not a request to formalize every domain term.
 
 ## Process
 
@@ -21,12 +20,12 @@ Extract and formalize domain terminology from the current conversation into a co
    - Different words used for the same concept (synonyms)
    - Vague or overloaded terms
 3. **Propose a canonical glossary** with opinionated term choices
-4. **Write to `specs/UBIQUITOUS_LANGUAGE_LATEST.md`** in the working directory using the format below
-5. **Output a summary** inline in the conversation
+4. **Present the glossary** using the format below. Distinguish agreed terms from proposed terms and unresolved ambiguities.
+5. **Save only if requested**, using the named destination or the project's existing glossary convention. Read any existing file before merging changes.
 
 ## Output Format
 
-Write a `specs/UBIQUITOUS_LANGUAGE_LATEST.md` file with this structure:
+Use this structure in chat or in an explicitly requested artifact:
 
 ```md
 # Ubiquitous Language
@@ -74,9 +73,11 @@ Write a `specs/UBIQUITOUS_LANGUAGE_LATEST.md` file with this structure:
 
 When invoked again in the same conversation:
 
-1. Read the existing `specs/UBIQUITOUS_LANGUAGE_LATEST.md`
+1. Read the previous chat proposal or the saved glossary when an update to that artifact is requested
 2. Incorporate any new terms from subsequent discussion
 3. Update definitions if understanding has evolved
 4. Re-flag any new ambiguities
-5. Rewrite the example dialogue to incorporate new terms
+5. Update the example dialogue when it helps verify the new terms
+
+Check that definitions and cardinalities follow conversation or project evidence. Mark unknown relationships instead of inventing them.
 

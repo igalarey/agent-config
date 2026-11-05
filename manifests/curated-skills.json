@@ -30,29 +30,29 @@
   "files": {
     "LICENSE.bigpowers": "ab5c332485a9ffad649f5a341d5ecfd35abff52249bf2a5c958f168a002ce376",
     "LICENSE.hermes": "821556e6336796450ab852d375117b48a4887e71d255794fd6318d99982a5ab6",
-    "align-grid/SKILL.md": "3693866e3c91825b8b5bcd24a2410afc2796d2c5777b15b1e33d277faa405263",
-    "align-grid/scripts/grid_tokens.py": "9fa89e0020ade90bd3afe22e02024985a44e6195e5cba3a20548b53496859d01",
-    "align-grid/scripts/verify_grid.js": "c58e64a3d3bee40537d52deec0dd0c1abf2751321f1c061c4d16b9ffeb17e981",
+    "align-grid/SKILL.md": "288262887f903847913e8c1f938db10c028e391a57a459861ecf1cc49ea38000",
+    "align-grid/scripts/grid_tokens.py": "a639cf885d45b9e4c51578959abee53fa81e06ad91167a040bd30b9dfc93fafe",
+    "align-grid/scripts/verify_grid.js": "a88e963bb69e47f12299d21fdf422c5107d7d71b732c370a8087e78668e45574",
     "ast-grep/LICENSE": "b083425948376611de9b92b0aeb7377e604505756ea427e541a34d9b030d4dc1",
     "ast-grep/SKILL.md": "dea3c83a681323a45cd2a0f24a85d4526b59e29fe667108649da8401bbbccfd2",
-    "context7-mcp/SKILL.md": "6edac4093ab1c2503025403ddf753de1e637acc6c3984a063c1535c28ff10cb4",
-    "deepen-architecture/DEEPENING.md": "9577485f4fc32c0267639a9151bb41c8af0f8f6086e4bf8b84d5b236e30604e9",
-    "deepen-architecture/INTERFACE-DESIGN.md": "678c3e34f1339015053212b3316bf0b676c70aa251050a0613667d4e755fb35e",
+    "context7-mcp/SKILL.md": "baeb2c049ffdedadb79a7f8582762fa198dda3e0c830fa35d781e914279e3ecd",
+    "deepen-architecture/DEEPENING.md": "314a93659f350a90157553b8a6ca3df09b026bf366837dbadecdcf5d4aa77473",
+    "deepen-architecture/INTERFACE-DESIGN.md": "c7a95fd60221cf5b08a9a5c7b054ea278bc96820c874eb8a6805e2f57806e4ef",
     "deepen-architecture/LANGUAGE.md": "6feca2140439c54a774749e8367f18350899ff69c777144ed2248cd4407949fa",
-    "deepen-architecture/SKILL.md": "ee41e4524031fee3ba0d815f78a9a0fa398d97d147d7bbb0abc344696ccbf268",
-    "define-language/SKILL.md": "7813399bd176c8ee82c5ebff858425f4bfa0834e2912d6cd8c4f40d1e8dc58e1",
-    "design-interface/SKILL.md": "24802e6e975bcc6a30f1377b3ab7b4acfba416436beffe8f3729677d6a649e89",
+    "deepen-architecture/SKILL.md": "d74024e66bd5675ae1a920c97b568c8b7c7d583c75f9408e0b258f96a43456b1",
+    "define-language/SKILL.md": "2d790bfa96c3ccb293306da333042f4666ea73c523987be952aaf41403c144fd",
+    "design-interface/SKILL.md": "a57610d8137d93f93f01c7fb64ed70b2c71605616da274686e521e489eca12d5",
     "diagnose-root/SKILL.md": "cdc2d664c0ce00086dc2ae9c49466270e162da639eb71b43997ec3bfdbf455ee",
-    "edit-document/SKILL.md": "c543af1443aa12c729bfd09019447817f5ceeda0d062bb0791733212bfba14cc",
-    "elaborate-spec/SKILL.md": "67385bef84425f6dd9204afe153b1a4c2018d03ff98e0cfc0ee920f1394ee013",
-    "enforce-first/SKILL.md": "567d0efaa59d1262e9129c44fd3da615d9fd3073f9fd7a6b3df2ba4d8ce94cbc",
-    "grill-me/REFERENCE.md": "292e6ce2209b78b6627a8de0dcaf9f37ef481c9b492faf4cb762bf00bdcc7aaa",
-    "grill-me/SKILL.md": "fd2bf0223ed3d06708403718fe16ede25ffdeb1f49d86d2e1b1c161541b1fc3b",
+    "edit-document/SKILL.md": "a82e785ad21d0ac0be9386f14404511038f47b98dc419f814dfd82cacea34fd8",
+    "elaborate-spec/SKILL.md": "dbe2aa53cc91ecb88d1b15465c181c60f4ed14894af1b12690bd27955c2bf8ab",
+    "enforce-first/SKILL.md": "0cb6b60b978a2214d7fcffcd1b47c31812151e890390b6bdaa2cef3ecb540794",
+    "grill-me/REFERENCE.md": "c4bc472a4b4ae6e333da4aefb001776720e1cd76b418656399363cd512bc30b9",
+    "grill-me/SKILL.md": "228502b1219b3c8ea300ba54175a4177a72330670bb0c8c0dd8e9221c9f09c60",
     "grounded-citations/SKILL.md": "dee34d4a3221121d909cbb1b6910ba9bcaae0320d0bf72f9d80253f61493e5ba",
-    "security-review/REFERENCE-confidence-rubric.md": "722897a1952f2f9e017e553ce7088e44e82168d9284c3ea986be0cb15e82b8b4",
-    "security-review/REFERENCE-false-positives.md": "85106478064753ad915496ce77954fbff385866c9598adbccb174e6199074b90",
-    "security-review/REFERENCE-vuln-categories.md": "16a08e21d35d576deaf90353f15bcb34ebcf0ac0fa1aeafacf1cba8eb337c019",
-    "security-review/SKILL.md": "3d046f443689fc1eec5e9570c7c8311427674c80a5951a3334ce991664574d1e",
+    "security-review/REFERENCE-confidence-rubric.md": "63a21cfd874282d5bc67d32eed3cabe8e34d98bc3f31da06ef91f8f2876adf07",
+    "security-review/REFERENCE-false-positives.md": "88b19eda81df604b98aa141f1b83fb337705e4818bc4aab6aa01659bdaa295a2",
+    "security-review/REFERENCE-vuln-categories.md": "ec0c95cb78f5eed02be0deec56d61b19c7bfd97609c8c3582089ea4923ae98b7",
+    "security-review/SKILL.md": "8bd32cba8fb3a6f2a87cabe2b8d9e613716d8d76da4236a083ef7f46f8518c51",
     "security-review/fixtures/CWE-639-idor-negative.go": "ecf13683479fcdc8ad62b1623f2e174c0fdaeab077bcd007c2a4ac6df794246f",
     "security-review/fixtures/CWE-639-idor-positive.go": "2b8bb90026832468910abd2f202908ff361688569a2d649ea82546f6e8432111",
     "security-review/fixtures/CWE-79-xss-negative.js": "fa83561cd65d4806a2a00d8a1025f2166a415f72e6073c8836249fb8b568600c",
@@ -62,15 +62,53 @@
     "security-review/fixtures/CWE-fail-open-verify-negative.sh": "d650bcb5b0fcbe03d603e484000928150911b20aa456e952c8a0cd9cc44a03c1",
     "security-review/fixtures/CWE-fail-open-verify-positive.sh": "3707b01ac8c3dfb53712c61e57079e5c096539730ac6f2434f6424240e74ceef",
     "simple-english/REFERENCE.md": "f2b7057c63b31715131d7e79fb54af9cb06cfb00ee13a9bad7ca4751294a6771",
-    "simple-english/SKILL.md": "a0e904d86d8a7bc3405eeb8b7a598719329bda6f1b97165e26f577ba6eb32daf",
+    "simple-english/SKILL.md": "91cd7a919487bb504b0be097cfcc68ea5aa56358c79fe2ba0fac0a32eabebc71",
     "simple-english/scripts/ste_lint.py": "79f3b8c63c5b71e09e6d9c563209b98246111a5fcd48a58c4645fed8827194f4",
     "simplify-code/SKILL.md": "ec62d16c943c9fcfd8aed3535032f6f4898c8b4a3da31b671535d37e72fe5df0",
-    "smoke-test/REFERENCE.md": "15ffb2868cb5440e36a71bf9c571c4c0eaa297337e8a1482a2e7dadb275eaa80",
-    "smoke-test/SKILL.md": "407669c94dee6b5300a28e2f2baa70232cb945c7c00087de684f6ec9cc2fd59d",
+    "smoke-test/REFERENCE.md": "e5b6e1780d346ff818526cc1284c4b3c3169be93c742273d3ac3d0ba978094a2",
+    "smoke-test/SKILL.md": "4c71d1284e2ab24e297a4dd4e5ac1d4a813d930c3d30a669fda795b104a5aaf7",
     "spike/SKILL.md": "0e00d36401e4eb24f2bea92cff8166937e1bd283b0c21082fb49bdd61c02b888",
-    "validate-contracts/REFERENCE.md": "ff530f1c7ce322265e13eada410167f7e28d00da223cce11ca5d3c6681cfc9f0",
-    "validate-contracts/SKILL.md": "6541a7f72b3f0493d671a3c0be11fcef1051cfd15c9f2c5337042ce90b91b959"
+    "validate-contracts/REFERENCE.md": "c7f76d3bbdfba0d27f672b178eefc423e30db5c3ace9a9bed1d9d928306a0193",
+    "validate-contracts/SKILL.md": "3c57d2831563e8dabc88552a340d92cbae1e804761b26c5fd6456f6cc8c1ab27"
   },
+  "localAdaptations": [
+    {
+      "id": "knowledge-audit-2026-11-05",
+      "basisCommit": "e8f5e36bf188d3195e61f8b598aa9f462330530a",
+      "changes": [
+        {
+          "skills": ["security-review"],
+          "notes": [
+            "Replace blanket exclusions with trust-boundary analysis, separate confidence from severity, and retain conditional risks and unknowns.",
+            "Correct path containment and symlink/race limits, pickle versus PyTorch options, and JSON parsing guidance.",
+            "Remove absent review helpers and framework integration mandates; retain the existing illustrative CWE fixture pairs."
+          ]
+        },
+        {
+          "skills": ["context7-mcp", "enforce-first", "deepen-architecture", "smoke-test", "validate-contracts", "simple-english"],
+          "notes": [
+            "Make procedures and companion references self-contained with explicit optional runtimes, MCP/network tools, project policy, and validation limits.",
+            "Remove original-repository cache, churn, boundary, smoke, contract, and convention prerequisites without reinstalling their framework.",
+            "Keep smoke checks read-only and separate deployment, repair, authentication, private access, and persistent artifacts from validation."
+          ]
+        },
+        {
+          "skills": ["edit-document", "design-interface", "define-language", "elaborate-spec", "grill-me", "deepen-architecture"],
+          "notes": [
+            "Remove arbitrary paragraph limits, fixed delegation quotas, absent companion workflows, and routine clarification gates.",
+            "Narrow triggers and preserve explicit authorization for writes, implementation, network actions, and persistent planning."
+          ]
+        },
+        {
+          "skills": ["align-grid"],
+          "notes": [
+            "Retain modular grid scaffold and measurements, remove automatic publishing and unavailable image/hosting tools, and make browser prerequisites explicit.",
+            "Remove remote font links from generated scaffolds; support the repository ESM context, local file paths, dependency-free help, and the default browser sandbox."
+          ]
+        }
+      ]
+    }
+  ],
   "adaptations": {
     "repository": "https://github.com/NousResearch/hermes-agent",
     "commit": "47676981f55de91231fdeef2f0eec47e7c209e78",

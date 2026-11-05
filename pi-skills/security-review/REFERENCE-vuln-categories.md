@@ -1,6 +1,7 @@
 # Vulnerability Categories — Detection Guidance
 
-Each category: vulnerable pattern → safe pattern → code example.
+Patterns are investigation leads, not categorical findings. Trace attacker control and effective defenses before reporting.
+A safer pattern still needs application-specific authorization, limits, and configuration review.
 
 ## SQL Injection
 
@@ -11,7 +12,7 @@ Each category: vulnerable pattern → safe pattern → code example.
 | **Fixtures** | `fixtures/CWE-89-sqli-positive.py` (flag) · `fixtures/CWE-89-sqli-negative.py` (pass) |
 | **Safe** | Parameterized queries / ORM: `cursor.execute("SELECT * FROM users WHERE id = %s", (uid,))` |
 | **Look for** | f-strings, `+` concatenation, `format()` in query builders; raw SQL in ORM `.raw()` / `.execute()` |
-| **False-positive guard** | Not a FP if the input is user-controlled (HTTP param, file, env var, CLI arg). Env vars are trusted (see exclusion rules). |
+| **False-positive guard** | Trace whether HTTP params, files, environment variables, or CLI args can affect query structure. Bound values are not injection by themselves. |
 
 ## Cross-Site Scripting (XSS)
 
@@ -22,7 +23,7 @@ Each category: vulnerable pattern → safe pattern → code example.
 | **Fixtures** | `fixtures/CWE-79-xss-positive.js` (flag) · `fixtures/CWE-79-xss-negative.js` (pass) |
 | **Safe** | `element.textContent = userInput`, React JSX (auto-escaped), template engines with auto-escaping |
 | **Look for** | `.innerHTML`, `document.write()`, `dangerouslySetInnerHTML`, `v-html` (Vue), `bypassSecurityTrustHtml` (Angular) |
-| **False-positive guard** | React/Angular components without unsafe methods are NOT vulnerable (see exclusion rules). |
+| **False-positive guard** | Verify the actual rendering context and escape behavior. Auto-escaping is not a universal defense for URLs or DOM operations. |
 
 ## Server-Side Request Forgery (SSRF)
 
@@ -30,14 +31,14 @@ Each category: vulnerable pattern → safe pattern → code example.
 |--------|--------|
 | **Vulnerable** | User-controlled URL passed to server-side HTTP client: `requests.get(user_url)` |
 | **Safe** | URL allowlist validation, internal-network blocking, protocol/host restriction |
-| **Look for** | User input → `fetch`, `requests.get`, `axios.get`, `urllib`, `curl`, `http.get`; host control only (path-only is excluded) |
+| **Look for** | User input → `fetch`, `requests.get`, `axios.get`, `urllib`, `curl`, `http.get`; check privileged fixed-host paths as well as host control, redirects, DNS, and protocols |
 
 ## Command Injection
 
 | Aspect | Detail |
 |--------|--------|
 | **Vulnerable** | User input in shell commands: `os.system(f"ping {host}")`, `subprocess.run(f"grep {pattern} file", shell=True)` |
-| **Safe** | `subprocess.run(["ping", host])` with arguments as list; `shlex.quote()` |
+| **Safe** | Avoid the shell with an argument list. Also validate options and the target program's argument semantics; quoting alone is context-dependent. |
 | **Look for** | `shell=True`, `os.system`, `os.popen`, `exec()`, `eval()`, `$()`, backticks |
 | **False-positive guard** | Shell scripts without untrusted user input are generally not exploitable. |
 
@@ -53,17 +54,36 @@ Each category: vulnerable pattern → safe pattern → code example.
 
 | Aspect | Detail |
 |--------|--------|
-| **Vulnerable** | `pickle.load(user_data)`, `yaml.load(user_input)`, `JSON.parse()` on untrusted tokens, `eval(input())` |
-| **Safe** | `yaml.safe_load()`, `json.loads()` (safe for JSON), `pickle.load(weights_only=True)` (PyTorch), schema validation |
-| **Look for** | `pickle.load`, `yaml.load` (not safe_load), `torch.load(weights_only=False)`, `eval`, `marshal.load`, `node-serialize` |
+| **Vulnerable** | Untrusted pickle deserialization, unsafe YAML loaders, `eval(input())`, or unrestricted model loading |
+| **Safer** | Use JSON with schema and size validation, or a safe YAML loader. Never unpickle untrusted data. |
+| **Look for** | `pickle.load`, unsafe `yaml.load`, `torch.load(weights_only=False)`, `eval`, `marshal.load`, `node-serialize` |
+
+`pickle.load` has no `weights_only` option. `torch.load(..., weights_only=True)` is a PyTorch restriction, not a pickle feature.
+Check the installed PyTorch version and advisories before relying on it. It does not make arbitrary model files safe.
+`JSON.parse()` and `json.loads()` do not execute code by themselves.
+A parsed object can still reach unsafe merges, templates, queries, or authorization decisions. Validate those uses and resource limits.
 
 ## Path Traversal
 
 | Aspect | Detail |
 |--------|--------|
 | **Vulnerable** | User input in file paths: `open(f"/data/{filename}")`, `path.join(base, user_path)` |
-| **Safe** | Path normalization + prefix check: `os.path.realpath(path).startswith(BASE_DIR)`; allowlist of valid filenames |
-| **Look for** | `open()`, `read_file()`, `os.path.join` with user input; `../` traversal without normalization |
+| **Safe** | Resolve paths and use component-aware containment, not string prefixes. See the example below; use an allowlist when practical. |
+| **Look for** | `open()`, `read_file()`, `os.path.join` with user input; traversal, symlink escapes, and check/use races |
+
+```python
+from pathlib import Path
+
+base = Path("/srv/data").resolve(strict=True)
+candidate = (base / user_path).resolve(strict=True)
+if not candidate.is_relative_to(base):
+    raise ValueError("path outside data directory")
+```
+
+This rejects sibling prefixes such as `/srv/data-other` and existing symlinks that resolve outside `base`.
+It is not a filesystem sandbox: an attacker can replace a path or ancestor after validation.
+For writes or attacker-writable trees, use descriptor-relative operations and platform-specific no-follow restrictions.
+Validate parent directories and create files exclusively where needed. Do not treat lexical containment as symlink protection.
 
 ## Insecure Direct Object Reference (IDOR)
 
@@ -88,7 +108,7 @@ Each category: vulnerable pattern → safe pattern → code example.
 | **Vulnerable** | Hardcoded API keys, passwords, tokens in source code; secrets in logs; secrets in client-side code |
 | **Safe** | Environment variables; secret manager (AWS Secrets Manager, HashiCorp Vault); `.env` excluded from VCS |
 | **Look for** | `API_KEY=`, `password=`, `secret=`, `token=` in code; AWS keys, GitHub tokens, Stripe keys, JWTs in source |
-| **False-positive guard** | Secrets stored on disk but otherwise secured ARE excluded. Logging high-value secrets IS a vuln. Logging URLs is safe. |
+| **False-positive guard** | Check storage permissions and actual readers. URLs can contain tokens, signed parameters, credentials, and private data; redact before logging. |
 
 ## Template Injection (SSTI)
 

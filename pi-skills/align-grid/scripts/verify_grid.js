@@ -28,17 +28,22 @@
  *   arg1   = file:// URL or http URL of the page (default: file://$PWD/index.html)
  *   --widths=1440,1180,900   --baseline=8
  *
- * Sandbox chrome flags that work here:
- *   --no-sandbox --disable-gpu --disable-dbus --use-gl=angle --use-angle=swiftshader
- * (file:// works for non-ES-module pages; CLI --screenshot can hang on tall
- *  pages, so we drive via Puppeteer and screenshot per-viewport.)
+ * Uses the browser's default sandbox. No dependency or browser downloads.
+ * Loads the supplied page and its resources; use local assets for offline checks.
  */
-const puppeteer = require(process.env.PUP || 'puppeteer-core');
-const path = require('path');
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const args = process.argv.slice(2);
-const url = (args.find(a => !a.startsWith('--'))) ||
-            ('file://' + path.join(process.cwd(), 'index.html'));
+if (args.includes('--help')) {
+  console.log('Usage: CHROME=<browser> PUP=<puppeteer-core module> node verify_grid.js <file-or-url> [--widths=1440,1180,900] [--baseline=8]');
+  process.exit(0);
+}
+const require = createRequire(import.meta.url);
+const puppeteer = require(process.env.PUP || 'puppeteer-core');
+const target = args.find(a => !a.startsWith('--')) || path.join(process.cwd(), 'index.html');
+const url = /^(?:https?|file):/.test(target) ? target : pathToFileURL(path.resolve(target)).href;
 const opt = k => { const a = args.find(x => x.startsWith('--' + k + '=')); return a ? a.split('=')[1] : null; };
 const widths = (opt('widths') || '1440,1180,900').split(',').map(Number);
 const BL = Number(opt('baseline') || 8);
@@ -46,7 +51,7 @@ const BL = Number(opt('baseline') || 8);
 (async () => {
   const browser = await puppeteer.launch({
     executablePath: process.env.CHROME, headless: 'new',
-    args: ['--no-sandbox','--disable-gpu','--disable-dbus','--use-gl=angle','--use-angle=swiftshader','--hide-scrollbars']
+    args: ['--hide-scrollbars']
   });
   const page = await browser.newPage();
   let failed = false;

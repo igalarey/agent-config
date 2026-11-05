@@ -1,6 +1,7 @@
 ---
 name: align-grid
-description: "Build editorial/magazine/report webpages on a GENUINE Müller-Brockmann modular grid (International Typographic Style) — not a decorative one. Encodes the discipline (columns + modules + baseline, grotesque type, flush-left, restrained black/white/red palette) AND the hard-won front-end engineering to make the grid real, visible, and verified: one CSS-variable source of truth, an interactive grid-toggle overlay that lives in the SAME content box as the content, subgrid \"bands\" so every element snaps to a column line, an 8px baseline lock, and runtime OPTICAL ALIGNMENT that puts display type's ink (not its box) on the line. Ships with a scaffold generator and a Puppeteer verification harness that proves 0px adherence."
+description: Build or inspect editorial webpages on a measurable Müller-Brockmann modular grid. Use when the user requests this grid style or grid adherence checks. Includes a local scaffold and optional browser validation, not publishing.
+compatibility: Scaffold requires Python 3. Rendered checks require an existing Chrome/Chromium and puppeteer-core module; neither is bundled.
 model: sonnet
 effort: standard
 ---
@@ -9,7 +10,13 @@ effort: standard
 
 Josef Müller-Brockmann (1914–1996), Zurich; *Grid Systems in Graphic Design* (1981) is the corpus. The grid is treated as an ethic, not decoration: **"The grid system is an aid, not a guarantee. It permits a number of possible uses and each designer can look for a solution appropriate to his personal style. But one must learn how to use the grid; it is an art that requires practice."** This skill encodes that discipline AND — the part most attempts get wrong — the front-end engineering to make the grid genuinely load-bearing on the web, plus a harness that PROVES it.
 
-> **HARD GATE** — Do NOT ship a grid page without running `verify_grid.js` first. A visually plausible layout is not evidence of grid adherence — the harness is. Zero failing assertions is the only passing bar.
+Use local file/edit tools for implementation. No image-search or publishing service is required.
+The scaffold writes only to stdout. The verifier launches an installed browser and loads the supplied page and its resources.
+Use local assets for offline checks. Network loading requires the applicable authorization.
+Do not publish, upload images, download fonts, install a browser, or disable its sandbox by default.
+
+Run `scripts/verify_grid.js` before claiming measured adherence. If its optional dependencies are unavailable, report validation as blocked.
+A visually plausible page is not measurement evidence. A passing run establishes only the sampled elements, widths, and stated tolerances.
 
 > Two real review notes this skill exists to prevent:
 > 1. *"the grid is just slapped on top and misaligned"* → the overlay wasn't in the same content box as the content (see §2.2).
@@ -28,7 +35,7 @@ Josef Müller-Brockmann (1914–1996), Zurich; *Grid Systems in Graphic Design* 
 ---
 
 ## PART 2 — MAKE THE GRID REAL ON THE WEB (the load-bearing engineering)
-`grid_tokens.py` emits this whole scaffold correctly; the rules below are why it's built the way it is.
+`scripts/grid_tokens.py` emits the scaffold; the rules below explain its structure.
 
 ### 2.1 One source of truth
 Put every grid parameter in `:root` CSS variables — `--cols, --gutter, --margin, --bl (baseline), --lh (leading=3×bl), --maxw`. **Content and the overlay both read these same variables.** Never hand-author the overlay separately or it will drift.
@@ -80,7 +87,9 @@ Render with headless Chrome (Puppeteer) and assert, at **several widths includin
 3. **Baseline** — text tops modulo the baseline ≈ 0 (tolerance ≈ half a baseline; the box-top is a proxy — the leading does the real work).
 4. **Optical ink** — each display element's ink-left (box − `actualBoundingBoxLeft`, real font) equals **its own** column line (nearest column-start to its box), not always line 1.
 
-Sandbox Chrome flags that work: `--headless=new --no-sandbox --disable-gpu --disable-dbus --use-gl=angle --use-angle=swiftshader`. `file://` works for non-ES-module pages; the CLI `--screenshot` can hang on tall pages — drive via Puppeteer and screenshot per viewport. Read PNGs back with the image-capable Read tool to eyeball a **zoom crop of the top-left corner** (masthead vs body vs column line) — the fastest human check.
+Keep the browser sandbox enabled. If the environment cannot launch it safely, report the blocker rather than weakening isolation.
+`file://` works for non-ES-module pages. Inspect local screenshots with an available image-reading tool when useful.
+The bundled verifier prints measurements; screenshot capture is a separate optional check.
 
 A clean run looks like: `col=0px overlay=0px baseline≤4px ink=0px` → `GRID VERIFY: PASS`.
 
@@ -90,22 +99,22 @@ A clean run looks like: `col=0px overlay=0px baseline≤4px ink=0px` → `GRID V
 - **Palette:** white `#fff`, ink `#111`, one accent (Swiss red `#e4002b`). No warm-cream Claude look; no blue/purple gradients.
 - **Type:** a real grotesque webfont (Inter / Helvetica Now / Archivo) for display + body; a **mono** (Space Mono / IBM Plex Mono) for folios, captions, grid annotations — reinforces the technical register. Non-Latin via Noto Sans JP etc.
 - **Hierarchy** through scale + weight + white space, not color. Treat key data as **large numerals**. Kicker labels in mono caps. Per-spread folios.
-- **Real photography.** Ground real subjects in real photos (`SearchImages`). **Host each image via `PublishFilePublicly` and embed the `pub.hyperagent.com` URL** — a `PublishWebpage` artifact runs in a sandboxed iframe that can't authenticate thread-scoped `/api/files/...` URLs (broken-image trap).
+- **Real photography.** Use user-provided or already available licensed assets. Reference project-local files by default. External retrieval or hosting is a separate action with its own permissions.
 - **Type fidelity if you ever rasterize art** (cairosvg / headless screenshots / image-gen reference): a `Helvetica`/`Arial` CSS stack silently falls back to **Noto Sans** (reads like Calibri). Render in **Liberation Sans** or an embedded Helvetica/Arimo TTF before trusting it. (Same trap as the optical-measurement caveat: wrong font in → wrong result out.)
 - **Spread model:** full-width sections, each its own per-spread `.grid` + `.guides`, consistent margins/folios.
 
 ---
 
 ## PART 5 — WORKFLOW
-1. Pick the subject; gather real photos; host them publicly.
-2. Generate the scaffold: `python3 grid_tokens.py` (or `--scaffold` for a full page; `--cols/--baseline/--gutter/--margin/--maxw/--accent` to taste; it warns if gutter/margin aren't baseline multiples).
-3. Build spreads as **subgrid bands**; place everything by **column line**; lock spacing/line-heights/media heights to the **baseline**.
-4. Add the overlay (same content box) + toggle + optical-alignment JS (already in the scaffold; point its selector list at your display elements).
-5. Publish, then **verify**: `CHROME=… PUP=… node verify_grid.js <file-or-url> --widths=1440,1180,900`. Eyeball a top-left zoom crop. Fix, republish.
+1. Pick the subject and use authorized local assets.
+2. From this skill directory, generate the scaffold with `python3 scripts/grid_tokens.py --scaffold`. Save stdout only to the requested project destination. The generator also accepts `--cols/--baseline/--gutter/--margin/--maxw/--accent`.
+3. Build spreads as **subgrid bands**. Place everything by **column line** and lock spacing, leading, and media heights to the **baseline**.
+4. Keep overlay and content in the same box. Match the runtime optical selectors and mark those display elements `.opt-align` for verification.
+5. With existing dependencies, run `CHROME=<browser-path> PUP=<module-path> node scripts/verify_grid.js <file-or-url> --widths=1440,1180,900`. Check the measured scope and optionally inspect a local screenshot. Fix locally and rerun only if implementation is requested. Do not publish as part of verification.
 
 ## SCRIPTS
-- **`grid_tokens.py`** — deterministic scaffold generator. Emits the `:root` tokens, `.grid`/`.band` (subgrid) scaffold, `.guides` overlay CSS, toggle JS, and the optical-alignment JS — all wired to one source of truth. `--scaffold` emits a full minimal HTML page. No network/credentials.
-- **`verify_grid.js`** — Puppeteer harness implementing all four checks above with the corrected both-edges column math, the optical-exclusion, per-element column-line ink targeting, and PASS/FAIL output at multiple widths. Env: `CHROME` (chrome binary), `PUP` (puppeteer-core module path).
+- **`scripts/grid_tokens.py`** — deterministic scaffold generator. Emits the `:root` tokens, `.grid`/`.band` (subgrid) scaffold, `.guides` overlay CSS, toggle JS, and the optical-alignment JS — all wired to one source of truth. `--scaffold` emits a full minimal HTML page. No network/credentials.
+- **`scripts/verify_grid.js`** — Puppeteer harness implementing all four checks above with the corrected both-edges column math, the optical-exclusion, per-element column-line ink targeting, and PASS/FAIL output at multiple widths. Env: `CHROME` (chrome binary), `PUP` (puppeteer-core module path).
 
 ## CREED
 A grid you can't toggle on and measure is a mood board, not a system. Build it from one source of truth, prove it at 0px, and align the **ink**.

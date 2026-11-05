@@ -63,7 +63,10 @@ Common slop replacements: `leverage`/`utilize` → `use`; `in order to` → `to`
 
 ## Verify
 
-→ verify: `test -x skills/simple-english/scripts/ste_lint.py && python3 skills/simple-english/scripts/ste_lint.py --self-test && echo OK`
+Requires an existing Python 3 runtime. From this skill directory, run `python3 scripts/ste_lint.py --self-test`.
+For a document, run `python3 scripts/ste_lint.py <document> --no-vale` and review the reported limits.
+Vale is optional and only runs when already installed and configured. Do not install it automatically.
+The linter reports mechanical issues, not complete STE compliance.
 
 ## Reference
 
