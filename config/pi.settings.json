@@ -1,13 +1,14 @@
 {
   "packages": [
-    "npm:pi-mcp-adapter@2.33.0",
-    "npm:pi-web-access@0.32.0",
-    "npm:pi-ollama@0.1.7",
-    "npm:pi-claude-bridge@0.8.0"
+    "npm:pi-mcp-adapter@7.0.1",
+    "npm:pi-web-access@0.47.0",
+    "npm:pi-ollama@0.2.0",
+    "npm:pi-claude-bridge@0.10.0"
   ],
   "extensions": [
     "-builtin:mcp"
   ],
+  "defaultTools": ["+codemode"],
   "theme": "carbon-graphite",
   "editorPaddingX": 2,
   "outputPad": 1,

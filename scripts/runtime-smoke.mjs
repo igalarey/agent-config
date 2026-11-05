@@ -87,6 +87,7 @@ export function runtimeEnvironment(parent, { agentDir, home, temp, cwd = home })
     PI_CODING_AGENT_DIR: agentDir,
     PI_OFFLINE: '1',
     OLLAMA_HOST: 'http://127.0.0.1:1',
+    OLLAMA_NATIVE_WARM: '0',
     PI_TELEMETRY: '0',
     PI_RUN_LIVE_SUBAGENT_TESTS: '0',
     PI_RUN_BROWSER_TESTS: '0',
@@ -380,7 +381,8 @@ const packageTools = manifest => modernBase(manifest)
 const packageCommands = manifest => modernBase(manifest)
   ? ['agents', 'tasks', 'supervise', 'om', 'om:status', 'om:compact', 'om:consolidate'] : PACKAGE_COMMANDS;
 const WEB_TOOLS = ['web_search', 'fetch_content', 'get_search_content', 'source_check'];
-const deferredWeb = releasePath => JSON.parse(fs.readFileSync(path.join(releasePath, 'native/package.json'), 'utf8')).dependencies?.['pi-web-access'] === '0.32.0';
+const deferredWeb = releasePath => ['0.32.0', '0.47.0'].includes(JSON.parse(fs.readFileSync(path.join(releasePath, 'native/package.json'), 'utf8')).dependencies?.['pi-web-access']);
+const codemodeMcp = releasePath => JSON.parse(fs.readFileSync(path.join(releasePath, 'native/package.json'), 'utf8')).dependencies?.['pi-mcp-adapter'] === '7.0.1';
 const BROWSER_TOOLS = ['browser_goto', 'browser_read', 'browser_click', 'browser_fill', 'browser_screenshot', 'browser_close'];
 const INSPECT_PREFIX = 'AGENT_CONFIG_RUNTIME_INSPECT ';
 export const HISTORICAL_PROJECT_PROMPT_NAMES = ['compare-designs', 'diagnose', 'edit-document', 'review'];
@@ -440,7 +442,8 @@ function runRpc({ releasePath, manifest, host, env, agentDir, sessionDir, cwd, t
     fs.cpSync(path.join(releasePath, 'pi-skills'), path.join(agentDir, 'skills'), { recursive: true });
   }
   fs.writeFileSync(path.join(agentDir, 'settings.json'), JSON.stringify({
-    ...(nativeBase(manifest) ? { extensions: nativeSettings(releasePath).extensions } : {}),
+    ...(nativeBase(manifest) ? { extensions: nativeSettings(releasePath).extensions,
+      defaultTools: nativeSettings(releasePath).defaultTools } : {}),
     packages: [...manifest.packages.map(pkg => path.join(releasePath, pkg.path)), ...nativePackages(releasePath, manifest)],
   }));
   const inspector = path.join(temp, 'runtime-inspector.mjs');
@@ -595,11 +598,17 @@ export function assertOfficialLoaderEvidence(evidence, releasePath, manifest, ag
     }
   }
   if (nativeBase(manifest) || manifest.packages.some(pkg => pkg.name === 'pi-mcp')) {
-    for (const name of ['mcp', 'mcpScript']) {
+    const usesCodemode = nativeBase(manifest) && codemodeMcp(releasePath);
+    for (const name of usesCodemode ? ['mcp'] : ['mcp', 'mcpScript']) {
       assert(allTools.has(name) && activeTools.has(name), `Official Pi loader MCP tool missing or inactive: ${name}`);
       assertInsideRelease(releasePath, allTools.get(name).sourceInfo, `Tool ${name}`);
     }
-    for (const name of ['mcp', 'pi-mcp', 'mcp-auth']) {
+    if (usesCodemode) {
+      assert(!allTools.has('mcpScript'), 'Retired mcpScript tool loaded');
+      assert(activeTools.has('codemode') && allTools.get('codemode')?.sourceInfo?.source === 'builtin',
+        'Official Pi codemode missing, inactive, or replaced');
+    }
+    for (const name of ['mcp', usesCodemode ? 'mcp-adapter' : 'pi-mcp', 'mcp-auth']) {
       assert(commands.has(name), `Official Pi loader MCP command missing: ${name}`);
       assertInsideRelease(releasePath, commands.get(name).sourceInfo, `Command ${name}`);
     }

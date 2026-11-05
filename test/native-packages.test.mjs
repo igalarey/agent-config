@@ -65,8 +65,8 @@ test('native migration removes old wrappers only with explicit migration', t => 
   execute(planned);
   const packages = readJSON(path.join(home, '.pi/agent/settings.json')).packages;
   assert.ok(!packages.includes('old/pi-mcp') && !packages.includes('old/pi-web-fetch'));
-  assert.ok(packages.includes('npm:pi-mcp-adapter@2.33.0'));
-  assert.ok(packages.includes('npm:pi-web-access@0.32.0'));
+  assert.ok(packages.includes('npm:pi-mcp-adapter@7.0.1'));
+  assert.ok(packages.includes('npm:pi-web-access@0.47.0'));
 });
 
 test('npm prefix copies are verified and old prefixes are backed up', t => {
