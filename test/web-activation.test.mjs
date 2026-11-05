@@ -11,6 +11,6 @@ test('official Pi executes web_enable and exposes web tools on the next model re
   for (const folder of [home, agentDir, temp]) fs.mkdirSync(folder, { recursive: true });
   fs.copyFileSync(new URL('../config/web-search.json', import.meta.url), path.join(agentDir, 'web-search.json'));
   const env = runtimeEnvironment(process.env, { home, agentDir, temp, cwd: root });
-  const host = identifyInstalledPiHost('1.3.0', { env });
+  const host = identifyInstalledPiHost('1.5.0', { env });
   runWebActivationProbe({ host, env, cwd: root, temp, extension: path.join(extension, 'dist/index.js') });
 });

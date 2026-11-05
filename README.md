@@ -43,7 +43,7 @@ and host peers. Tasks and supervisor use the same arrangement. Historical releas
 
 ## Install
 
-Requirements: **Node 22.23.2**, npm, Git and **Pi 1.3.0** already installed.
+Requirements: **Node 22.23.2**, npm, Git and **Pi 1.5.0** already installed.
 The release seal binds exact Node, OS and architecture. This revision is verified on
 Linux; another platform must prepare and verify its own candidate. Bootstrap does not
 install Node/Pi, authenticate providers, or download Chrome, RTK or Python executables.
@@ -229,7 +229,7 @@ cost (`widgetMode: all`, `showModel`, `showCost`); `fleetView` is off.
 A `.pi/subagents.json` file in a project, including `~/.pi/subagents.json` when Pi
 starts in the home directory, applies only to that project.
 
-Completion notices stay cancellable until a Pi 1.3.0 turn boundary.
+Completion notices stay cancellable until a Pi 1.5.0 turn boundary.
 Results already collected do not create redundant notices or model requests.
 [Completion delivery](docs/notification-delivery.md) describes the pinned correction and SDK regression.
 

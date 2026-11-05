@@ -181,7 +181,7 @@ export function applyNotificationOverlay(content, overlay, commit, piVersion, ex
   const invalid = reason => { throw new Error(`Invalid notification overlay: ${reason}`); };
   if (!object(overlay) || overlay.schemaVersion !== 1 || overlay.path !== expectedPath
       || (expectedPath !== 'src/index.ts' && !NOTIFICATION_FIXTURE_PATHS.has(expectedPath))
-      || !['0.87.1', '1.3.0'].includes(overlay.piVersion) || piVersion !== overlay.piVersion
+      || !['0.87.1', '1.3.0', '1.5.0'].includes(overlay.piVersion) || piVersion !== overlay.piVersion
       || !/^[0-9a-f]{40}$/.test(overlay.commit ?? '') || overlay.commit !== commit
       || !validContentHash(overlay.originalSha256) || !validContentHash(overlay.resultSha256)
       || digest(content) !== overlay.originalSha256 || !Array.isArray(overlay.edits)
@@ -208,7 +208,7 @@ export function applyPackageMetadataOverlay(content, overlay, commit, piVersion)
   const invalid = () => { throw new Error('Invalid subagents package metadata overlay'); };
   if (!object(overlay) || overlay.schemaVersion !== 1
       || overlay.commit !== 'e955e29c51b7a6cce37e1108cd2d6c57a77e151c' || commit !== overlay.commit
-      || overlay.piVersion !== '1.3.0' || piVersion !== overlay.piVersion
+      || !['1.3.0', '1.5.0'].includes(overlay.piVersion) || piVersion !== overlay.piVersion
       || !['package.json', 'package-lock.json'].includes(overlay.path)
       || !validContentHash(overlay.originalSha256) || !validContentHash(overlay.resultSha256)
       || digest(content) !== overlay.originalSha256) invalid();

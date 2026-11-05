@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { identifyInstalledPiHost, runtimeEnvironment } from '../scripts/runtime-smoke.mjs';
 
-const VERSION = '1.3.0';
+const VERSION = '1.5.0';
 const repo = fileURLToPath(new URL('../', import.meta.url));
 
 test('real SDK delivers only unconsumed subagent completions at the next model boundary', { timeout: 60000 }, async t => {

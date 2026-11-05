@@ -10,7 +10,13 @@ const result = { ...original, dependencies: { croner: '^10.0.1' }, devDependenci
 const content = encode(original);
 const overlay = { schemaVersion: 1, commit, piVersion: '1.3.0', path: 'package.json', originalSha256: hash(content), resultSha256: hash(encode(result)) };
 test('package metadata transformation is explicit and hash-gated', () => {
-  assert.deepEqual(applyPackageMetadataOverlay(content, overlay, commit, '1.3.0'), encode(result));
+  for (const piVersion of ['1.3.0', '1.5.0']) {
+    assert.deepEqual(applyPackageMetadataOverlay(content, { ...overlay, piVersion }, commit, piVersion), encode(result));
+    assert.throws(() => applyPackageMetadataOverlay(content, { ...overlay, piVersion }, commit, '1.4.0'), /metadata overlay/);
+  }
+  for (const piVersion of ['0.87.1', '1.3.1', '1.4.0', '1.5.1', '2.0.0']) {
+    assert.throws(() => applyPackageMetadataOverlay(content, { ...overlay, piVersion }, commit, piVersion), /metadata overlay/);
+  }
   for (const patch of [{ path: 'src/index.ts' }, { commit: '0'.repeat(40) }, { piVersion: '0.87.1' }, { originalSha256: '0'.repeat(64) }, { resultSha256: '0'.repeat(64) }]) {
     assert.throws(() => applyPackageMetadataOverlay(content, { ...overlay, ...patch }, commit, '1.3.0'), /metadata overlay/);
   }

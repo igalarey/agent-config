@@ -524,13 +524,13 @@ test('notification overlay accepts only reviewed exact historical and current Pi
     originalSha256: hash(original), resultSha256: hash(expected),
     edits: [{ oldText: 'before', newText: 'after' }],
   };
-  for (const piVersion of ['0.87.1', '1.3.0']) {
+  for (const piVersion of ['0.87.1', '1.3.0', '1.5.0']) {
     const overlay = { ...base, piVersion };
     assert.equal(applyNotificationOverlay(original, overlay, base.commit, piVersion).toString(), expected);
     assert.throws(() => applyNotificationOverlay(original, overlay, base.commit, piVersion === '1.3.0' ? '0.87.1' : '1.3.0'), /notification overlay/i);
     assert.throws(() => applyNotificationOverlay(original + 'changed', overlay, base.commit, piVersion), /notification overlay/i);
   }
-  for (const piVersion of ['0.84.2', '0.87.2', '1.2.0', '1.3.1', '2.0.0']) {
+  for (const piVersion of ['0.84.2', '0.87.2', '1.2.0', '1.3.1', '1.4.0', '1.5.1', '2.0.0']) {
     assert.throws(() => applyNotificationOverlay(original, { ...base, piVersion }, base.commit, piVersion), /notification overlay/i);
   }
 });
