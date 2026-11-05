@@ -14,6 +14,7 @@ import type { TaskSortOrder } from "./task-sort.js";
 
 export interface TasksConfig {
   trustedProjects?: string[]; // user scope only: exact absolute workspace paths
+  workspaceSettings?: Record<string, TasksConfig>; // user-owned explicit menu choices
   // "session" keeps per-session files in the workspace; "session-global" keeps them
   // under the agent directory instead. Same scope, different home — see task-paths.ts.
   taskScope?: "memory" | "session" | "session-global" | "project";  // default: "session"
@@ -29,11 +30,13 @@ export interface TasksConfig {
 
 const differs = (a: unknown, b: unknown) => JSON.stringify(a) !== JSON.stringify(b);
 
-function readTasksConfig(configPath: string): TasksConfig {
+function readTasksConfig(configPath: string, strict = false): TasksConfig {
   try {
     const parsed: unknown = JSON.parse(readSafeTaskFile(configPath));
-    return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as TasksConfig : {};
-  } catch {
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error(`Invalid task configuration: ${configPath}`);
+    return parsed as TasksConfig;
+  } catch (error: any) {
+    if (strict && error.code !== "ENOENT") throw error;
     return {};
   }
 }
@@ -43,11 +46,11 @@ export function loadGlobalTasksConfig(agentDir = getAgentDir()): TasksConfig {
 }
 
 export function loadTasksConfig(cwd: string, agentDir = getAgentDir()): TasksConfig {
-  const { trustedProjects, ...globalConfig } = loadGlobalTasksConfig(agentDir);
+  const { trustedProjects, workspaceSettings, ...globalConfig } = loadGlobalTasksConfig(agentDir);
   const trusted = Array.isArray(trustedProjects) && trustedProjects.some(path =>
     typeof path === "string" && isAbsolute(path) && resolve(path) === resolve(cwd));
-  if (!trusted) return globalConfig;
-  const { trustedProjects: _ignored, ...projectConfig } = readTasksConfig(join(cwd, ".pi", "tasks-config.json"));
+  const { trustedProjects: _ignored, workspaceSettings: _ignoredSettings, ...projectConfig } = trusted
+    ? readTasksConfig(join(cwd, ".pi", "tasks-config.json")) : {};
   // Project settings may opt out, but only explicit user configuration enables automation.
   if (projectConfig.autoCascade !== false) delete projectConfig.autoCascade;
   const merged = { ...globalConfig, ...projectConfig };
@@ -58,7 +61,25 @@ export function loadTasksConfig(cwd: string, agentDir = getAgentDir()): TasksCon
   if (globalConfig.glyphs || projectConfig.glyphs) {
     merged.glyphs = { ...globalConfig.glyphs, ...projectConfig.glyphs };
   }
+  const choices = workspaceSettings?.[resolve(cwd)];
+  if (choices && typeof choices === "object" && !Array.isArray(choices)) {
+    const { trustedProjects: _trust, workspaceSettings: _settings, ...overrides } = choices;
+    return { ...merged, ...overrides };
+  }
   return merged;
+}
+
+export function saveUserTasksSetting<K extends Exclude<keyof TasksConfig, "trustedProjects" | "workspaceSettings">>(
+  cwd: string, key: K, value: TasksConfig[K], agentDir = getAgentDir(),
+): void {
+  const path = join(agentDir, "tasks-config.json");
+  const config = readTasksConfig(path, true);
+  const workspace = resolve(cwd);
+  config.workspaceSettings = {
+    ...config.workspaceSettings,
+    [workspace]: { ...config.workspaceSettings?.[workspace], [key]: value },
+  };
+  writeSafeTaskFile(path, JSON.stringify(config, null, 2));
 }
 
 export function saveTasksConfig(config: TasksConfig, cwd: string, agentDir = getAgentDir()): void {
@@ -68,7 +89,7 @@ export function saveTasksConfig(config: TasksConfig, cwd: string, agentDir = get
   // matched by value; for the primitives this config holds it is equivalent to !==.
   const projectOverrides: Record<string, unknown> = Object.fromEntries(
     Object.entries(config).filter(([key, value]) =>
-      key !== "glyphs" && key !== "trustedProjects" && differs(globalConfig[key as keyof TasksConfig], value)
+      key !== "glyphs" && key !== "trustedProjects" && key !== "workspaceSettings" && differs(globalConfig[key as keyof TasksConfig], value)
     ),
   );
   // Glyphs are diffed one by one to match how they are merged. Comparing the group

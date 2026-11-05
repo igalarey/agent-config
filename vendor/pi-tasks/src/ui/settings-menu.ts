@@ -9,7 +9,7 @@
 import { getSettingsListTheme } from "@earendil-works/pi-coding-agent";
 import { Container, type SettingItem, SettingsList, Spacer, Text } from "@earendil-works/pi-tui";
 import { BUILT_IN_SORT_ORDERS } from "../task-sort.js";
-import { saveTasksConfig, type TasksConfig } from "../tasks-config.js";
+import { saveUserTasksSetting, type TasksConfig } from "../tasks-config.js";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -122,36 +122,36 @@ export async function openSettingsMenu(
       getSettingsListTheme(),
       /* onChange */ (id, newValue) => {
         if (id === "autoCascade") {
+          saveUserTasksSetting(cwd, "autoCascade", newValue === "on");
           cfg.autoCascade = newValue === "on";
-          saveTasksConfig(cfg, cwd);
         }
         if (id === "taskScope") {
+          saveUserTasksSetting(cwd, "taskScope", newValue as TasksConfig["taskScope"]);
           cfg.taskScope = newValue as TasksConfig["taskScope"];
-          saveTasksConfig(cfg, cwd);
         }
         if (id === "autoClearCompleted") {
+          saveUserTasksSetting(cwd, "autoClearCompleted", newValue as TasksConfig["autoClearCompleted"]);
           cfg.autoClearCompleted = newValue as TasksConfig["autoClearCompleted"];
-          saveTasksConfig(cfg, cwd);
         }
         if (id === "collapseCompleted") {
+          saveUserTasksSetting(cwd, "collapseCompleted", newValue === "on");
           cfg.collapseCompleted = newValue === "on";
-          saveTasksConfig(cfg, cwd);
         }
         if (id === "showAll") {
+          saveUserTasksSetting(cwd, "showAll", newValue === "on");
           cfg.showAll = newValue === "on";
-          saveTasksConfig(cfg, cwd);
         }
         if (id === "maxVisible") {
+          saveUserTasksSetting(cwd, "maxVisible", Number(newValue));
           cfg.maxVisible = Number(newValue);
-          saveTasksConfig(cfg, cwd);
         }
         if (id === "sortOrder") {
+          saveUserTasksSetting(cwd, "sortOrder", newValue as TasksConfig["sortOrder"]);
           cfg.sortOrder = newValue as TasksConfig["sortOrder"];
-          saveTasksConfig(cfg, cwd);
         }
         if (id === "hiddenAt") {
+          saveUserTasksSetting(cwd, "hiddenAt", newValue as "top" | "bottom");
           cfg.hiddenAt = newValue as "top" | "bottom";
-          saveTasksConfig(cfg, cwd);
         }
       },
       /* onCancel */ () => done(undefined),
@@ -163,7 +163,7 @@ export async function openSettingsMenu(
     }
 
     const root = new SettingsPanel();
-    root.addChild(new Text(theme.bold(theme.fg("accent", "⚙  Task Settings")), 0, 0));
+    root.addChild(new Text(theme.bold(theme.fg("accent", "⚙  Task Settings (user scope, this workspace)")), 0, 0));
     root.addChild(new Spacer(1));
     root.addChild(list);
 

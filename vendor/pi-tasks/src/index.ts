@@ -1085,6 +1085,7 @@ Set up task dependencies:
         }
         const task = store.get(resolvedId);
         if (task?.metadata?.agentId && task.status === "in_progress") {
+          agentTaskMap.delete(task.metadata.agentId);
           store.update(resolvedId, { status: "completed" });
           autoClear.trackCompletion(resolvedId, cadence.currentTurn);
           await stopSubagent(task.metadata.agentId);

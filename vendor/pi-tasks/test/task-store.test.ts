@@ -586,28 +586,28 @@ describe("TaskStore (malformed files)", () => {
     expect(new TaskStore(file).create("Next", "d").id).toBe("6");
   });
 
-  it("keeps the tasks it has when the file has no task array", () => {
+  it("fails closed when the file has no task array", () => {
     const store = new TaskStore(file);
     store.create("Keep me", "d");
     writeFileSync(file, JSON.stringify({ nextId: 5 }));
 
-    expect(store.list().map(t => t.subject)).toEqual(["Keep me"]);
+    expect(() => store.list()).toThrow(/Invalid task store/);
   });
 
-  it("keeps the tasks it has when the file is not valid JSON", () => {
+  it("fails closed when the file is not valid JSON", () => {
     const store = new TaskStore(file);
     store.create("Keep me", "d");
     writeFileSync(file, "{ this is not json");
 
-    expect(store.list().map(t => t.subject)).toEqual(["Keep me"]);
+    expect(() => store.list()).toThrow(/Invalid task store/);
   });
 
-  it("keeps the tasks it has when the file holds a JSON array", () => {
+  it("fails closed when the file holds a JSON array", () => {
     const store = new TaskStore(file);
     store.create("Keep me", "d");
     writeFileSync(file, JSON.stringify([{ id: "1" }]));
 
-    expect(store.list().map(t => t.subject)).toEqual(["Keep me"]);
+    expect(() => store.list()).toThrow(/Invalid task store/);
   });
 
   it("skips entries that are not task records", () => {

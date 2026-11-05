@@ -69,6 +69,32 @@ describe("Auto-cascade (enabled)", () => {
     expect(b.content[0].text).toContain('"agentId":"agent-2"');
   });
 
+  it("ignores completion while an explicit stop is awaiting acknowledgment", async () => {
+    await createAgentTask("A");
+    await createAgentTask("B");
+    await mock.executeTool("TaskUpdate", { taskId: "2", addBlockedBy: ["1"] });
+    await mock.executeTool("TaskExecute", { task_ids: ["1"] });
+    rpc.unsub();
+    let requestId: string | undefined;
+    const unsubscribe = mock.pi.events.on("subagents:rpc:stop", (data: any) => { requestId = data.requestId; });
+    const pending = mock.executeTool("TaskStop", { task_id: "1" });
+    try {
+      await flush();
+      expect(requestId).toBeDefined();
+      const lateRpc = installSubagentsMock(mock.pi);
+      try {
+        mock.emitEvent("subagents:completed", { id: "agent-1", result: "late" });
+        await flush();
+        expect(lateRpc.spawned).toHaveLength(0);
+        expect((await mock.executeTool("TaskGet", { taskId: "2" })).content[0].text).toContain("Status: pending");
+      } finally { lateRpc.unsub(); }
+    } finally {
+      mock.emitEvent(`subagents:rpc:stop:reply:${requestId}`, { success: true });
+      await pending;
+      unsubscribe();
+    }
+  });
+
   it("carries the launch model and turn limit into cascaded agents", async () => {
     await createAgentTask("Task A");
     await createAgentTask("Task B");

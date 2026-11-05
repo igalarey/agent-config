@@ -179,7 +179,7 @@ export class TaskStore {
    * but has no `tasks` array or no usable `nextId`, and both used to corrupt the
    * store: the missing array threw mid-load and left it wiped, and the missing
    * counter produced the task ID "NaN", then IDs restarting at "0" and colliding
-   * with live tasks. Anything unusable now leaves the current state alone.
+   * with live tasks. An invalid envelope or JSON fails closed before any mutation.
    */
   private load(): void {
     if (!this.filePath) return;
@@ -188,9 +188,9 @@ export class TaskStore {
     const contents = readSafeTaskFile(this.filePath);
     try {
       const data: unknown = JSON.parse(contents);
-      if (!data || typeof data !== "object") return;
+      if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Invalid envelope");
       const { nextId, tasks } = data as Partial<TaskStoreData>;
-      if (!Array.isArray(tasks)) return;
+      if (!Array.isArray(tasks)) throw new Error("Missing task array");
 
       // Build the replacement before touching the live state, so a bad record
       // can't leave the store half-loaded.
@@ -206,7 +206,9 @@ export class TaskStore {
       // Every future task ID comes from this counter, so it has to clear the IDs
       // already in use — whether the file omitted it or recorded a stale one.
       this.nextId = typeof nextId === "number" && Number.isInteger(nextId) && nextId > maxId ? nextId : maxId + 1;
-    } catch { /* unreadable or not JSON — keep the state we have */ }
+    } catch {
+      throw new Error(`Invalid task store: ${this.filePath}. Restore or repair the file before continuing.`);
+    }
   }
 
   /** Write store to disk atomically (file-backed mode only). */

@@ -11,6 +11,16 @@ let file: string;
 beforeEach(() => { root = fs.mkdtempSync(join(tmpdir(), "tasks-security-")); file = join(root, "tasks.json"); });
 afterEach(() => { vi.restoreAllMocks(); fs.rmSync(root, { recursive: true, force: true }); });
 
+it.each(["{partial", '{"nextId":7}', "[]", "null"])("preserves corrupt bytes on fresh and loaded mutations: %s", (bytes) => {
+  const loaded = new TaskStore(file);
+  loaded.create("original", "");
+  fs.writeFileSync(file, bytes);
+  expect(() => loaded.create("replacement", "")).toThrow(/invalid task store/i);
+  expect(fs.readFileSync(file, "utf8")).toBe(bytes);
+  expect(() => new TaskStore(file).create("replacement", "")).toThrow(/invalid task store/i);
+  expect(fs.readFileSync(file, "utf8")).toBe(bytes);
+});
+
 it("ignores a planted predictable temporary without touching its victim", () => {
   const victim = join(root, "victim");
   fs.writeFileSync(victim, "canary");
