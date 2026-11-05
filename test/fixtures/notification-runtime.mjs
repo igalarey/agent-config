@@ -32,8 +32,20 @@ function parentFinal(notices) {
 const loader = new DefaultResourceLoader({
   cwd: process.env.PWD, agentDir: process.env.PI_CODING_AGENT_DIR,
   noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true,
-  additionalExtensionPaths: [source],
+  additionalExtensionPaths: [path.join(import.meta.dirname, 'notification-earlier.mjs'), source],
   extensionFactories: [pi => {
+    pi.on('turn_end', async (event, ctx) => {
+      if (phase?.name !== 'consumed-discarded') return;
+      const proposed = event.entries.filter(entry => entry.type === 'custom_message' && entry.customType === 'subagent-notification');
+      if (!proposed.length) return;
+      phase.discarded = true;
+      for (const child of phase.children) {
+        const result = await session.getToolDefinition('get_subagent_result').execute(`discard-consume-${child.id}`, { agent_id: child.id, wait: true }, undefined, undefined, ctx);
+        assert.match(text(result), new RegExp(child.token));
+        child.consumedAt = performance.now();
+      }
+      return { entries: event.entries.filter(entry => !proposed.includes(entry)) };
+    });
     pi.events.on('subagents:completed', event => {
       const child = phase.children.find(child => event.description === child.description);
       assert(child, 'unexpected real subagents:completed event');
@@ -125,7 +137,7 @@ const loader = new DefaultResourceLoader({
           for (const child of phase.children) child.release.resolve();
           await Promise.all(phase.children.map(child => child.completed.promise));
           if (phase.name !== 'consumed-immediate') await sleep(510);
-          if (phase.name.startsWith('consumed-')) for (const child of phase.children) await consume(child);
+          if (phase.name.startsWith('consumed-') && phase.name !== 'consumed-discarded') for (const child of phase.children) await consume(child);
         }
         phase.toolActive = false;
         return { content: [{ type: 'text', text: `PARENT_TOOL_DONE_${phase.name}` }], details: undefined };
@@ -144,7 +156,7 @@ try {
     if (event.type === 'message_end' && isNotification(event.message)) notificationEvents.push(event.type);
     if (event.type === 'entry_appended' && event.entry.type === 'custom_message' && event.entry.customType === 'subagent-notification') notificationEvents.push(event.type);
   });
-  for (const name of ['consumed-delayed', 'consumed-immediate', 'unconsumed-batch', 'group-partial', 'idle-wake', 'shutdown']) {
+  for (const name of ['consumed-delayed', 'consumed-immediate', 'consumed-discarded', 'unconsumed-batch', 'group-partial', 'idle-wake', 'shutdown']) {
     phase = { name, parentRequests: 0, modelNotifications: [], finalRequest: deferred(), children: Array.from({ length: name === 'group-partial' ? 2 : 1 }, (_, i) => ({
       description: `Notification fixture ${name} ${i}`, token: `CHILD_RESULT_${name}_${i}`, requests: 0,
       release: deferred(), started: deferred(), completed: deferred(),
@@ -168,9 +180,13 @@ try {
     const messages = session.sessionManager.getBranch().slice(start).flatMap(entry => entry.type === 'message' ? [entry.message]
       : entry.type === 'custom_message' ? [{ ...entry, role: 'custom' }] : []);
     const notifications = messages.filter(isNotification);
+    const earlier = messages.filter(message => message.customType === 'notification-fixture-earlier');
+    assert.equal(earlier.length, name === 'idle-wake' || name === 'shutdown' ? 0 : 1, `${name}: earlier handler entry was lost`);
+    if (earlier.length && notifications.length) assert(messages.indexOf(earlier[0]) < messages.indexOf(notifications[0]), 'notification replaced or reordered earlier entries');
     const expectedNotices = name.startsWith('consumed-') || name === 'shutdown' ? 0 : 1;
     assert.equal(notifications.length, expectedNotices, `${name}: consumed/shutdown results must not notify, unconsumed results must notify exactly once`);
     assert.equal(notificationEvents.length - eventStart, expectedNotices, `${name}: public notification events disagree with committed transcript`);
+    if (name === 'consumed-discarded') assert.equal(phase.discarded, true, 'competing handler never saw a cancellable proposal');
     if (name === 'group-partial') assert.match(text(notifications[0]), /Background agent group completed/);
     assert.equal(phase.parentRequests, name === 'shutdown' || name === 'group-partial' ? 2 : 3, `${name}: unexpected model request count`);
     assert(phase.children.every(child => child.requests === 1), `${name}: child request budget mismatch`);

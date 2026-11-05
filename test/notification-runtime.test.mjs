@@ -18,11 +18,19 @@ test('real SDK delivers only unconsumed subagent completions at the next model b
     const cwd = path.join(root, 'cwd'), temp = path.join(root, 'tmp');
     for (const dir of [home, agentDir, cwd, temp]) fs.mkdirSync(dir, { recursive: true });
     const env = { ...runtimeEnvironment(process.env, { home, agentDir, cwd, temp }), PI_E2E_LIVE: '0', JITI_FS_CACHE: path.join(temp, 'jiti') };
+    const sourceOverride = process.env.PI_NOTIFICATION_SOURCE_PATH;
     const explicit = process.env.PI_NOTIFICATION_RELEASE_PATH;
+    assert(!(sourceOverride && explicit), 'select a source worktree or a release, not both');
     let host, release, pkg;
     try {
       host = identifyInstalledPiHost(VERSION, { env });
-      if (explicit !== undefined) {
+      if (sourceOverride !== undefined) {
+        assert(sourceOverride.trim(), 'PI_NOTIFICATION_SOURCE_PATH must not be empty');
+        release = path.resolve(sourceOverride);
+        pkg = { path: '.', commit: 'source-worktree' };
+        assert(fs.statSync(path.join(release, 'src/index.ts')).isFile());
+        assert(fs.statSync(path.join(release, 'node_modules')).isDirectory());
+      } else if (explicit !== undefined) {
         assert(explicit.trim(), 'PI_NOTIFICATION_RELEASE_PATH must not be empty');
         release = path.resolve(explicit);
       } else {
@@ -31,26 +39,28 @@ test('real SDK delivers only unconsumed subagent completions at the next model b
         assert.equal(path.basename(state.release), state.release);
         release = path.join(os.homedir(), '.agent-config', 'releases', state.release);
       }
-      const metadata = JSON.parse(fs.readFileSync(path.join(release, 'release.json'), 'utf8'));
-      if (metadata.piVersion !== VERSION && explicit === undefined) {
-        t.skip(`active release targets historical Pi ${metadata.piVersion}; set PI_NOTIFICATION_RELEASE_PATH to a ${VERSION} candidate`);
-        return;
+      if (!sourceOverride) {
+        const metadata = JSON.parse(fs.readFileSync(path.join(release, 'release.json'), 'utf8'));
+        if (metadata.piVersion !== VERSION && explicit === undefined) {
+          t.skip(`active release targets historical Pi ${metadata.piVersion}; set PI_NOTIFICATION_RELEASE_PATH to a ${VERSION} candidate`);
+          return;
+        }
+        assert.equal(metadata.piVersion, VERSION);
+        pkg = metadata.packages.find(entry => entry.name === '@tintinweb/pi-subagents');
+        if (!pkg && explicit === undefined) {
+          t.skip('optional real subagents package unavailable in active release');
+          return;
+        }
+        assert(pkg, 'release has no real subagents package');
+        assert.equal(typeof pkg.commit, 'string');
+        assert.equal(typeof pkg.path, 'string');
+        const relative = path.relative(release, path.resolve(release, pkg.path));
+        assert(relative && !relative.startsWith('..') && !path.isAbsolute(relative), 'package escapes release');
+        assert(fs.statSync(path.join(release, pkg.path, 'src/index.ts')).isFile());
+        assert(fs.statSync(path.join(release, pkg.path, 'node_modules')).isDirectory());
       }
-      assert.equal(metadata.piVersion, VERSION);
-      pkg = metadata.packages.find(entry => entry.name === '@tintinweb/pi-subagents');
-      if (!pkg && explicit === undefined) {
-        t.skip('optional real subagents package unavailable in active release');
-        return;
-      }
-      assert(pkg, 'release has no real subagents package');
-      assert.equal(typeof pkg.commit, 'string');
-      assert.equal(typeof pkg.path, 'string');
-      const relative = path.relative(release, path.resolve(release, pkg.path));
-      assert(relative && !relative.startsWith('..') && !path.isAbsolute(relative), 'package escapes release');
-      assert(fs.statSync(path.join(release, pkg.path, 'src/index.ts')).isFile());
-      assert(fs.statSync(path.join(release, pkg.path, 'node_modules')).isDirectory());
     } catch (error) {
-      if (explicit !== undefined || (error.code !== 'ENOENT' && !error.message.startsWith(`Installed Pi host ${VERSION} was not found`))) throw error;
+      if (sourceOverride !== undefined || explicit !== undefined || (error.code !== 'ENOENT' && !error.message.startsWith(`Installed Pi host ${VERSION} was not found`))) throw error;
       t.skip(`optional installed Pi/subagents runtime unavailable: ${error.message}`);
       return;
     }
@@ -60,7 +70,7 @@ test('real SDK delivers only unconsumed subagent completions at the next model b
     fs.copyFileSync(path.join(source, 'package.json'), path.join(fixture, 'package.json'));
     fs.symlinkSync(path.join(source, 'node_modules'), path.join(fixture, 'node_modules'), 'dir');
     const overlayFile = path.join(repo, 'manifests', 'subagents-notifications.json');
-    if (fs.existsSync(overlayFile)) {
+    if (!sourceOverride && fs.existsSync(overlayFile)) {
       const overlay = JSON.parse(fs.readFileSync(overlayFile, 'utf8'));
       const index = path.join(fixture, 'src', 'index.ts');
       assert.equal(overlay.schemaVersion, 1);
@@ -78,7 +88,9 @@ test('real SDK delivers only unconsumed subagent completions at the next model b
     }
     fs.mkdirSync(path.join(agentDir, 'agents'));
     fs.writeFileSync(path.join(agentDir, 'agents', 'notification-child.md'), '---\nname: notification-child\ndescription: Offline notification fixture\ntools: read\nskills: false\nextensions: []\nallowed_subagents: none\nmax_turns: 10\n---\nReturn the requested fixture token without tools.\n');
-    fs.copyFileSync(path.join(repo, 'config', 'subagents.json'), path.join(agentDir, 'subagents.json'));
+    const settings = JSON.parse(fs.readFileSync(path.join(repo, 'config', 'subagents.json'), 'utf8'));
+    assert.equal(settings.defaultJoinMode, 'group', 'harness must explicitly retain grouped delivery');
+    fs.writeFileSync(path.join(agentDir, 'subagents.json'), JSON.stringify(settings));
     const run = spawnSync(process.execPath, [path.join(repo, 'test', 'fixtures', 'notification-runtime.mjs'), host.packageRoot, path.join(fixture, 'src', 'index.ts')], {
       env, cwd, encoding: 'utf8', timeout: 50000, shell: false, maxBuffer: 4 * 1024 * 1024,
     });

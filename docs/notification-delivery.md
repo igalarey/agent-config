@@ -1,13 +1,33 @@
 # Subagent completion delivery
 
-## Cause and correction
+## Candidate source adaptation
 
-The pinned subagent source is `e955e29c51b7a6cce37e1108cd2d6c57a77e151c`.
+The modern candidate uses a local source fork of upstream `50460b5df6934c4237983a504808a04ee0f8a0a0` (0.23.1).
+Notification adaptation commit: `59881993d3e4a5b2000a31e37aea5ab871d09438`.
+Its existing `CompletionOutbox` owns delivery. There is no second backlog or notification overlay.
+The release recipe and source map must pin the reviewed fork commit before candidate preparation.
+This document does not record an activation of that candidate.
+
+The outbox builds notifications from completion snapshots, not records that a resumed agent can change.
+Each queued completion receives a unique generation key.
+`turn_end` and `agent_before_settle` propose entries and preserve entries from earlier handlers.
+Only a matching receipt in the current session branch acknowledges delivery.
+If a later handler discards the proposal, the result remains pending and cancellable.
+
+The idle timer checks `ctx.isIdle()` immediately before sending.
+Shutdown closes the outbox and group timers before aborting children.
+Consumed group members count as finished, but their results do not appear in notifications.
+The harness explicitly selects `defaultJoinMode: "group"` because upstream now treats `smart` as independent completion delivery.
+Concurrency, models, nesting restrictions, and disabled worktree automation remain unchanged.
+
+## Historical overlay correction
+
+The historical subagent source is `e955e29c51b7a6cce37e1108cd2d6c57a77e151c`.
 Its completion timer sends a `followUp` after 200 ms.
 Pi cannot retract that queued message after a caller reads the result.
 The notification can therefore arrive after the parent response and cause another model request.
 
-`manifests/subagents-notifications.json` contains the local correction for Pi 1.5.0.
+The historical `manifests/subagents-notifications.json` contains the local correction for Pi 1.5.0.
 The release builder also accepts the Pi 0.87.1 and 1.3.0 manifests for historical candidates.
 Release preparation checks the source commit, original SHA-256, result SHA-256, and each replacement.
 The installer never changes a source checkout or an activated release.
@@ -44,16 +64,30 @@ The root command is:
 node --test test/notification-runtime.test.mjs
 ```
 
-The six phases cover:
+The seven phases cover:
 
 - Immediate result collection: no notification or extra model request.
 - Collection 500 ms after completion: no notification or extra model request.
+- A competing handler discards a proposed entry and consumes the result: no notification or extra model request.
 - Unread completion during a tool batch: one notification before the next parent response.
 - A group with one consumed member: only the unread member reaches the parent.
 - Completion after the parent becomes idle: one automatic wake.
 - Shutdown with a pending completion: no wake after shutdown.
 
-The test reports exact request counts and zero network calls.
+The test also verifies that completion proposals preserve entries from an earlier handler.
+It reports exact request counts and zero network calls.
+The source suite covers background and foreground resume before delivery, including preservation of the earlier result snapshot.
+
+For a development worktree with prepared dependencies, run:
+
+```sh
+PI_NOTIFICATION_SOURCE_PATH=/absolute/path/to/subagents-worktree \
+  node --test test/notification-runtime.test.mjs
+```
+
+This mode copies source into a temporary fixture without applying an overlay or reading private release state.
+It tests the working tree, not release integrity. Source and release overrides are mutually exclusive.
+
 An explicit candidate command checks the candidate source without applying a fixture patch:
 
 ```sh
@@ -61,10 +95,29 @@ PI_NOTIFICATION_RELEASE_PATH="$HOME/.agent-config/releases/<release-id>" \
   node --test test/notification-runtime.test.mjs
 ```
 
+Run source checks with a temporary `HOME`, `PI_CODING_AGENT_DIR`, and `TMPDIR` in a clean environment.
+Set `PI_OFFLINE=1`, `PI_E2E_LIVE=0`, and `PI_RUN_LIVE_SUBAGENT_TESTS=0`.
+`test/agent-runner-e2e.test.ts` creates real resource loaders without a global temporary home in its outer fixture.
+Its `activeToolsFor` helper can load installed extension factories before scope filters apply.
+Offline flags alone do not prevent that lookup. The isolated environment is required, not warning suppression.
+
 The release gates still include the complete upstream suites and official CLI/RPC checks.
 The SDK scenario does not establish every abort, recovery, branch-switch, or long-running group combination.
 
-## Verified activation
+## Candidate notification verification
+
+On 2026-11-05, the notification fork passed these checks without activation:
+
+- Isolated `npm run check`: lint and typecheck passed, 123 test files passed, 2,537 tests passed, 7 skipped.
+- Focused harness checks: 9 passed, including seven SDK phases and zero network calls.
+- Resume-before-send tests preserved the first result across foreground and background resumes.
+- A receipt-generation mutation failed the regression. Restoring the exact comparison passed the focused tests again.
+
+The source suite still prints its existing Vite config-loader deprecation warning.
+There were no global-resource warnings in the isolated run.
+These results do not verify the separate workflow accounting, capability persistence, or final release integration changes.
+
+## Historical verified activation
 
 On 2026-09-30, release `h-093d44899937-s-e955e29c51b7-m-bc1eba141a47` passed verification and became active.
 Its source commit is `093d44899937`.

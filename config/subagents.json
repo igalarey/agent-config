@@ -1,4 +1,5 @@
 {
+  "defaultJoinMode": "group",
   "worktreeIsolation": false,
   "maxSubagentDepth": 1,
   "maxConcurrent": 6,
