@@ -1,5 +1,4 @@
 import {
-	keyHint,
 	truncateToVisualLines,
 	type Theme,
 	type ToolDefinition,
@@ -100,6 +99,7 @@ class CompactTextResult implements Component {
 	private theme!: Theme;
 	private isError = false;
 	private includeBashWarnings = false;
+	private keyHint!: ToolRenderContext["keyHint"];
 
 	setData(
 		result: ToolResult,
@@ -107,12 +107,14 @@ class CompactTextResult implements Component {
 		theme: Theme,
 		isError: boolean,
 		includeBashWarnings: boolean,
+		keyHint: ToolRenderContext["keyHint"],
 	): void {
 		this.result = result;
 		this.options = options;
 		this.theme = theme;
 		this.isError = isError;
 		this.includeBashWarnings = includeBashWarnings;
+		this.keyHint = keyHint;
 	}
 
 	render(width: number): string[] {
@@ -138,7 +140,7 @@ class CompactTextResult implements Component {
 		if (skipped > 0) {
 			const hint =
 				this.theme.fg("muted", `… ${skipped} líneas más · `) +
-				keyHint("app.tools.expand", "para expandir");
+				this.keyHint("app.tools.expand", "para expandir");
 			rendered.unshift(truncateToWidth(hint, width));
 		}
 
@@ -267,16 +269,16 @@ function fallbackCall(definition: AnyToolDefinition, args: any, theme: Theme): C
 	return new Text(text, 0, 0);
 }
 
-function bashCall(args: any, theme: Theme, expanded: boolean): Component {
+function bashCall(args: any, theme: Theme, context: ToolRenderContext): Component {
 	const command = typeof args?.command === "string" ? args.command : "...";
 	let text = `${theme.fg("dim", "$")} ${theme.fg("syntaxFunction", command)}`;
 	if (args?.timeout !== undefined) text += theme.fg("muted", ` (timeout ${args.timeout}s)`);
 	return {
 		render(width) {
 			const lines = wrapTextWithAnsi(text, width);
-			if (expanded || lines.length <= 3) return lines;
+			if (context.expanded || lines.length <= 3) return lines;
 			return [...lines.slice(0, 3), truncateToWidth(
-				theme.fg("muted", `… ${lines.length - 3} líneas de comando · `) + keyHint("app.tools.expand", "para expandir"), width,
+				theme.fg("muted", `… ${lines.length - 3} líneas de comando · `) + context.keyHint("app.tools.expand", "para expandir"), width,
 			)];
 		},
 		invalidate() {},
@@ -314,7 +316,7 @@ export function decorateToolDefinition<T extends AnyToolDefinition>(definition: 
 			const state = getState(context, theme);
 			let call: Component;
 			if (definition.name === "bash") {
-				call = bashCall(args, theme, context.expanded);
+				call = bashCall(args, theme, context);
 			} else if (nativeRenderCall) {
 				try {
 					call = nativeRenderCall(args, theme, nativeContext(context, state, state.nativeCall));
@@ -336,7 +338,7 @@ export function decorateToolDefinition<T extends AnyToolDefinition>(definition: 
 			if (definition.name === "bash" || !nativeRenderResult) {
 				const component = state.textResult ?? new CompactTextResult();
 				state.textResult = component;
-				component.setData(result, options, theme, context.isError, definition.name === "bash");
+				component.setData(result, options, theme, context.isError, definition.name === "bash", context.keyHint);
 				rendered = component;
 			} else {
 				try {
@@ -351,7 +353,7 @@ export function decorateToolDefinition<T extends AnyToolDefinition>(definition: 
 					state.nativeResult = undefined;
 					const component = state.textResult ?? new CompactTextResult();
 					state.textResult = component;
-					component.setData(result, options, theme, context.isError, false);
+					component.setData(result, options, theme, context.isError, false, context.keyHint);
 					rendered = component;
 				}
 			}

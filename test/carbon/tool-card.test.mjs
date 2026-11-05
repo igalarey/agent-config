@@ -297,6 +297,28 @@ test("long multiline commands stay compact and expand with their output", () => 
 	assert.equal(expanded.match(/Output/gu)?.length, 1);
 });
 
+test("collapsed command and result hints use the injected host keybindings", () => {
+	for (const name of ["bash", "external_task"]) {
+		const definition = decorateToolDefinition({ name, execute: async () => ({ content: [] }) });
+		const context = {
+			state: {}, expanded: false, isPartial: false, isError: false,
+			keyHint: (action, description) => {
+				assert.equal(action, "app.tools.expand");
+				return `alt+shift+e ${description}`;
+			},
+		};
+		const card = definition.renderCall({ command: "echo one\necho two\necho three\necho four" }, dark, context);
+		if (name === "bash") assert.match(plain(card).join("\n"), /alt\+shift\+e para expandir/u);
+		definition.renderResult({ content: [{ type: "text", text: "1\n2\n3\n4\n5\n6" }] },
+			{ expanded: false, isPartial: false }, dark, context);
+		assert.match(plain(card).join("\n"), /alt\+shift\+e para expandir/u);
+		context.keyHint = (_action, description) => `ctrl+shift+y ${description}`;
+		definition.renderResult({ content: [{ type: "text", text: "1\n2\n3\n4\n5\n6" }] },
+			{ expanded: false, isPartial: false }, dark, context);
+		assert.match(plain(card).join("\n"), /ctrl\+shift\+y para expandir/u);
+	}
+});
+
 test("CarbonToolCard is directly exportable", () => {
 	const card = new CarbonToolCard(dark);
 	card.setCall({ render: () => ["direct"], invalidate() {} });
