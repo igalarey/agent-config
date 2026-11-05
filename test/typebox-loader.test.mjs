@@ -85,10 +85,10 @@ test('official Pi 1.5 loader shares host TypeBox identities with corrected host 
   const host = identifyInstalledPiHost('1.5.0', { env });
   const typebox = resolvePiHostDependency(host, 'typebox');
   const packages = [
-    ['packages/@tintinweb/pi-subagents', '@tintinweb/pi-subagents', '0.19.0'],
+    ['packages/@tintinweb/pi-subagents', '@tintinweb/pi-subagents', '0.23.1'],
     ['packages/@tintinweb/pi-tasks', '@tintinweb/pi-tasks', '0.9.0'],
     ['packages/pi-supervisor', 'pi-supervisor', '0.5.0'],
-    ['native/node_modules/pi-web-access', 'pi-web-access', '0.32.0'],
+    ['native/node_modules/pi-web-access', 'pi-web-access', '0.47.0'],
   ];
   const probes = packages.map(([relative, name, version], i) => {
     const source = path.join(releasePath, relative);
