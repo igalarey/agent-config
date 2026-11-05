@@ -6,13 +6,14 @@
 // expressed as JSON sort specs — see task-sort.ts; the glyphs tasks are drawn with
 // are plain JSON strings — see task-glyphs.ts.
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
+import { readSafeTaskFile, writeSafeTaskFile } from "./task-store.js";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import type { TaskGlyphsConfig } from "./task-glyphs.js";
 import type { TaskSortOrder } from "./task-sort.js";
 
 export interface TasksConfig {
+  trustedProjects?: string[]; // user scope only: exact absolute workspace paths
   // "session" keeps per-session files in the workspace; "session-global" keeps them
   // under the agent directory instead. Same scope, different home — see task-paths.ts.
   taskScope?: "memory" | "session" | "session-global" | "project";  // default: "session"
@@ -30,7 +31,7 @@ const differs = (a: unknown, b: unknown) => JSON.stringify(a) !== JSON.stringify
 
 function readTasksConfig(configPath: string): TasksConfig {
   try {
-    const parsed: unknown = JSON.parse(readFileSync(configPath, "utf-8"));
+    const parsed: unknown = JSON.parse(readSafeTaskFile(configPath));
     return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as TasksConfig : {};
   } catch {
     return {};
@@ -42,8 +43,13 @@ export function loadGlobalTasksConfig(agentDir = getAgentDir()): TasksConfig {
 }
 
 export function loadTasksConfig(cwd: string, agentDir = getAgentDir()): TasksConfig {
-  const globalConfig = loadGlobalTasksConfig(agentDir);
-  const projectConfig = readTasksConfig(join(cwd, ".pi", "tasks-config.json"));
+  const { trustedProjects, ...globalConfig } = loadGlobalTasksConfig(agentDir);
+  const trusted = Array.isArray(trustedProjects) && trustedProjects.some(path =>
+    typeof path === "string" && isAbsolute(path) && resolve(path) === resolve(cwd));
+  if (!trusted) return globalConfig;
+  const { trustedProjects: _ignored, ...projectConfig } = readTasksConfig(join(cwd, ".pi", "tasks-config.json"));
+  // Project settings may opt out, but only explicit user configuration enables automation.
+  if (projectConfig.autoCascade !== false) delete projectConfig.autoCascade;
   const merged = { ...globalConfig, ...projectConfig };
   // `glyphs` is a group of independent settings, not one value, so it merges a level
   // deeper than the rest: a project file overriding one glyph keeps the global ones.
@@ -62,7 +68,7 @@ export function saveTasksConfig(config: TasksConfig, cwd: string, agentDir = get
   // matched by value; for the primitives this config holds it is equivalent to !==.
   const projectOverrides: Record<string, unknown> = Object.fromEntries(
     Object.entries(config).filter(([key, value]) =>
-      key !== "glyphs" && differs(globalConfig[key as keyof TasksConfig], value)
+      key !== "glyphs" && key !== "trustedProjects" && differs(globalConfig[key as keyof TasksConfig], value)
     ),
   );
   // Glyphs are diffed one by one to match how they are merged. Comparing the group
@@ -72,6 +78,5 @@ export function saveTasksConfig(config: TasksConfig, cwd: string, agentDir = get
     differs(globalConfig.glyphs?.[name as keyof TaskGlyphsConfig], glyph)
   );
   if (glyphOverrides.length > 0) projectOverrides.glyphs = Object.fromEntries(glyphOverrides);
-  mkdirSync(dirname(configPath), { recursive: true });
-  writeFileSync(configPath, JSON.stringify(projectOverrides, null, 2));
+  writeSafeTaskFile(configPath, JSON.stringify(projectOverrides, null, 2));
 }

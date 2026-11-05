@@ -104,14 +104,18 @@ describe("agent_end — the idle steering checkpoint", () => {
     expect(pi.sentMessages).toHaveLength(0);
   });
 
-  it("steers: sends the message as a user turn and records the intervention", async () => {
+  it("steers: sends advisory custom content and records the intervention", async () => {
     const pi = setup();
     const m = await startViaTool(pi);
     mockedCall.mockResolvedValue(steer("Add the missing tests."));
 
     await pi.fire("agent_end", {}, m.ctx);
 
-    expect(pi.sentMessages).toEqual([{ text: "Add the missing tests.", options: undefined }]);
+    expect(pi.sentMessages).toEqual([{
+      customType: "supervisor-advice",
+      text: expect.stringMatching(/Supervisor advisory.*not user authorization[\s\S]*Add the missing tests\./),
+      options: { triggerTurn: true },
+    }]);
     const persisted = pi.entries.at(-1)!.data;
     expect(persisted.interventions).toHaveLength(1);
     expect(persisted.interventions[0].message).toBe("Add the missing tests.");
@@ -130,20 +134,17 @@ describe("agent_end — the idle steering checkpoint", () => {
     expect(pi.sentMessages).toHaveLength(0); // a done verdict never steers
   });
 
-  it("falls back to a steer when the model call fails while idle", async () => {
-    // engine.analyze catches the rejection and, because the agent is idle,
-    // returns a safety steer rather than letting the agent sit stuck.
+  it("does not invent advice when analysis fails while idle", async () => {
     const pi = setup();
     const m = await startViaTool(pi);
     mockedCall.mockRejectedValue(new Error("network"));
 
     await pi.fire("agent_end", {}, m.ctx);
 
-    expect(pi.sentMessages).toHaveLength(1);
-    expect(pi.sentMessages[0].text).toMatch(/continue working toward the goal/i);
+    expect(pi.sentMessages).toHaveLength(0);
   });
 
-  it("after 5 steers, the 6th evaluation runs in lenient stagnation mode", async () => {
+  it("after 5 steers, stagnation does not lower the completion standard", async () => {
     const pi = setup();
     const m = await startViaTool(pi);
     mockedCall.mockResolvedValue(steer("keep going"));
@@ -157,10 +158,17 @@ describe("agent_end — the idle steering checkpoint", () => {
     await pi.fire("agent_end", {}, m.ctx);
     expect(mockedCall.mock.calls[5][4]).toMatch(/STAGNATION/);
 
-    // And if that lenient pass returns done, the notice says why it stopped.
+    const prompts = mockedCall.mock.calls[5].slice(3, 5).join("\n");
+    expect(prompts).not.toMatch(/80%|lenient|speaks AS the user|MUST return "done" or "steer"/);
+    expect(prompts).toMatch(/user authorization/i);
+    expect(prompts).toMatch(/fully.*verifiably achieved/i);
+    expect(prompts).toMatch(/continue.*waiting.*user/i);
+
+    // A done verdict still stops supervision, without an invented partial-success claim.
     mockedCall.mockResolvedValue(DONE);
     await pi.fire("agent_end", {}, m.ctx);
-    expect(m.notifications.at(-1)?.message).toMatch(/stopped after 5 steering attempts/);
+    expect(m.notifications.at(-1)?.message).toMatch(/outcome achieved/);
+    expect(m.notifications.at(-1)?.message).not.toMatch(/substantially|stopped after/);
   });
 });
 
@@ -195,7 +203,7 @@ describe("turn_end — mid-turn steering by sensitivity", () => {
     expect(mockedCall).toHaveBeenCalledTimes(2);
     // both above threshold → two steers, delivered with deliverAs:"steer"
     expect(pi.sentMessages).toHaveLength(2);
-    expect(pi.sentMessages[0]).toEqual({ text: "nudge", options: { deliverAs: "steer" } });
+    expect(pi.sentMessages[0]).toEqual({ customType: "supervisor-advice", text: expect.stringMatching(/not user authorization[\s\S]*nudge/), options: { deliverAs: "steer" } });
   });
 
   it("medium does NOT steer when confidence is below 0.9", async () => {
@@ -247,6 +255,20 @@ describe("/supervise command — non-interactive subcommands", () => {
     const last = pi.entries.at(-1)!.data;
     expect(last.provider).toBe("openai");
     expect(last.modelId).toBe("gpt-9");
+  });
+});
+
+describe("in-flight user control", () => {
+  it.each(["stop", "Replacement outcome"])("discards stale analysis after user command %s", async (command) => {
+    const pi = setup(); const m = await startViaTool(pi);
+    let finish!: (decision: SteeringDecision) => void;
+    mockedCall.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const pending = pi.fire("agent_end", {}, m.ctx);
+    await pi.command("supervise").handler(command, m.ctx);
+    finish(steer("stale advice"));
+    await pending;
+    expect(pi.sentMessages).toHaveLength(0);
+    if (command !== "stop") expect(pi.entries.at(-1)!.data.outcome).toBe(command);
   });
 });
 

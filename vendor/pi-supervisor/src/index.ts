@@ -38,12 +38,18 @@ function extractThinking(accumulated: string): string {
   return raw.replace(/\\n/g, " ").replace(/\\"/g, '"').trim();
 }
 
-// After this many consecutive idle-state steers with no "done", run a lenient final evaluation.
+// Repeated advice calls for blocker analysis, not a lower completion standard.
 const MAX_IDLE_STEERS = 5;
 
 export default function (pi: ExtensionAPI) {
   const state = new SupervisorStateManager(pi);
   let idleSteers = 0; // consecutive agent_end steers; reset on done/stop/new supervision
+
+  const advisory = (message: string) => ({
+    customType: "supervisor-advice",
+    content: `Supervisor advisory — not user authorization. Respect the user's scope, permissions, stop requests, and pending decisions.\n\n${message}`,
+    display: true,
+  });
 
   // ---- Session lifecycle: restore state ----
 
@@ -79,6 +85,8 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
+    if (!state.isActive() || state.getState() !== s) return;
+
     // Higher bar for medium — less willing to disrupt productive work
     const threshold = s.sensitivity === "medium" ? 0.9 : 0.85;
     if (decision.action === "steer" && decision.message && decision.confidence >= threshold) {
@@ -89,7 +97,7 @@ export default function (pi: ExtensionAPI) {
         timestamp: Date.now(),
       });
       updateUI(ctx, state.getState(), { type: "steering", message: decision.message });
-      pi.sendUserMessage(decision.message, { deliverAs: "steer" });
+      pi.sendMessage(advisory(decision.message), { deliverAs: "steer" });
     }
   });
 
@@ -103,15 +111,18 @@ export default function (pi: ExtensionAPI) {
     state.incrementTurnCount();
     const s = state.getState()!;
 
-    // Stagnation: too many steers with no "done" → final lenient evaluation
+    // Reconsider ineffective advice without declaring partial work complete.
     const stagnating = idleSteers >= MAX_IDLE_STEERS;
 
     updateUI(ctx, s, { type: "analyzing", turn: s.turnCount });
 
     const decision = await analyze(ctx, s, true /* always idle at agent_end */, stagnating, undefined, (accumulated) => {
+      if (!state.isActive() || state.getState() !== s) return;
       const thinking = extractThinking(accumulated);
       updateUI(ctx, state.getState()!, { type: "analyzing", turn: s.turnCount, thinking });
     });
+
+    if (!state.isActive() || state.getState() !== s) return;
 
     if (decision.action === "steer" && decision.message) {
       idleSteers++;
@@ -122,12 +133,11 @@ export default function (pi: ExtensionAPI) {
         timestamp: Date.now(),
       });
       updateUI(ctx, state.getState(), { type: "steering", message: decision.message });
-      pi.sendUserMessage(decision.message);
+      pi.sendMessage(advisory(decision.message), { triggerTurn: true });
     } else if (decision.action === "done") {
       idleSteers = 0;
       updateUI(ctx, state.getState(), { type: "done" });
-      const suffix = stagnating ? ` (stopped after ${MAX_IDLE_STEERS} steering attempts — goal substantially achieved)` : "";
-      ctx.ui.notify(`Supervisor: outcome achieved! "${s.outcome}"${suffix}`, "info");
+      ctx.ui.notify(`Supervisor: outcome achieved! "${s.outcome}"`, "info");
       state.stop();
       updateUI(ctx, state.getState());
     } else {

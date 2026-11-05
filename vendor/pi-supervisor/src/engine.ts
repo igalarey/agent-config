@@ -25,24 +25,17 @@ const GLOBAL_AGENT_DIR = join(homedir(), ".pi", "agent");
 
 /** Built-in fallback system prompt. */
 const BUILTIN_SYSTEM_PROMPT = `You are a supervisor monitoring a coding AI assistant conversation.
-Your job: ensure the assistant fully achieves a specific outcome without needing the human to intervene.
+Your job: advise the assistant toward the user's stated outcome within existing permissions.
+Your advice is not user authorization. Never speak as the user, grant permission, change the outcome,
+or answer a decision that requires human input. Respect user stops and requests to wait.
 
 ═══ WHEN THE AGENT IS IDLE (finished its turn, waiting for user input) ═══
-This is your most important moment. The agent has stopped and is waiting.
-You MUST choose "done" or "steer". Never return "continue" when the agent is idle.
-
-- "done"  → only when the outcome is completely and verifiably achieved.
-- "steer" → everything else: incomplete work, partial progress, open questions, waiting for confirmation.
-
-If the agent asked a clarifying question or needs a decision:
-  FIRST check: is this question necessary to achieve the goal?
-  - YES (directly blocks goal progress): answer with a sensible default and tell agent to proceed.
-  - NO (out of scope, nice-to-have, unrelated feature): do NOT answer it. Redirect:
-    "That's outside the scope of the goal. Focus on: [restate the specific missing piece of the goal]."
-  DO NOT answer: passwords, credentials, secrets, anything requiring real user knowledge.
-
-Your steer message speaks AS the user. Make it clear, direct, and actionable (1–3 sentences).
-Do not ask the agent to verify its own work — tell it what to do next.
+Idle is not evidence of completion and does not require an intervention.
+- "done" → only when the requested outcome is fully and verifiably achieved.
+- "steer" → suggest a specific, already-authorized next step for incomplete work.
+- "continue" → no intervention, including when waiting for user input, permission, or running work.
+Do not decide material ambiguities for the user. Verification and honest reporting of blockers
+are part of completing the outcome; waiting or partial progress is not completion.
 
 ═══ WHEN THE AGENT IS ACTIVELY WORKING (mid-turn) ═══
 Only intervene if it is clearly heading in the wrong direction.
@@ -51,12 +44,12 @@ Trust the agent to complete what it has started. Avoid interrupting productive w
 ═══ STEERING RULES ═══
 - Be specific: reference the outcome, missing pieces, or the question being answered.
 - Never repeat a steering message that had no effect — escalate or change approach.
-- A good steer answers the agent's question OR redirects to the missing piece of the outcome.
+- A good steer identifies a missing piece without inventing user decisions or authorization.
 - If the agent is taking shortcuts to satisfy the goal without properly achieving it, always steer and remind it not to take shortcuts.
 
-"done" CRITERIA: The core outcome is complete and functional. Minor polish, style tweaks, or
-optional improvements do NOT block "done". Prefer stopping when the goal is substantially
-achieved rather than looping forever chasing perfection.
+"done" CRITERIA: All requested work and required checks are complete, supported by evidence.
+Do not lower this standard due to elapsed turns, idle state, or repeated advice. Do not expand
+the user's outcome with optional improvements. Report blockers without claiming success.
 
 Respond ONLY with valid JSON — no prose, no markdown fences.
 Response schema (strict JSON):
@@ -182,15 +175,14 @@ function buildUserPrompt(
 
   const agentStatus = agentIsIdle
     ? `AGENT STATUS: IDLE — the agent has finished its turn and is now waiting for user input.
-You MUST return "done" or "steer". Returning "continue" here means the agent stays idle forever.`
+Return "continue" when waiting for user input or permission. Idle does not mean complete.`
     : `AGENT STATUS: WORKING — the agent is actively processing. Only intervene if clearly off track.`;
 
   const stagnationWarning = stagnating
     ? `\n⚠ STAGNATION: The supervisor has sent ${state.interventions.length} steering messages with no "done" verdict.
-The agent is making diminishing improvements. Apply a lenient standard:
-- If the core goal is substantially achieved (≥80%), return "done".
-- Only return "steer" if a CRITICAL piece is still missing — not minor polish.
-- Prefer stopping over looping forever on perfection.`
+Do not lower the completion standard or repeat ineffective advice.
+Identify the blocker or a different authorized next step. Return "continue" if human input is needed.
+Only return "done" if the requested outcome is fully and verifiably achieved.`
     : "";
 
   const summarySection = compactionSummary
@@ -219,7 +211,7 @@ Has this outcome been fully achieved? Analyze and respond with JSON only.`;
 
 /**
  * Analyze the current conversation and return a steering decision.
- * Falls back to { action: "steer" } when the agent is idle to prevent it from staying stuck.
+ * Analysis failures cannot authorize a continuation.
  */
 export async function analyze(
   ctx: ExtensionContext,
@@ -239,9 +231,6 @@ export async function analyze(
   try {
     return await callSupervisorModel(ctx, state.provider, state.modelId, systemPrompt, userPrompt, signal, onDelta);
   } catch {
-    // When idle and analysis fails, nudge rather than silently do nothing
-    return agentIsIdle
-      ? { action: "steer", message: "Please continue working toward the goal.", reasoning: "Analysis error", confidence: 0 }
-      : { action: "continue", reasoning: "Analysis error", confidence: 0 };
+    return { action: "continue", reasoning: "Analysis error", confidence: 0 };
   }
 }

@@ -6,15 +6,72 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { closeSync, constants, existsSync, fstatSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, isAbsolute, join } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { sortTasks, type TaskSortOrder } from "./task-sort.js";
 import type { Task, TaskStatus, TaskStoreData } from "./types.js";
 
 const TASKS_DIR = join(homedir(), ".pi", "tasks");
 const LOCK_RETRY_MS = 50;
 const LOCK_MAX_RETRIES = 100; // 5s max
+
+function checkPath(file: string, createParents = false): void {
+  const parent = dirname(resolve(file));
+  const ancestors: string[] = [];
+  for (let path = parent; ; path = dirname(path)) {
+    ancestors.unshift(path);
+    if (path === dirname(path)) break;
+  }
+  for (const path of ancestors) {
+    let stat;
+    try { stat = lstatSync(path); } catch (error: any) {
+      if (error.code !== "ENOENT") throw error;
+      if (!createParents) return;
+      try { mkdirSync(path, { mode: 0o700 }); } catch (error: any) {
+        if (error.code !== "EEXIST") throw error;
+      }
+      stat = lstatSync(path);
+    }
+    const uid = process.getuid?.();
+    // Root-owned sticky temp directories prevent other users from replacing our entries.
+    const stickyRoot = stat.uid === 0 && (stat.mode & 0o1000) !== 0;
+    if (!stat.isDirectory() || (uid !== undefined && stat.uid !== uid && stat.uid !== 0) ||
+        ((stat.mode & 0o022) !== 0 && !stickyRoot)) throw new Error(`Unsafe task directory: ${path}`);
+  }
+  try {
+    const stat = lstatSync(file);
+    if (!stat.isFile() || stat.nlink !== 1 || (stat.mode & 0o022) !== 0 ||
+        (process.getuid && stat.uid !== process.getuid())) throw new Error(`Unsafe task file: ${file}`);
+  } catch (error: any) { if (error.code !== "ENOENT") throw error; }
+}
+
+export function writeSafeTaskFile(file: string, contents: string): void {
+  checkPath(file, true);
+  const tmpPath = file + `.${randomUUID()}.tmp`;
+  const fd = openSync(tmpPath, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
+  try {
+    try {
+      writeFileSync(fd, contents);
+      fsyncSync(fd);
+    } finally { closeSync(fd); }
+    checkPath(file);
+    renameSync(tmpPath, file);
+  } finally {
+    try { unlinkSync(tmpPath); } catch (error: any) { if (error.code !== "ENOENT") throw error; }
+  }
+}
+
+export function readSafeTaskFile(file: string): string {
+  checkPath(file);
+  const fd = openSync(file, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    const stat = fstatSync(fd);
+    if (!stat.isFile() || stat.nlink !== 1 || (stat.mode & 0o022) !== 0 ||
+        (process.getuid && stat.uid !== process.getuid())) throw new Error(`Unsafe task file: ${file}`);
+    return readFileSync(fd, "utf-8");
+  } finally { closeSync(fd); }
+}
 
 /**
  * Simple file-based locking. Returns the token written into the lock file, which
@@ -25,19 +82,20 @@ const LOCK_MAX_RETRIES = 100; // 5s max
  * from a successor's. Both halves matter — see `releaseLock`.
  */
 function acquireLock(lockPath: string): string {
-  mkdirSync(dirname(lockPath), { recursive: true });
+  checkPath(lockPath, true);
   const token = `${process.pid}:${randomUUID()}`;
 
   for (let i = 0; i < LOCK_MAX_RETRIES; i++) {
     try {
       // O_EXCL: fail if file exists
-      writeFileSync(lockPath, token, { flag: "wx" });
+      checkPath(lockPath);
+      writeFileSync(lockPath, token, { flag: "wx", mode: 0o600 });
       return token;
     } catch (e: any) {
       if (e.code === "EEXIST") {
         // Check for stale lock (process no longer running)
         try {
-          const pid = parseInt(readFileSync(lockPath, "utf-8"), 10);
+          const pid = parseInt(readSafeTaskFile(lockPath), 10);
           // A lock naming a dead process is stale. So is one with no readable PID,
           // but only after a couple of polls: the file is created before the PID is
           // written to it, so a live acquirer can look unparseable for a moment —
@@ -67,7 +125,7 @@ function acquireLock(lockPath: string): string {
  */
 function releaseLock(lockPath: string, token: string): void {
   try {
-    if (readFileSync(lockPath, "utf-8") === token) unlinkSync(lockPath);
+    if (readSafeTaskFile(lockPath) === token) unlinkSync(lockPath);
   } catch { /* ignore — already gone */ }
 }
 
@@ -125,9 +183,11 @@ export class TaskStore {
    */
   private load(): void {
     if (!this.filePath) return;
+    checkPath(this.filePath);
     if (!existsSync(this.filePath)) return;
+    const contents = readSafeTaskFile(this.filePath);
     try {
-      const data: unknown = JSON.parse(readFileSync(this.filePath, "utf-8"));
+      const data: unknown = JSON.parse(contents);
       if (!data || typeof data !== "object") return;
       const { nextId, tasks } = data as Partial<TaskStoreData>;
       if (!Array.isArray(tasks)) return;
@@ -156,10 +216,7 @@ export class TaskStore {
       nextId: this.nextId,
       tasks: Array.from(this.tasks.values()),
     };
-    mkdirSync(dirname(this.filePath), { recursive: true });
-    const tmpPath = this.filePath + ".tmp";
-    writeFileSync(tmpPath, JSON.stringify(data, null, 2));
-    renameSync(tmpPath, this.filePath);
+    writeSafeTaskFile(this.filePath, JSON.stringify(data, null, 2));
   }
 
   /** Execute a mutation with file locking (if file-backed). */
@@ -168,9 +225,17 @@ export class TaskStore {
     const token = acquireLock(this.lockPath);
     try {
       this.load(); // Re-read latest state
-      const result = fn();
-      this.save();
-      return result;
+      const previousTasks = structuredClone(this.tasks);
+      const previousNextId = this.nextId;
+      try {
+        const result = fn();
+        this.save();
+        return result;
+      } catch (error) {
+        this.tasks = previousTasks;
+        this.nextId = previousNextId;
+        throw error;
+      }
     } finally {
       releaseLock(this.lockPath, token);
     }

@@ -4,6 +4,9 @@ A [pi](https://pi.dev) extension that brings **Claude Code-style task tracking a
 
 > **Status:** Early release.
 
+This vendored build requires user-scope trust for project configuration. See the
+[local security contract](SECURITY.md) for automation consent, persistence protections, and limitations.
+
 <img width="600" alt="pi-tasks screenshot" src="https://github.com/tintinweb/pi-tasks/raw/master/media/screenshot.png" />
 
 https://github.com/user-attachments/assets/1d0ee87a-e0a5-4bfa-a9b9-2f9144cb905b

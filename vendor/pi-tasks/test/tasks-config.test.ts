@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -31,6 +31,31 @@ describe("tasks config", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
+  it.each(["target", "parent"])("refuses a symlink config %s without touching its victim", (kind) => {
+    const victim = join(root, "victim");
+    if (kind === "target") {
+      mkdirSync(dirname(projectConfigPath));
+      writeFileSync(victim, "canary");
+      symlinkSync(victim, projectConfigPath);
+    } else {
+      mkdirSync(victim);
+      writeFileSync(join(victim, "tasks-config.json"), "canary");
+      symlinkSync(victim, join(cwd, ".pi"));
+    }
+    expect(() => saveTasksConfig({ maxVisible: 7 }, cwd, agentDir)).toThrow(/unsafe/i);
+    expect(readFileSync(kind === "target" ? victim : join(victim, "tasks-config.json"), "utf8")).toBe("canary");
+  });
+
+  it("writes config with private permissions and ignores planted legacy temporaries", () => {
+    mkdirSync(dirname(projectConfigPath));
+    const victim = join(root, "victim");
+    writeFileSync(victim, "canary");
+    symlinkSync(victim, projectConfigPath + ".tmp");
+    saveTasksConfig({ maxVisible: 7 }, cwd, agentDir);
+    expect(statSync(projectConfigPath).mode & 0o777).toBe(0o600);
+    expect(readFileSync(victim, "utf8")).toBe("canary");
+  });
+
   it("returns an empty config when no files exist", () => {
     expect(loadTasksConfig(cwd, agentDir)).toEqual({});
   });
@@ -43,7 +68,7 @@ describe("tasks config", () => {
   });
 
   it("merges project overrides over global defaults", () => {
-    writeJson(globalConfigPath, { autoCascade: true, maxVisible: 20, taskScope: "session" });
+    writeJson(globalConfigPath, { trustedProjects: [cwd], autoCascade: true, maxVisible: 20, taskScope: "session" });
     writeJson(projectConfigPath, { autoCascade: false, maxVisible: 10 });
 
     expect(loadTasksConfig(cwd, agentDir)).toEqual({ autoCascade: false, maxVisible: 10, taskScope: "session" });
@@ -53,7 +78,7 @@ describe("tasks config", () => {
     writeFileSync(globalConfigPath, "{");
     writeJson(projectConfigPath, { autoCascade: false });
 
-    expect(loadTasksConfig(cwd, agentDir)).toEqual({ autoCascade: false });
+    expect(loadTasksConfig(cwd, agentDir)).toEqual({});
   });
 
   it("falls back to global defaults when the project config is malformed", () => {
@@ -86,8 +111,8 @@ describe("tasks config", () => {
     expect(JSON.parse(readFileSync(globalConfigPath, "utf-8"))).toEqual({ autoCascade: true, maxVisible: 20 });
   });
 
-  it("preserves a project override across save and reload cycles", () => {
-    writeJson(globalConfigPath, { autoCascade: true, maxVisible: 20 });
+  it("preserves a trusted project override across save and reload cycles", () => {
+    writeJson(globalConfigPath, { trustedProjects: [cwd], autoCascade: true, maxVisible: 20 });
     const config = loadTasksConfig(cwd, agentDir);
     config.autoCascade = false;
     saveTasksConfig(config, cwd, agentDir);
@@ -106,6 +131,7 @@ describe("tasks config", () => {
       { field: "status", rank: ["in_progress", "pending", "completed"] },
       { field: "id" },
     ];
+    writeJson(globalConfigPath, { trustedProjects: [cwd] });
     writeJson(projectConfigPath, { sortOrder });
 
     expect(loadTasksConfig(cwd, agentDir)).toEqual({ sortOrder });
@@ -139,7 +165,7 @@ describe("tasks config", () => {
   });
 
   it("merges glyphs one by one rather than replacing the whole set", () => {
-    writeJson(globalConfigPath, { glyphs: { pending: "[ ]", spinner: ["|", "/"] } });
+    writeJson(globalConfigPath, { trustedProjects: [cwd], glyphs: { pending: "[ ]", spinner: ["|", "/"] } });
     writeJson(projectConfigPath, { glyphs: { completed: "[x]", spinner: ["-", "\\"] } });
 
     expect(loadTasksConfig(cwd, agentDir)).toEqual({
@@ -174,7 +200,7 @@ describe("tasks config", () => {
   });
 
   it("preserves a project glyph override across save and reload cycles", () => {
-    writeJson(globalConfigPath, { glyphs: { pending: "[ ]" } });
+    writeJson(globalConfigPath, { trustedProjects: [cwd], glyphs: { pending: "[ ]" } });
     writeJson(projectConfigPath, { glyphs: { completed: "[x]" } });
 
     saveTasksConfig(loadTasksConfig(cwd, agentDir), cwd, agentDir);

@@ -6,6 +6,22 @@ A [pi](https://pi.dev) extension that supervises the coding agent and steers it 
 
 > **Status:** Early release.
 
+## Advisory contract in this vendored build
+
+Supervisor interventions use visible `supervisor-advice` custom messages, not user messages.
+Each intervention states that it is advice, not user authorization. It cannot expand permissions,
+resolve a human decision, replace the requested outcome, or override a stop request.
+
+Idle state and repeated interventions do not justify early completion. The built-in prompt requires
+full, verified completion of the requested outcome. Waiting for human input permits no intervention.
+Analysis failures do not trigger a continuation. Late results after a user stop or outcome replacement are discarded.
+
+Explicit start commands and the existing start tool retain their interfaces. The caller must obtain
+user authorization before starting supervision. A model's completion verdict is advice, not independent proof.
+Custom supervisor prompts remain supported and require separate review.
+
+Offline tests isolate HOME and simulate the model boundary. They do not establish real model compliance.
+
 <img height="298" alt="image" src="https://github.com/tintinweb/pi-supervisor/raw/master/media/screenshot.png" />
 
 
@@ -18,13 +34,13 @@ https://github.com/user-attachments/assets/f3b23662-6473-4ac3-82f7-c7f9b64fa7c7
 /supervise Implement a secure JWT auth system with refresh tokens and full test coverage
 ```
 
-Then start the conversation normally — the supervisor watches from outside without modifying the agent's context.
+Then start the conversation normally. The supervisor analyzes a snapshot and can add advisory messages to the agent's context.
 
 1. **After each run** — a separate supervisor LLM analyzes the conversation against the goal (all sensitivities)
 2. **Mid-run, between tool calls** — also checks for drift on `medium` and `high` sensitivity and can steer the agent without waiting for it to finish
 3. **On completion** — supervisor signals done and stops automatically
 
-The supervisor is a pure outside observer. It runs in a separate in-memory pi session sharing only the API credentials and never touches the main agent's context window or system prompt.
+The supervisor analyzes conversation snapshots separately. Its advisory messages enter the main agent's context, but do not replace the system prompt.
 
 ## Install
 

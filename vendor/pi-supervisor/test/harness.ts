@@ -12,6 +12,7 @@ import type { SupervisorState } from "../src/types.js";
 
 export interface RecordedMessage {
   text: string;
+  customType?: string;
   options?: Record<string, unknown>;
 }
 
@@ -54,6 +55,9 @@ export function createMockPi(): MockPi {
       // { type: "custom", customType, data }. The mock ctx reads from its own
       // branch array, so tests that care wire the two together explicitly.
       entries.push({ type, data });
+    },
+    sendMessage(message: { content: string; customType: string }, options?: Record<string, unknown>) {
+      sentMessages.push({ text: message.content, customType: message.customType, options });
     },
     sendUserMessage(text: string, options?: Record<string, unknown>) {
       sentMessages.push({ text, options });
