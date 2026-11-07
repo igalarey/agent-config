@@ -250,9 +250,12 @@ The mailbox ACK confirms submission to Pi, not model execution or task completio
 The terminal belongs to Herdr. Session files and exit records carry task results.
 The [previous delivery report](docs/notification-delivery.md) describes the retired tintinweb runtime, not this transport.
 
-The separate user extension `project-sessions` needs its interactive-runtime adapter before this migration.
-Its earlier version depends on tintinweb tools. Do not load both runtimes to satisfy that dependency.
-Existing project bindings and private data must remain intact.
+The separate [project-sessions](https://github.com/igalarey/pi-project-sessions) user extension supports the interactive runtime.
+It uses owned status, restrictive resume, and completion receipts to preserve one worker session per repository.
+The adapter verifies worker identity and refuses to interrupt a busy worker. Each resumed process has a new 30-turn budget.
+Historical tintinweb bindings remain intact but cannot resume through the interactive backend.
+Install the compatible adapter before migrating an older installation. Do not load both runtimes.
+This private extension is separate from the harness release and is not installed by bootstrap.
 
 Use ordinary Git worktrees with hooks. The tintinweb workflow tool is not installed.
 Delegation and supervision can incur model usage. Model availability and account quota require your own authentication.
