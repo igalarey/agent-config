@@ -1,10 +1,23 @@
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { discoverAndLoadExtensions } from "@earendil-works/pi-coding-agent";
-import { visibleWidth } from "@earendil-works/pi-tui";
-import { createSubscriptionFooter, formatSubscriptionMarker } from "../footer.ts";
-import { createSubscriptionUsageExtension } from "../index.ts";
+
+const home = mkdtempSync(join(tmpdir(), "pi-subscription-footer-"));
+process.env.HOME = home;
+process.env.PI_CODING_AGENT_DIR = join(home, "agent");
+process.env.PI_OFFLINE = "1";
+process.env.PI_E2E_LIVE = "0";
+process.env.PI_RUN_LIVE_SUBAGENT_TESTS = "0";
+mkdirSync(process.env.PI_CODING_AGENT_DIR);
+after(() => rmSync(home, { recursive: true, force: true }));
+
+const { discoverAndLoadExtensions } = await import("@earendil-works/pi-coding-agent");
+const { visibleWidth } = await import("@earendil-works/pi-tui");
+const { createSubscriptionFooter, formatSubscriptionMarker } = await import("../footer.ts");
+const { createSubscriptionUsageExtension } = await import("../index.ts");
 
 const codex = {
   provider: "openai-codex",
@@ -29,6 +42,7 @@ function deferred() {
 
 function fixtureContext(mode = "tui") {
   let footerFactory;
+  const footerCalls = [];
   const notifications = [];
   const entries = [
     { type: "message", message: { role: "assistant", usage: usage(1_000, 500, 200, 100, 0.2) } },
@@ -47,11 +61,11 @@ function fixtureContext(mode = "tui") {
       getSessionName: () => "quota-work",
     },
     ui: {
-      setFooter(factory) { footerFactory = factory; },
+      setFooter(factory) { footerCalls.push(factory); footerFactory = factory; },
       notify(message, level) { notifications.push({ message, level }); },
     },
   };
-  return { ctx, notifications, getFooterFactory: () => footerFactory };
+  return { ctx, notifications, footerCalls, getFooterFactory: () => footerFactory };
 }
 
 const theme = {
@@ -361,6 +375,194 @@ test("default adapters never resolve credentials in RPC and stay lazy until the 
   assert.equal(authCalls.filter(call => call.type === "oauth").length, 1);
   assert.equal(authCalls.some(call => call.type === "auth"), false);
   component.dispose();
+});
+
+function registerExtension(options = {}) {
+  const handlers = new Map();
+  const commands = new Map();
+  createSubscriptionUsageExtension(options)({
+    on(name, handler) { handlers.set(name, handler); },
+    registerCommand(name, command) { commands.set(name, command); },
+  });
+  return { handlers, commands };
+}
+
+function schedulerFixture() {
+  const intervals = new Set();
+  const timeouts = new Set();
+  return {
+    intervals,
+    timeouts,
+    setInterval(callback) { intervals.add(callback); return callback; },
+    clearInterval(handle) { intervals.delete(handle); },
+    setTimeout(callback) { timeouts.add(callback); return callback; },
+    clearTimeout(handle) { timeouts.delete(handle); },
+  };
+}
+
+test("global false leaves the native footer and hidden refresh does no provider/auth/timer work", async t => {
+  const settingsPath = join(process.env.PI_CODING_AGENT_DIR, "settings.json");
+  writeFileSync(settingsPath, JSON.stringify({ subscriptionUsage: { showFooter: false } }));
+  t.after(() => rmSync(settingsPath));
+  for (const customFactory of [false, true]) {
+    let providerCalls = 0;
+    let authCalls = 0;
+    const scheduler = schedulerFixture();
+    const { handlers, commands } = registerExtension({
+      ...(customFactory ? { providerFactory() { providerCalls++; return []; } } : {}),
+      scheduler,
+    });
+    const fixture = fixtureContext();
+    fixture.ctx.modelRegistry = {
+      isUsingOAuth() { authCalls++; return false; },
+      async getApiKeyAndHeaders() { authCalls++; return { ok: false }; },
+    };
+    await handlers.get("session_start")({}, fixture.ctx);
+    assert.deepEqual(fixture.footerCalls, []);
+    await commands.get("subscription-refresh").handler("", fixture.ctx);
+    await handlers.get("model_select")({ model: codexMini });
+    await handlers.get("session_shutdown")({});
+    assert.equal(providerCalls, 0);
+    assert.equal(authCalls, 0);
+    assert.equal(scheduler.intervals.size, 0);
+    assert.equal(scheduler.timeouts.size, 0);
+    assert.deepEqual(fixture.footerCalls, []);
+    assert.equal(fixture.notifications.length, 1);
+    assert.equal(fixture.notifications[0].level, "info");
+    assert.match(fixture.notifications[0].message, /hidden.*subscriptionUsage\.showFooter.*reload/i);
+  }
+});
+
+test("only boolean false disables the footer, with safe defaults for absent or malformed global settings", async t => {
+  const cases = [
+    undefined, "{}", '{"subscriptionUsage":{"showFooter":true}}',
+    "{invalid", "null", "[]", "false", '{"subscriptionUsage":null}',
+    '{"subscriptionUsage":{"showFooter":"false"}}',
+    '{"subscriptionUsage":{"showFooter":0}}',
+    '{"subscriptionUsage":{"showFooter":null}}',
+    '{"subscriptionUsage.showFooter":false}',
+  ];
+  for (const [index, contents] of cases.entries()) {
+    await t.test(`settings case ${index}`, async t => {
+      const agentDir = mkdtempSync(join(home, "settings-"));
+      t.after(() => rmSync(agentDir, { recursive: true, force: true }));
+      if (contents !== undefined) writeFileSync(join(agentDir, "settings.json"), contents);
+      let providerCalls = 0;
+      let fetchCalls = 0;
+      const scheduler = schedulerFixture();
+      const { handlers } = registerExtension({
+        getAgentDir: () => agentDir,
+        providerFactory() {
+          providerCalls++;
+          return [{
+            id: "fixture", supports: () => true,
+            async fetchUsage() { fetchCalls++; return { kind: "known", windows: [{ label: "5h", usedPercent: 23 }] }; },
+          }];
+        },
+        scheduler,
+      });
+      const fixture = fixtureContext();
+      const projectDir = join(agentDir, "project", ".pi");
+      mkdirSync(projectDir, { recursive: true });
+      writeFileSync(join(projectDir, "settings.json"), '{"subscriptionUsage":{"showFooter":false}}');
+      fixture.ctx.cwd = join(agentDir, "project");
+      await handlers.get("session_start")({}, fixture.ctx);
+      assert.equal(typeof fixture.getFooterFactory(), "function");
+      assert.equal(providerCalls, 0);
+      assert.equal(scheduler.intervals.size, 0);
+      const component = fixture.getFooterFactory()({ requestRender() {} }, theme, footerData());
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(providerCalls, 1);
+      assert.equal(fetchCalls, 1);
+      assert.equal(scheduler.intervals.size, 1);
+      assert.match(component.render(160)[0], /5h 23% used/);
+      await handlers.get("session_shutdown")({});
+      assert.equal(scheduler.intervals.size, 0);
+      component.dispose();
+    });
+  }
+});
+
+test("headless modes skip global settings and provider creation", async () => {
+  for (const mode of ["rpc", "json", "print"]) {
+    let settingsReads = 0;
+    let providerCalls = 0;
+    const scheduler = schedulerFixture();
+    const { handlers, commands } = registerExtension({
+      getAgentDir() { settingsReads++; throw new Error("headless settings read"); },
+      providerFactory() { providerCalls++; return []; },
+      scheduler,
+    });
+    const fixture = fixtureContext(mode);
+    await handlers.get("session_start")({}, fixture.ctx);
+    await commands.get("subscription-refresh").handler("", fixture.ctx);
+    assert.equal(settingsReads, 0);
+    assert.equal(providerCalls, 0);
+    assert.deepEqual(fixture.footerCalls, []);
+    assert.equal(scheduler.intervals.size, 0);
+    assert.equal(scheduler.timeouts.size, 0);
+  }
+});
+
+test("session start disposes an active runtime before hiding or entering headless mode, without stale results", async t => {
+  for (const mode of ["tui", "rpc"]) {
+    await t.test(mode, async t => {
+      const agentDir = mkdtempSync(join(home, "lifecycle-"));
+      t.after(() => rmSync(agentDir, { recursive: true, force: true }));
+      const pending = deferred();
+      const scheduler = schedulerFixture();
+      let calls = 0;
+      let signal;
+      let renders = 0;
+      let unsubscribes = 0;
+      const { handlers, commands } = registerExtension({
+        getAgentDir: () => agentDir,
+        providers: [{
+          id: "fixture", supports: () => true,
+          async fetchUsage(request) {
+            calls++;
+            if (calls === 2) { signal = request.signal; return pending.promise; }
+            return { kind: "known", windows: [{ label: "5h", usedPercent: 10 }] };
+          },
+        }],
+        minRefreshIntervalMs: 0,
+        scheduler,
+      });
+      const fixture = fixtureContext();
+      await handlers.get("session_start")({}, fixture.ctx);
+      const oldComponent = fixture.getFooterFactory()({ requestRender() { renders++; } }, theme, {
+        ...footerData(), onBranchChange: () => () => { unsubscribes++; },
+      });
+      await new Promise(resolve => setImmediate(resolve));
+      const command = commands.get("subscription-refresh").handler("", fixture.ctx);
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(calls, 2);
+      writeFileSync(join(agentDir, "settings.json"), '{"subscriptionUsage":{"showFooter":false}}');
+      fixture.ctx.mode = mode;
+      await handlers.get("session_start")({}, fixture.ctx);
+      assert.equal(signal.aborted, true);
+      assert.equal(scheduler.intervals.size, 0);
+      assert.equal(scheduler.timeouts.size, 0);
+      assert.equal(unsubscribes, 1);
+      if (mode === "tui") assert.equal(fixture.getFooterFactory(), undefined);
+      const renderCount = renders;
+      pending.resolve({ kind: "known", windows: [{ label: "5h", usedPercent: 90 }] });
+      await command;
+      assert.equal(renders, renderCount);
+      assert.deepEqual(fixture.notifications, []);
+      await handlers.get("session_shutdown")({});
+      oldComponent.dispose();
+      assert.equal(unsubscribes, 1);
+      writeFileSync(join(agentDir, "settings.json"), '{"subscriptionUsage":{"showFooter":true}}');
+      fixture.ctx.mode = "tui";
+      await handlers.get("session_start")({}, fixture.ctx);
+      const component = fixture.getFooterFactory()({ requestRender() {} }, theme, footerData());
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(calls, 3);
+      assert.equal(scheduler.intervals.size, 1);
+      component.dispose();
+    });
+  }
 });
 
 test("refresh command reports stale data as a failed update", async () => {

@@ -1,6 +1,9 @@
-import type {
-  ExtensionAPI,
-  ExtensionContext,
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import {
+  getAgentDir,
+  type ExtensionAPI,
+  type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { createDefaultSubscriptionProviders } from "./adapters.ts";
 import {
@@ -19,6 +22,7 @@ export * from "./footer.ts";
 export * from "./provider.ts";
 
 export interface SubscriptionUsageExtensionOptions {
+  getAgentDir?: () => string;
   providers?: readonly SubscriptionUsageProvider[];
   providerFactory?: (
     modelRegistry: ExtensionContext["modelRegistry"],
@@ -33,10 +37,20 @@ function currentModel(ctx: ExtensionContext): SubscriptionModel | undefined {
   return ctx.model;
 }
 
+function shouldShowFooter(agentDir: () => string): boolean {
+  try {
+    const settings = JSON.parse(readFileSync(join(agentDir(), "settings.json"), "utf8"));
+    return settings?.subscriptionUsage?.showFooter !== false;
+  } catch {
+    return true;
+  }
+}
+
 export function createSubscriptionUsageExtension(
   options: SubscriptionUsageExtensionOptions = {},
 ) {
   return function subscriptionUsageExtension(pi: ExtensionAPI): void {
+    let showFooter = true;
     let nextRuntimeGeneration = 0;
     let active: {
       controller: SubscriptionUsageController;
@@ -49,6 +63,10 @@ export function createSubscriptionUsageExtension(
       handler: async (_args, ctx) => {
         if (ctx.mode !== "tui") {
           ctx.ui.notify("Subscription refresh is available only in interactive TUI mode.", "info");
+          return;
+        }
+        if (!showFooter) {
+          ctx.ui.notify("Subscription footer is hidden by subscriptionUsage.showFooter. Set it to true in global settings.json and run /reload.", "info");
           return;
         }
         const runtime = active;
@@ -84,7 +102,15 @@ export function createSubscriptionUsageExtension(
     });
 
     pi.on("session_start", (_event, ctx) => {
+      const hadActive = active !== undefined;
+      active?.dispose();
       if (ctx.mode !== "tui") return;
+
+      showFooter = shouldShowFooter(options.getAgentDir ?? getAgentDir);
+      if (!showFooter) {
+        if (hadActive) ctx.ui.setFooter(undefined);
+        return;
+      }
 
       ctx.ui.setFooter((tui, theme, footerData) => {
         active?.dispose();

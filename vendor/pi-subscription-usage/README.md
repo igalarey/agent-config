@@ -2,6 +2,27 @@
 
 Harness-owned optional extension package for Pi 0.87.1. It adds subscription usage beside the cwd/git marker in a compact custom footer and registers `/subscription-refresh` as a data-only refresh fallback.
 
+## Configuration
+
+To keep Pi's native footer, add this option to your global `settings.json`:
+
+```json
+{
+  "subscriptionUsage": {
+    "showFooter": false
+  }
+}
+```
+
+The extension reads this file from Pi's official `getAgentDir()` directory, normally `~/.pi/agent`, with support for `PI_CODING_AGENT_DIR`.
+Project settings do not affect this option. The default is `true`. Only boolean `false` hides the custom footer.
+Missing, unreadable, or malformed settings keep the default.
+
+When the footer is hidden, the extension creates no providers, controller, or timers and performs no authentication or usage requests.
+`/subscription-refresh` reports that the footer is hidden and does not enable it.
+After a settings change, run `/reload` or restart Pi.
+RPC, JSON, and print modes do not read this option or start subscription work.
+
 ## Behavior
 
 - Detects **OpenAI** ChatGPT connections for canonical `openai` models with the `openai-responses` API.
