@@ -376,10 +376,11 @@ function nativePackages(releasePath, manifest) {
     return typeof entry === 'string' ? source : { ...entry, source };
   });
 }
+const hasTasks = manifest => manifest.packages.some(pkg => pkg.name === '@tintinweb/pi-tasks');
 const packageTools = manifest => modernBase(manifest)
-  ? ['Agent', 'get_subagent_result', 'steer_subagent', 'TaskCreate', 'TaskList', 'TaskGet', 'TaskUpdate', 'TaskOutput', 'TaskStop', 'TaskExecute', 'start_supervision', 'ask_user_question', ...(nativeBase(manifest) ? ['web_search', 'fetch_content', 'get_search_content', 'source_check'] : ['web_fetch'])] : PACKAGE_TOOLS;
+  ? ['Agent', 'get_subagent_result', 'steer_subagent', ...(hasTasks(manifest) ? ['TaskCreate', 'TaskList', 'TaskGet', 'TaskUpdate', 'TaskOutput', 'TaskStop', 'TaskExecute'] : []), 'start_supervision', 'ask_user_question', ...(nativeBase(manifest) ? ['web_search', 'fetch_content', 'get_search_content', 'source_check'] : ['web_fetch'])] : PACKAGE_TOOLS;
 const packageCommands = manifest => modernBase(manifest)
-  ? ['agents', 'tasks', 'supervise', 'om', 'om:status', 'om:compact', 'om:consolidate'] : PACKAGE_COMMANDS;
+  ? ['agents', ...(hasTasks(manifest) ? ['tasks'] : []), 'supervise', 'om', 'om:status', 'om:compact', 'om:consolidate'] : PACKAGE_COMMANDS;
 const WEB_TOOLS = ['web_search', 'fetch_content', 'get_search_content', 'source_check'];
 const deferredWeb = releasePath => ['0.32.0', '0.47.0'].includes(JSON.parse(fs.readFileSync(path.join(releasePath, 'native/package.json'), 'utf8')).dependencies?.['pi-web-access']);
 const codemodeMcp = releasePath => JSON.parse(fs.readFileSync(path.join(releasePath, 'native/package.json'), 'utf8')).dependencies?.['pi-mcp-adapter'] === '7.0.1';
@@ -724,6 +725,23 @@ function fauxIntegrationProvider(pi) {
             && agents.every(message => /READONLY_SCOPE_OK|CHILD_SCOPE_OK/.test(JSON.stringify(message)))
             && ['Explore', 'deep-review', 'Plan', 'deep-implementation'].every((role, index) => JSON.stringify(agents[index]).includes(`${role}_POLICY_OK`)));
           content = text(delegated.includes('CHILD_SCOPE_OK') && restricted.includes('READONLY_SCOPE_OK') && policy ? 'BASE_INTEGRATION_OK' : 'BASE_INTEGRATION_FAILED');
+        }
+      } else if (names.has('Agent')) {
+        const roles = policyProfiles ? ['general-purpose', 'Explore', 'deep-review', 'Plan', 'deep-implementation'] : ['general-purpose', 'Explore'];
+        const agents = results.filter(message => message.toolName === 'Agent');
+        if (agents.length < roles.length) {
+          const role = roles[agents.length];
+          content = tool('Agent', { subagent_type: role, description: 'Check profile model and scope', prompt: `Report scope for ${role}`,
+            ...(policyProfiles ? {} : { model: 'agent-config-fixture/fixture' }), run_in_background: false });
+        } else if (!results.some(message => message.toolName === 'start_supervision')) {
+          content = tool('start_supervision', { outcome: 'Verify offline fixture only', sensitivity: 'low', model: 'agent-config-fixture/fixture' });
+        } else {
+          const valid = agents.every((message, index) => {
+            const output = JSON.stringify(message);
+            const scope = ['general-purpose', 'deep-implementation'].includes(roles[index]) ? 'CHILD_SCOPE_OK' : 'READONLY_SCOPE_OK';
+            return !message.isError && output.includes(scope) && (!policyProfiles || output.includes(`${roles[index]}_POLICY_OK`));
+          });
+          content = text(valid ? 'BASE_INTEGRATION_OK' : 'BASE_INTEGRATION_FAILED');
         }
       } else if (names.size === 0) {
         content = text(JSON.stringify({ action: 'done', reasoning: 'SUPERVISOR_FIXTURE_OK', confidence: 1 }));

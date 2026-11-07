@@ -12,7 +12,8 @@ it with the active release, installer state and deployed files.
 
 The authority map is `config/HARNESS-AUTHORITY.md`. The installer projects it to
 `~/.pi/agent/HARNESS-AUTHORITY.md`. Component responsibilities do not change:
-Pi owns session execution, the task package owns task state, and Carbon changes presentation.
+Pi owns session execution and Carbon changes presentation. New candidates omit Tasks and its Carbon adapter.
+Historical releases retain their task ownership checks. Private task data remains user-owned.
 
 ## Curated skills
 

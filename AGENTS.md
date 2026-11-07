@@ -9,7 +9,7 @@ Read `~/.agents/SYSTEM.md` and the applicable shared guides before work.
   `native/package-lock.json` fixes native dependencies. Do not duplicate version pins in instructions.
 - Source, verified release, and installed projection are distinct layers. Edit source and prepare a candidate.
   Never patch a sealed release or treat generated `harness-manifest.json` as version authority.
-- Pi owns session execution. Tasks owns task state. Carbon changes presentation, not execution.
+- Pi owns session execution. Tasks is retired. Carbon changes presentation, not execution.
   Subagents has one runtime. Memory is historical evidence, not policy or permission.
   See `config/HARNESS-AUTHORITY.md` and `docs/harness-compatibility.md`.
 - Existing shared policy, credentials, sessions, memories, unrelated settings, and user extensions are preserved.
@@ -55,7 +55,8 @@ Read `~/.agents/SYSTEM.md` and the applicable shared guides before work.
   Maintain a single delivery mechanism. See `docs/notification-delivery.md`.
 - Release overlays require exact commit, original/result hashes, unique replacements, and non-overlap checks.
   Do not apply old overlays blindly to a new upstream revision.
-- Tasks uses session-global storage by default. Project configuration cannot grant itself trust or enable automation.
+- Tasks is absent from new candidates. Preserve private task data and configuration during retirement and rollback.
+  Project configuration cannot grant itself trust or enable automation.
   Supervisor messages are advisory. Memory must not compact an uncovered prefix or trust worker exit status as a consolidation receipt.
 - Native MCP can start processes and contact servers. Preserve private server configuration.
   Executor approvals belong to the human. Browser's public-network restrictions do not automatically apply to MCP.
@@ -76,7 +77,8 @@ Read `~/.agents/SYSTEM.md` and the applicable shared guides before work.
   Prompts are thin entries to the same procedures. Do not restore Bigpowers to satisfy stale links.
 - Learning stages evidence-backed proposals for interactive review. It never edits SYSTEM or replaces user/curated skills automatically.
   Approved private skills and pending records stay out of Git.
-- Carbon lives in `extensions/` and `themes/`. Keep the Tasks owner's original entrypoint disabled when the Carbon adapter loads it.
+- Carbon lives in `extensions/` and `themes/`. New candidates contain neither Tasks nor its Carbon adapter.
+  Keep historical owner/adapter checks intact. Verify task absence and active Carbon built-ins through the official SDK.
   Check actual candidate composition, not just isolated renderers. See `docs/carbon-ui.md`.
 - Update operational docs when behavior changes. Label historical verification as historical.
   Local commits and integration are allowed. Push, publication, and remote history changes require an explicit user request.

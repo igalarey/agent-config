@@ -205,10 +205,11 @@ test('legacy planner fixture is idempotent and preserves profiles and source', t
   assert.equal(installedSettings.quietStartup, false);
   assert.equal(installedSettings.collapseChangelog, true);
   assert.deepEqual(installedSettings.extensions, ['-builtin:mcp']);
-  assert.deepEqual(installedSettings.packages.find(entry => entry.source?.endsWith('/pi-tasks')).extensions, []);
+  assert.equal(installedSettings.packages.some(entry => (typeof entry === 'string' ? entry : entry.source).endsWith('/pi-tasks')), false);
+  assert.equal(fs.existsSync(path.join(home, '.pi/agent/extensions/carbon-tasks/index.ts')), false);
   for (const relative of [
     'extensions/carbon-ui/index.ts', 'extensions/carbon-ui/builtin-tools.ts',
-    'extensions/carbon-ui/tool-card.ts', 'extensions/carbon-tasks/index.ts', 'themes/carbon-violet.json',
+    'extensions/carbon-ui/tool-card.ts', 'themes/carbon-violet.json',
     'themes/carbon-graphite.json',
   ]) {
     assert.equal(fs.readFileSync(path.join(home, '.pi/agent', relative), 'utf8'), fs.readFileSync(path.join(root, relative), 'utf8'));
@@ -539,7 +540,7 @@ test('local manifest contains only harness-owned packages', () => {
   const manifest = readJSON(path.join(root, 'manifests/packages.json'));
   assert.equal(manifest.scope, 'local-harness');
   assert.equal(manifest.piVersion, '1.5.0');
-  assert.deepEqual(manifest.packages.map(pkg => pkg.name), ['pi-ask-user-question', 'pi-browser', 'pi-subscription-usage', '@tintinweb/pi-tasks', 'pi-supervisor']);
+  assert.deepEqual(manifest.packages.map(pkg => pkg.name), ['pi-ask-user-question', 'pi-browser', 'pi-subscription-usage', 'pi-supervisor']);
   const usageMeta = readJSON(path.join(root, 'vendor/pi-subscription-usage/package.json'));
   for (const name of ['pi-ai', 'pi-coding-agent', 'pi-tui']) {
     assert.equal(usageMeta.peerDependencies[`@earendil-works/${name}`], '1.5.0');

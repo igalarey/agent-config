@@ -19,7 +19,8 @@ export async function checkCandidateComposition(candidatePath) {
   if (!owner && !fs.existsSync(adapter) && !manifest.packages.some(pkg => pkg.name === '@tintinweb/pi-subagents')) {
     return { applicable: false, reason: 'Historical candidate has no Carbon/Tasks composition' };
   }
-  assert.ok(owner && fs.existsSync(adapter), 'Carbon/Tasks composition must be complete');
+  const tasksAbsent = !owner && !fs.existsSync(adapter);
+  assert.ok(tasksAbsent || (owner && fs.existsSync(adapter)), 'Carbon/Tasks composition must be complete');
   const host = identifyInstalledPiHost(manifest.piVersion);
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'candidate-composition-'));
   const previous = { ...process.env };
@@ -37,16 +38,16 @@ export async function checkCandidateComposition(candidatePath) {
     const { DefaultResourceLoader } = await import(pathToFileURL(path.join(host.packageRoot, 'dist/core/resource-loader.js')));
     const { SettingsManager } = await import(pathToFileURL(path.join(host.packageRoot, 'dist/core/settings-manager.js')));
     // Project the candidate resources exactly as deployed; never import repository vendor sources.
-    for (const directory of ['carbon-tasks', 'carbon-ui']) {
+    for (const directory of tasksAbsent ? ['carbon-ui'] : ['carbon-tasks', 'carbon-ui']) {
       fs.cpSync(path.join(candidatePath, 'extensions', directory), path.join(agentDir, 'extensions', directory), { recursive: true });
     }
     fs.writeFileSync(path.join(agentDir, 'tasks-config.json'), JSON.stringify({ taskScope: 'session-global', autoCascade: false, autoClearCompleted: 'never' }));
-    const source = path.join(candidatePath, owner.path);
+    const source = owner ? path.join(candidatePath, owner.path) : undefined;
     const defaults = readJSON(path.join(candidatePath, 'config/pi.settings.json'));
     const load = async (duplicate = false, baseline = false) => {
       fs.writeFileSync(path.join(agentDir, 'settings.json'), JSON.stringify({
         ...defaults,
-        packages: [baseline || duplicate ? source : { source, extensions: [] }],
+        packages: tasksAbsent ? [] : [baseline || duplicate ? source : { source, extensions: [] }],
         extensions: baseline ? ['-builtin:mcp', '-extensions/carbon-tasks/index.ts', '-extensions/carbon-ui/index.ts'] : ['-builtin:mcp'],
       }));
       const loader = new DefaultResourceLoader({ cwd, agentDir, settingsManager: SettingsManager.create(cwd, agentDir), noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true });
@@ -54,6 +55,28 @@ export async function checkCandidateComposition(candidatePath) {
       return loader.getExtensions();
     };
     const loaded = await load();
+    if (tasksAbsent) {
+      assert.deepEqual(loaded.errors, [], 'resource loader errors');
+      const carbon = loaded.extensions.find(extension => extension.path === path.join(agentDir, 'extensions/carbon-ui/index.ts'));
+      assert.ok(carbon, 'Carbon UI must load through the official SDK');
+      const builtins = ['bash', 'edit', 'find', 'grep', 'ls', 'read', 'write'];
+      let active = [...builtins];
+      loaded.runtime.getActiveTools = () => [...active];
+      loaded.runtime.getAllTools = () => builtins.map(name => ({ name, sourceInfo: { source: 'builtin' } }));
+      loaded.runtime.setActiveTools = names => { active = names; };
+      const ctx = { mode: 'tui', cwd, isProjectTrusted: () => false, isIdle: () => true, ui: {
+        theme: { fg: (_color, text) => text }, setStatus() {}, setToolsExpanded() {}, setHiddenThinkingLabel() {},
+        getEditorComponent() {}, setEditorComponent() {},
+      } };
+      for (const handler of carbon.handlers.get('session_start') ?? []) await handler({ reason: 'startup' }, ctx);
+      for (const extension of loaded.extensions) {
+        assert.ok(!names.some(name => extension.tools.has(name)), 'Tasks must be absent: tools');
+        assert.ok(!extension.commands.has('tasks'), 'Tasks must be absent: command');
+      }
+      assert.deepEqual([...carbon.tools.keys()].sort(), builtins, 'Carbon built-in decoration remains active');
+      assert.deepEqual(active, builtins, 'built-in activation unchanged');
+      return { applicable: true, mode: 'official-sdk-resource-loader', tasks: 'absent', tools: builtins };
+    }
     const assertUnique = result => {
       assert.deepEqual(result.errors, [], 'resource loader errors');
       for (const name of names) assert.equal(result.extensions.filter(extension => extension.tools.has(name)).length, 1, `${name} registered once`);

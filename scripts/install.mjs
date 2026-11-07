@@ -308,7 +308,12 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
       ]);
       const carbonFeaturePresent = beforeResources.has('.pi/agent/extensions/carbon-tasks/index.ts')
         || nextResources.has('.pi/agent/extensions/carbon-tasks/index.ts');
-      const permittedCarbonShapeChange = carbonFeaturePresent
+      const tasksWrapper = '.pi/agent/extensions/carbon-tasks/index.ts';
+      const tasksInventoryChanged = priorRelease.manifest.packages.some(pkg => pkg.name === '@tintinweb/pi-tasks')
+        !== successor.manifest.packages.some(pkg => pkg.name === '@tintinweb/pi-tasks');
+      const permittedTasksRetirement = tasksInventoryChanged && settingsShapeUnchanged
+        && changedResources.length === 1 && changedResources[0] === tasksWrapper;
+      const permittedCarbonShapeChange = carbonFeaturePresent && !tasksInventoryChanged
         && changedResources.every(relative => carbonResources.has(relative))
         && changedSettings.every(key => carbonSettings.has(key));
       const compatibilityResources = new Set([
@@ -331,7 +336,7 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
           && readJSON(path.join(after, 'manifests/packages.json')).piVersion === '1.3.0'
           && readJSON(path.join(before, 'config/pi.settings.json')).extensions === undefined
           && isDeepStrictEqual(readJSON(path.join(after, 'config/pi.settings.json')).extensions, ['-builtin:mcp']));
-      if (permittedLearningHelpers || permittedOrcaShapeChange || permittedWorkflowGuideChange || permittedPromptChange || permittedCarbonShapeChange
+      if (permittedTasksRetirement || permittedLearningHelpers || permittedOrcaShapeChange || permittedWorkflowGuideChange || permittedPromptChange || permittedCarbonShapeChange
           || permittedCompatibilityShapeChange || permittedMcpShapeChange || permittedCodemodeShapeChange || permittedKnowledgeIndexChange
           || (modern && migrateBase && changedResources.every(relative => relative.startsWith('.pi/agent/agents/')))) {
         retiredResources.push(...removed);
@@ -374,7 +379,17 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
   for (const relative of retiredResources) retire(relative);
   if (modern) {
     for (const name of ['subagents.json', 'tasks-config.json', 'SUPERVISOR.md']) {
-      add(`.pi/agent/${name}`, fs.readFileSync(path.join(source, 'config', name), 'utf8'));
+      const relative = `.pi/agent/${name}`;
+      if (name === 'tasks-config.json') {
+        const hasTasks = readJSON(path.join(source, 'manifests/packages.json')).packages.some(pkg => pkg.name === '@tintinweb/pi-tasks');
+        const target = path.join(home, relative);
+        noSymlinks(target);
+        if (!hasTasks || (fs.existsSync(target) && previous.files[relative] !== digest(fs.readFileSync(target)))) {
+          delete tracked[relative];
+          continue;
+        }
+      }
+      add(relative, fs.readFileSync(path.join(source, 'config', name), 'utf8'));
     }
     const legacyResources = ['.pi/agent/extensions/rtk.ts', '.pi/agent/agents/scout.md',
       '.pi/agent/agents/researcher.md', '.pi/agent/agents/worker.md'];

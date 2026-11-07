@@ -10,7 +10,6 @@ Do not register a second copy of the same package.
 | Package | Source |
 | --- | --- |
 | Subagents (`Agent`, `/agents`, workflows) | [tintinweb/pi-subagents](https://github.com/tintinweb/pi-subagents) |
-| Tasks (`TaskCreate`, `TaskExecute`, `/tasks`) | [tintinweb/pi-tasks](https://github.com/tintinweb/pi-tasks) |
 | Supervisor (`start_supervision`, `/supervise`) | [tintinweb/pi-supervisor](https://github.com/tintinweb/pi-supervisor) |
 | Observational memory (`/om`) | [igalarey/pi-observational-memory](https://github.com/igalarey/pi-observational-memory) |
 | User questions | `vendor/pi-ask-user-question` |
@@ -44,7 +43,7 @@ Web access uses explicit `toolActivation: "dynamic"` and starts fresh sessions w
 Activation itself does not search or fetch.
 
 Host-provided Pi and TypeBox modules use peers rather than duplicate runtime copies.
-Tasks and Supervisor use the same arrangement. Historical releases retain their recorded metadata and overlays.
+Supervisor uses the same arrangement. Historical releases retain their recorded metadata and overlays.
 See [knowledge ownership](docs/knowledge-ownership.md) for common, curated, external, and learned resources.
 
 ## Install
@@ -63,9 +62,9 @@ npm run doctor
 ```
 
 Preview writes nothing and performs no dependency installation. Apply fetches the two
-external sources at exact commits, prepares seven base packages and four native npm packages, runs offline verification,
-and activates only after success. Tasks and supervisor are reviewed source snapshots
-inside this repository; their revisions are in `manifests/tintinweb.json`.
+external sources at exact commits, prepares six base packages and four native npm packages, runs offline verification,
+and activates only after success. Supervisor is a reviewed source snapshot
+inside this repository. Its revision is in `manifests/tintinweb.json`.
 `manifests/active-release.json` pins the harness, subagents and memory commits.
 
 No extra development clones are needed. Sources are cached under
@@ -147,7 +146,7 @@ Do not delete pending proposals or ownership markers to bypass a refusal.
 | --- | --- |
 | `config/pi.settings.json` | Parent model/thinking and observational-memory settings |
 | `config/subagents.json` | Global tintinweb subagent defaults |
-| `config/tasks-config.json` | Global task defaults; session state outside repositories |
+| `config/tasks-config.json` | Historical task defaults, not projected by Tasks-free releases |
 | `config/SUPERVISOR.md` | Advisory supervisor policy, not human authorization |
 | `config/mcp-adapter.json` | Adapter 7 defaults; legacy settings migrate without changing the old file |
 | `config/mcp.json` | Historical adapter defaults, retained for rollback |
@@ -258,14 +257,18 @@ workflow concurrency and nested depth are different upstream limits, not the old
 budget. Agent mentions, workflows and supervision can incur additional model usage;
 model availability and account quota require your own authentication.
 
-Tasks use `session-global` storage and do not auto-cascade. Use them to track local
-multi-stage work. Workflows run only when the user explicitly requests one. Supervisor is
+Tasks and its Carbon adapter are uninstalled from new candidates, not merely disabled.
+Activation removes the prior managed package registration and unchanged wrapper, with backups.
+It preserves `~/.pi/agent/tasks`, custom task configuration, sessions, memories, and shared policy.
+Git retains the retired sources. A verified historical release can restore the managed package and wrapper.
+No new default reinstalls Tasks. Restart Pi after activation to discard cached registrations.
+
+Workflows run only when the user explicitly requests one. Supervisor is
 installed but not started automatically; start it only with explicit user authorization for
 the current outcome. Its instructions prohibit supplying user approvals or certifying
 incomplete required work. These are model instructions, not a runtime permission boundary.
 The user can stop active supervision through `/supervise stop`.
 Supervisor advice is labeled as advice, not sent as a human instruction. Waiting for a decision or encountering an analysis error does not authorize continuation.
-Project Tasks settings require explicit user-owned trust. Interactive settings persist in user-owned workspace settings, not project authorization files.
 
 ## Retained tools and privacy
 
@@ -310,16 +313,16 @@ Project Tasks settings require explicit user-owned trust. Interactive settings p
 npm test                     # offline root regressions
 npm run deps                 # preview local package dependency preparation
 npm run deps -- --apply      # npm ci --ignore-scripts in local packages
-npm run verify               # root + five local package groups; no live models/browser
+npm run verify               # root + four local package groups; no live models/browser
 npm run health               # installed release seals, integrity, compatibility, pending configuration
 node scripts/validate-skills.mjs  # curated local assets, links, and known obsolete dependencies
 ```
 
-The complete candidate additionally verifies subagents and memory (14 base package suites)
+The complete candidate additionally verifies subagents and memory (12 base package suites)
 and five runtime checks using the official Pi CLI: loader/RPC, memory status, synthetic
-TaskExecute/result delivery, child extension scope, read-only scope and in-process child
-execution. A separate mandatory gate loads the candidate Carbon/Tasks composition through the official SDK,
-checks unique ownership, executes task operations, and rejects duplicate activation. New candidates also validate curated skill references.
+Agent execution, child extension scope, read-only scope and in-process child execution.
+A separate mandatory gate loads Carbon through the official SDK and verifies its decorated built-ins and absence of Tasks tools and commands.
+Historical owner/adapter candidates retain task execution and duplicate-activation checks. New candidates also validate curated skill references.
 It starts Supervisor with a scripted offline provider, not a real account.
 The same official loader checks native MCP/web tools, the five project-owned prompt
 templates, reviewed-learning registration, Ollama command registration, absence of Bigpowers resources, and the disabled

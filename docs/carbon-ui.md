@@ -5,14 +5,15 @@ installer. It includes:
 
 - the `carbon-violet` and `carbon-graphite` themes;
 - a transparent editor with two columns of horizontal padding;
-- compact, background-free cards for built-in and task tools;
-- a wrapper around the vendored `@tintinweb/pi-tasks` extension.
+- compact, background-free cards for built-in tools.
 
-The task wrapper does not copy task behavior. At load time it reads the global Pi
-settings directory through Pi's public `getAgentDir()` API, locates the configured
-`@tintinweb/pi-tasks` source, imports its `src/index.ts` factory, and decorates only
-`registerTool`. When this wrapper is present, the installer sets `extensions: []`
-on the original package entry so Pi does not register the task tools twice.
+New candidates contain neither `@tintinweb/pi-tasks` nor the `carbon-tasks` adapter.
+The installer removes the previous managed package registration and unchanged adapter file.
+Private task data and custom task configuration remain untouched. Git retains the retired sources for recovery.
+
+The composition gate loads Carbon through the official SDK and runs its session-start handler.
+It requires seven decorated built-ins and no Tasks tools or `/tasks` command.
+Historical releases retain the owner/adapter gate, including execution parity and duplicate-registration rejection.
 
 The default settings select `carbon-graphite`, use editor padding `2` and output
 padding `1`, hide expanded thinking blocks, keep startup messages enabled, and
@@ -35,8 +36,8 @@ indicators on the left and the current model on the right. The refresh button
 remains clickable. Memory indicators use the theme's dim color. The agent summary
 is hidden from this footer; other extension statuses remain visible.
 
-The agents panel uses the upstream `aboveEditor` slot. It appears after the task
-widget and before the editor and observational-memory worker indicators. Agent
+The agents panel uses the upstream `aboveEditor` slot. It appears before the editor
+and observational-memory worker indicators. Agent
 execution, controls and widget contents remain unchanged.
 
 ## Optional Linux launcher

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
@@ -77,7 +77,16 @@ test('built-in decoration preserves tool activation filters and third-party over
   assert.equal(extension.tools.size, 6);
 });
 
-test('tasks adapter loads the owner once and decorates its seven original tools', async () => {
+test('Tasks is absent, or historical adapter loads its owner once', async () => {
+  if (!existsSync(resource('extensions/carbon-tasks/index.ts'))) {
+    assert.equal(existsSync(resource('vendor/pi-tasks/package.json')), false);
+    const result = await loadExtensions([resource('extensions/carbon-ui/index.ts')], '/tmp');
+    assert.deepEqual(result.errors, []);
+    assert.equal(result.extensions.length, 1);
+    assert.equal(result.extensions.some(extension => extension.commands.has('tasks')), false);
+    assert.equal(result.extensions.some(extension => [...extension.tools.keys()].some(name => name.startsWith('Task'))), false);
+    return;
+  }
   const agentDir = mkdtempSync(join(tmpdir(), 'carbon-task-config-'));
   const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
   let result;

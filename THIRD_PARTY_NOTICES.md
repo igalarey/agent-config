@@ -15,16 +15,13 @@ suggestions to explicit user requests; this is not a byte-identical upstream sna
 
 ## tintinweb packages
 
-`vendor/pi-tasks/` and `vendor/pi-supervisor/` contain MIT-licensed source snapshots
-from [tintinweb/pi-tasks](https://github.com/tintinweb/pi-tasks) and
-[tintinweb/pi-supervisor](https://github.com/tintinweb/pi-supervisor). Exact revisions
-are recorded in `manifests/tintinweb.json`. Their original LICENSE files are retained.
-Media, GitHub workflows and contributor-only instructions are excluded from the snapshots.
-`vendor/pi-tasks/` has a local behavior change: `src/auto-clear.ts` starts the auto-clear countdown
-for completed tasks it did not see complete, such as tasks carried over by a restart or
-resume. Upstream `29180d7` keeps those tasks until the next `TaskCreate`.
-`test/auto-clear.test.ts` adds tests for it. `vendor/pi-supervisor/` retains the local
-Pi API compatibility changes, with development dependencies pinned in its package lock:
+`vendor/pi-supervisor/` contains an MIT-licensed source snapshot from
+[tintinweb/pi-supervisor](https://github.com/tintinweb/pi-supervisor). Its exact revision
+is recorded in `manifests/tintinweb.json`. Its original LICENSE file is retained.
+Media, GitHub workflows and contributor-only instructions are excluded from the snapshot.
+The retired [tintinweb/pi-tasks](https://github.com/tintinweb/pi-tasks) snapshot and its MIT notice remain recoverable from Git history.
+New candidates do not distribute Tasks or its Carbon adapter.
+`vendor/pi-supervisor/` retains the local Pi API compatibility changes, with development dependencies pinned in its package lock:
 
 - `package.json` declares the Pi packages as exact development dependencies, and
   the lock is regenerated. Without this, npm installs the unpinned Pi peer dependency, an
@@ -42,19 +39,19 @@ The current source is a local descendant of upstream `50460b5df6934c4237983a5048
 Local commits preserve commit-acknowledged notifications and harden execution contracts.
 The recipe pins the complete adapted source; it does not layer a second notification mechanism.
 The upstream notice is MIT, copyright (c) 2026 tintinweb.
-`vendor/pi-tasks/LICENSE` also retains that complete notice for the patch text in this repository.
+`vendor/pi-supervisor/LICENSE` retains that complete notice.
 See [completion delivery](docs/notification-delivery.md) for behavior and verification.
 RTK is no longer distributed or installed.
 
-Both vendored packages move TypeBox to development dependencies and declare the host peer as `*`.
-Their locks retain resolved versions and integrity hashes.
+Supervisor uses TypeBox as a development dependency and declares the host peer as `*`.
+Its lock retains resolved versions and integrity hashes.
 
 Upstream subagents 0.23.1 already declares the required host peers.
 The old metadata and notification overlays are absent from new source manifests.
 Historical sealed releases and their exact-hash overlay validation remain supported.
 
-Tasks also contains local persistence, explicit project-trust, cancellation, and interactive-settings corrections.
-Supervisor contains local advisory-message and stale-result protections. Their vendor documentation records these contracts.
+The retired Tasks snapshot includes persistence, explicit project-trust, cancellation, and interactive-settings corrections.
+Supervisor contains local advisory-message and stale-result protections. Its vendor documentation records these contracts.
 
 ## Native npm packages
 

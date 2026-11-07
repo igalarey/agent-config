@@ -12,9 +12,9 @@ test('new upstream sources are exact reviewed Git commits, not floating branches
   assert.equal(manifest.schemaVersion, 1);
   assert.equal(manifest.piVersion, '1.5.0');
   assert.deepEqual(manifest.packages.map(p => p.name), [
-    '@tintinweb/pi-subagents', '@tintinweb/pi-tasks', 'pi-supervisor',
+    '@tintinweb/pi-subagents', 'pi-supervisor',
   ]);
-  const repos = ['pi-subagents', 'pi-tasks', 'pi-supervisor'];
+  const repos = ['pi-subagents', 'pi-supervisor'];
   for (const [index, pkg] of manifest.packages.entries()) {
     assert.equal(pkg.repository, `https://github.com/tintinweb/${repos[index]}.git`);
     assert.match(pkg.commit, /^[0-9a-f]{40}$/);
@@ -26,7 +26,7 @@ test('new base disables upstream hook-bypassing worktree automation', () => {
   assert.equal(json('config/subagents.json').worktreeIsolation, false);
 });
 
-test('new task state is kept outside repositories, does not auto-cascade and lists active work first', () => {
+test('historical task defaults remain available without installing Tasks', () => {
   assert.deepEqual(json('config/tasks-config.json'), {
     taskScope: 'session-global', autoCascade: false,
     autoClearCompleted: 'on_task_complete', sortOrder: 'active',

@@ -123,7 +123,8 @@ function prepareRelease(home, source) {
         package: '@earendil-works/pi-coding-agent', version: '0.85.0', packageSha256: evidenceHash,
         loaderSha256: evidenceHash, mode: 'official-cli-rpc', entrypoint: 'dist/bundle/cli.js',
       },
-      supplemental: { mode: 'mock-host-api-direct-tool-execution' },
+      supplemental: { mode: candidate.manifest.packages.some(pkg => pkg.name === '@tintinweb/pi-subagents')
+        ? 'official-cli-faux-model-integration' : 'mock-host-api-direct-tool-execution' },
       runner: { sha256: runtimeSmokeHash },
       results: [
         'runtime:host', 'runtime:loader', 'runtime:supplemental-tool-execution', 'runtime:process-only', 'runtime:rpc',
@@ -326,6 +327,62 @@ test('Carbon resources, UI defaults, and task filtering upgrade and roll back to
   const unsafeRollback = plan({ home, release: legacy.id });
   assert.ok(unsafeRollback.conflicts.some(conflict => /pi-tasks\.extensions/.test(conflict)));
   assert.throws(() => execute(unsafeRollback), /nothing written/);
+});
+
+test('Tasks uninstalls without private data loss and rolls back only its managed shape', t => {
+  const home = temporary(t, 'installer-tasks-retirement-');
+  const source = releaseSources(t, oldPolicy);
+  packageFiles(source.repositories.subagents, '@tintinweb/pi-subagents', { subagents: true });
+  source.commits.subagents = commit(source.repositories.subagents, 'modern subagent fixture');
+  const harness = source.repositories.harness;
+  packageFiles(path.join(harness, 'vendor/pi-tasks'), '@tintinweb/pi-tasks');
+  put(harness, 'config/subagents.json', '{}');
+  fs.renameSync(path.join(harness, 'agents/worker.md'), path.join(harness, 'agents/general-purpose.md'));
+  put(harness, 'config/tasks-config.json', '{"taskScope":"session-global"}\n');
+  put(harness, 'config/SUPERVISOR.md', 'fixture supervisor\n');
+  const wrapper = 'extensions/carbon-tasks/index.ts';
+  put(harness, wrapper, 'export default function carbonTasks() {}\n');
+  put(harness, 'extensions/carbon-ui/index.ts', 'export default function carbonUi() {}\n');
+  source.commits.harness = commit(harness, 'Tasks and Carbon baseline');
+  const before = prepareRelease(home, source);
+  execute(plan({ home, release: before.id }));
+  const privateFiles = {
+    '.pi/agent/tasks/sessions/private/tasks.json': '{"private":"task data"}\n',
+    '.pi/agent/tasks-config.json': '{"private":"custom task config"}\n',
+    '.pi/agent/sessions/private.jsonl': 'private session\n',
+    '.pi/agent/memories/private.md': 'private memory\n',
+    '.agents/SYSTEM.md': 'private policy\n',
+  };
+  for (const [relative, content] of Object.entries(privateFiles)) put(home, relative, content);
+  const settings = readJSON(path.join(home, settingsPath));
+  settings.privateSetting = { keep: true };
+  put(home, settingsPath, JSON.stringify(settings));
+  fs.rmSync(path.join(harness, 'vendor/pi-tasks'), { recursive: true });
+  fs.rmSync(path.join(harness, wrapper));
+  source.commits.harness = commit(harness, 'uninstall Tasks');
+  const after = prepareRelease(home, source);
+  assert.equal(after.manifest.packages.some(pkg => pkg.name === '@tintinweb/pi-tasks'), false);
+  assert.equal(after.manifest.files.some(file => file.path.includes('/pi-tasks/') || file.path.includes('carbon-tasks/')), false);
+  put(home, `.pi/agent/${wrapper}`, 'user modified wrapper\n');
+  assert.ok(plan({ home, release: after.id }).conflicts.includes(`.pi/agent/${wrapper}`));
+  put(home, `.pi/agent/${wrapper}`, 'export default function carbonTasks() {}\n');
+  const migration = plan({ home, release: after.id });
+  assert.deepEqual(migration.conflicts, []);
+  execute(migration);
+  assert.equal(fs.existsSync(path.join(home, '.pi/agent', wrapper)), false);
+  assert.equal(readJSON(path.join(home, settingsPath)).packages.some(entry => (typeof entry === 'string' ? entry : entry.source).endsWith('/pi-tasks')), false);
+  assert.deepEqual(readJSON(path.join(home, settingsPath)).privateSetting, { keep: true });
+  for (const [relative, content] of Object.entries(privateFiles)) assert.equal(fs.readFileSync(path.join(home, relative), 'utf8'), content, relative);
+  assert.deepEqual(plan({ home }).operations, []);
+  const rollback = plan({ home, release: before.id });
+  assert.deepEqual(rollback.conflicts, []);
+  execute(rollback);
+  assert.deepEqual(readJSON(path.join(home, settingsPath)).packages.find(entry => entry.source?.endsWith('/pi-tasks')).extensions, []);
+  for (const [relative, content] of Object.entries(privateFiles)) assert.equal(fs.readFileSync(path.join(home, relative), 'utf8'), content, relative);
+  put(harness, 'extensions/unrelated/index.ts', 'export default function unrelated() {}\n');
+  source.commits.harness = commit(harness, 'unrelated shape change with retirement');
+  const unsafe = prepareRelease(home, source);
+  assert.ok(plan({ home, release: unsafe.id }).conflicts.some(message => message.includes('incompatible release')));
 });
 
 test('Carbon shape allowance does not permit the same settings without Carbon resources', t => {

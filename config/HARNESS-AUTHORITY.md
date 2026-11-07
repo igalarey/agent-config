@@ -24,8 +24,8 @@ comparing them. The inventory is audit evidence, not an independent set of manua
 | Curated skills | `manifests/curated-skills.json` plus `pi-skills/` in the release | Installer projects them to `~/.pi/agent/skills`. Original and adapted provenance remain distinct. They do not depend on Bigpowers or Hermes runtimes. |
 | Other managed resources | Release source and installer managed hashes | Pi loads projected prompts, extensions and themes according to settings and Pi's loader rules. |
 | Session, context and native tool lifecycle | Pi core | Extensions add capabilities without taking ownership of Pi's lifecycle. |
-| Tasks and task state | `@tintinweb/pi-tasks` | `carbon-tasks` adapts registration and presentation; the original package entrypoint is suppressed to prevent duplicate activation. |
-| Agent delegation | `@tintinweb/pi-subagents` | Tasks may describe work; the supervisor may advise but does not execute it. |
+| Retired task state | User-owned private data | New candidates omit Tasks and its Carbon adapter. Retirement preserves existing task data and custom configuration. |
+| Agent delegation | `@tintinweb/pi-subagents` | The supervisor advises but does not execute delegated work. |
 | Conversation memory | `observational-memory` | Pi remains responsible for context and compaction lifecycle. |
 | Reviewed procedural learning | `extensions/learning` | The model stages evidence-backed skill proposals. A human approves only extension-owned learned skills. |
 | User questions | `pi-ask-user-question` | The main agent decides when user input is required. |
@@ -42,11 +42,11 @@ Run the projected verifier without network access:
 node ~/.pi/agent/scripts/verify-compatibility.mjs
 ```
 
-It checks the active installer state and settings against the selected release, regenerates
-the expected inventory, verifies exact npm pins and lock metadata, checks local package
-identity and entrypoints, verifies release source and managed resource hashes, confirms Bigpowers is absent,
-confirms task entrypoint suppression, and compares the installed Pi version. It does not
-read authentication, sessions, model data, memories or private MCP configuration.
+It checks the active installer state and settings against the selected release and regenerates the expected inventory.
+It verifies npm pins, lock metadata, local package identities, entrypoints, release source, and managed resource hashes.
+It confirms that Bigpowers is absent and compares the installed Pi version.
+For historical owner/adapter releases, it also checks task entrypoint suppression.
+It does not read authentication, sessions, model data, memories or private MCP configuration.
 
 This command does not validate every local dependency byte or the activation seal.
 For the complete installed check, run `npm run doctor` (alias `npm run health`) from the harness repository.

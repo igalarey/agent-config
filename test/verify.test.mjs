@@ -272,7 +272,7 @@ test('verification removes ambient MCP configuration and test switches', () => {
 
 test('repository default verification covers only root and harness-owned packages', () => {
   assert.deepEqual(planVerification().map(check => check.id), [
-    'root', 'pi-ask-user-question', 'pi-browser', 'pi-subscription-usage', '@tintinweb/pi-tasks', 'pi-supervisor',
+    'root', 'pi-ask-user-question', 'pi-browser', 'pi-subscription-usage', 'pi-supervisor',
   ]);
   const { lines, reporter } = capture();
   const exitCode = main({
@@ -285,7 +285,7 @@ test('repository default verification covers only root and harness-owned package
   });
   assert.equal(exitCode, 0);
   assert.match(lines[0], /Local harness only; external package sources are checked through release verification/);
-  assert.match(lines.at(-1), /All 6 checks passed/);
+  assert.match(lines.at(-1), /All 5 checks passed/);
 });
 
 test('plans root tests and ordered typecheck/test chains from the package manifest', t => {
