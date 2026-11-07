@@ -30,8 +30,8 @@ test('priority does not affect Astra, Sol, other providers or unknown models', (
 
 test('profiles pin models with explicit local tools and bounded turns', () => {
   for (const [name, modelId, thinking, writable] of [
-    ['Explore', 'gpt-6.1-sol', 'high', false], ['general-purpose', 'gpt-6.1-sol', 'high', true],
-    ['Plan', 'gpt-6-astra', 'low', false], ['deep-implementation', 'gpt-6-astra', 'low', true], ['deep-review', 'gpt-6-astra', 'low', false],
+    ['Explore', 'gpt-6.1-sol', 'low', false], ['general-purpose', 'gpt-6.1-sol', 'high', true],
+    ['Plan', 'gpt-6-astra', 'low', false], ['deep-implementation', 'gpt-6-astra', 'medium', true], ['deep-review', 'gpt-6.1-sol', 'medium', false],
   ]) {
     const text = fs.readFileSync(new URL(`../agents/${name}.md`, import.meta.url), 'utf8');
     assert.ok(text.includes(`model: openai-codex/${modelId}\n`), name);
@@ -43,7 +43,11 @@ test('profiles pin models with explicit local tools and bounded turns', () => {
     assert.match(text, /allowed_subagents: none/);
     assert.ok(text.includes('extensions: false\n'), name);
     assert.doesNotMatch(text, /Luna|priority|luna-fast/);
-    assert.match(text, new RegExp(`description: .*${modelId === 'gpt-6.1-sol' ? 'Sol high' : 'Astra low'}`));
+    assert.match(text, new RegExp(`description: .*${modelId === 'gpt-6.1-sol' ? 'Sol' : 'Astra'} ${thinking}`));
+    assert.match(text, /capability_request/);
+    assert.match(text, /partial_result/);
+    assert.match(text, /coordinator decides/i);
+    assert.match(text, /skill\|prompt\|extension\|delegation\|budget/);
   }
   const settings = JSON.parse(fs.readFileSync(new URL('../config/subagents.json', import.meta.url)));
   assert.equal(settings.maxSubagentDepth, 1);
@@ -72,7 +76,14 @@ test('runtime smoke reads profile policy, retains historical effort and priority
   };
   const current = writeProfiles(['gpt-6.1-sol', 'gpt-6-astra'], ['high', 'low']);
   assert.deepEqual(readSubagentSmokePolicy(release), current);
-  assert.deepEqual(readSubagentSmokePolicy(path.resolve(import.meta.dirname, '..')), current);
+  const requested = { ...current, Explore: { model: 'gpt-6.1-sol', thinking: 'low' },
+    'deep-implementation': { model: 'gpt-6-astra', thinking: 'medium' },
+    'deep-review': { model: 'gpt-6.1-sol', thinking: 'medium' } };
+  for (const [name, policy] of Object.entries(requested)) {
+    fs.writeFileSync(path.join(release, 'agents', `${name}.md`), `---\nname: ${name}\nmodel: openai-codex/${policy.model}\nthinking: ${policy.thinking}\nextensions: false\n---\n`);
+  }
+  assert.deepEqual(readSubagentSmokePolicy(release), requested);
+  assert.deepEqual(readSubagentSmokePolicy(path.resolve(import.meta.dirname, '..')), requested);
   for (const hook of [false, true]) {
     const expected = writeProfiles(['gpt-6.1-sol', 'gpt-6-astra'], ['high', 'low'], hook);
     assert.deepEqual(readSubagentSmokePolicy(release), expected);

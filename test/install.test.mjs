@@ -217,7 +217,7 @@ test('legacy planner fixture is idempotent and preserves profiles and source', t
   const explore = fs.readFileSync(path.join(home, '.pi/agent/agents/Explore.md'), 'utf8');
   assert.match(generalPurpose, /prompt_mode: append/);
   assert.match(generalPurpose, /thinking: high/);
-  assert.match(explore, /thinking: high/);
+  assert.match(explore, /thinking: low/);
   assert.equal(fs.readFileSync(path.join(home, '.agents/SYSTEM.md'), 'utf8'), fs.readFileSync(path.join(root, 'SYSTEM.md'), 'utf8'));
   assert.ok(!installedSettings.packages.some(entry => (typeof entry === 'string' ? entry : entry.source).startsWith('npm:bigpowers')));
   for (const skill of ['pdf-reader', 'youtube-transcript', 'analyze-sessions']) {

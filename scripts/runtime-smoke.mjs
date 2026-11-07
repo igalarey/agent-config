@@ -656,7 +656,8 @@ export function readSubagentSmokePolicy(releasePath) {
     const luna = id === 'gpt-6-luna';
     const supported = luna ? ['medium', 'high'].includes(thinking)
       : ['gpt-6-sol', 'gpt-6.1-sol'].includes(id) ? thinking === 'high'
-        : id === 'gpt-6-astra' && thinking === 'low';
+        || (id === 'gpt-6.1-sol' && ((name === 'Explore' && thinking === 'low') || (name === 'deep-review' && thinking === 'medium')))
+        : id === 'gpt-6-astra' && (thinking === 'low' || (name === 'deep-implementation' && thinking === 'medium'));
     assert(supported && extensions === (luna ? '["~/.pi/agent/agents/luna-fast.mjs"]' : 'false'),
       `Unsupported subagent policy: ${name} ${model} ${thinking} extensions=${extensions}`);
     if (luna) assert(fs.existsSync(path.join(releasePath, 'agents/luna-fast.mjs')), 'Unsupported subagent policy: Luna hook missing');
