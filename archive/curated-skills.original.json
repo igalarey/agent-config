@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "package": "bigpowers",
+    "version": "2.88.6",
+    "repository": "https://github.com/danielvm-git/bigpowers.git",
+    "integrity": "sha512-+Kkb1A3S0pfCspfoAj74jJWYlPI4fdICpOcozWf/1oKCaV9fatTo/gqjxLg35xK3kdM8TwoJfW2O9RGOddt60Q==",
+    "license": "MIT"
+  },
+  "skills": [
+    "align-grid",
+    "context7-mcp",
+    "security-review",
+    "design-interface",
+    "deepen-architecture",
+    "elaborate-spec",
+    "grill-me",
+    "define-language",
+    "diagnose-root",
+    "enforce-first",
+    "edit-document",
+    "simple-english",
+    "smoke-test",
+    "validate-contracts",
+    "grounded-citations",
+    "simplify-code",
+    "spike",
+    "ast-grep"
+  ],
+  "files": {
+    "LICENSE.bigpowers": "ab5c332485a9ffad649f5a341d5ecfd35abff52249bf2a5c958f168a002ce376",
+    "LICENSE.hermes": "821556e6336796450ab852d375117b48a4887e71d255794fd6318d99982a5ab6",
+    "align-grid/SKILL.md": "288262887f903847913e8c1f938db10c028e391a57a459861ecf1cc49ea38000",
+    "align-grid/scripts/grid_tokens.py": "a639cf885d45b9e4c51578959abee53fa81e06ad91167a040bd30b9dfc93fafe",
+    "align-grid/scripts/verify_grid.js": "a88e963bb69e47f12299d21fdf422c5107d7d71b732c370a8087e78668e45574",
+    "ast-grep/LICENSE": "b083425948376611de9b92b0aeb7377e604505756ea427e541a34d9b030d4dc1",
+    "ast-grep/SKILL.md": "dea3c83a681323a45cd2a0f24a85d4526b59e29fe667108649da8401bbbccfd2",
+    "context7-mcp/SKILL.md": "baeb2c049ffdedadb79a7f8582762fa198dda3e0c830fa35d781e914279e3ecd",
+    "deepen-architecture/DEEPENING.md": "314a93659f350a90157553b8a6ca3df09b026bf366837dbadecdcf5d4aa77473",
+    "deepen-architecture/INTERFACE-DESIGN.md": "c7a95fd60221cf5b08a9a5c7b054ea278bc96820c874eb8a6805e2f57806e4ef",
+    "deepen-architecture/LANGUAGE.md": "6feca2140439c54a774749e8367f18350899ff69c777144ed2248cd4407949fa",
+    "deepen-architecture/SKILL.md": "d74024e66bd5675ae1a920c97b568c8b7c7d583c75f9408e0b258f96a43456b1",
+    "define-language/SKILL.md": "2d790bfa96c3ccb293306da333042f4666ea73c523987be952aaf41403c144fd",
+    "design-interface/SKILL.md": "a57610d8137d93f93f01c7fb64ed70b2c71605616da274686e521e489eca12d5",
+    "diagnose-root/SKILL.md": "cdc2d664c0ce00086dc2ae9c49466270e162da639eb71b43997ec3bfdbf455ee",
+    "edit-document/SKILL.md": "a82e785ad21d0ac0be9386f14404511038f47b98dc419f814dfd82cacea34fd8",
+    "elaborate-spec/SKILL.md": "dbe2aa53cc91ecb88d1b15465c181c60f4ed14894af1b12690bd27955c2bf8ab",
+    "enforce-first/SKILL.md": "0cb6b60b978a2214d7fcffcd1b47c31812151e890390b6bdaa2cef3ecb540794",
+    "grill-me/REFERENCE.md": "c4bc472a4b4ae6e333da4aefb001776720e1cd76b418656399363cd512bc30b9",
+    "grill-me/SKILL.md": "228502b1219b3c8ea300ba54175a4177a72330670bb0c8c0dd8e9221c9f09c60",
+    "grounded-citations/SKILL.md": "dee34d4a3221121d909cbb1b6910ba9bcaae0320d0bf72f9d80253f61493e5ba",
+    "security-review/REFERENCE-confidence-rubric.md": "63a21cfd874282d5bc67d32eed3cabe8e34d98bc3f31da06ef91f8f2876adf07",
+    "security-review/REFERENCE-false-positives.md": "88b19eda81df604b98aa141f1b83fb337705e4818bc4aab6aa01659bdaa295a2",
+    "security-review/REFERENCE-vuln-categories.md": "ec0c95cb78f5eed02be0deec56d61b19c7bfd97609c8c3582089ea4923ae98b7",
+    "security-review/SKILL.md": "8bd32cba8fb3a6f2a87cabe2b8d9e613716d8d76da4236a083ef7f46f8518c51",
+    "security-review/fixtures/CWE-639-idor-negative.go": "ecf13683479fcdc8ad62b1623f2e174c0fdaeab077bcd007c2a4ac6df794246f",
+    "security-review/fixtures/CWE-639-idor-positive.go": "2b8bb90026832468910abd2f202908ff361688569a2d649ea82546f6e8432111",
+    "security-review/fixtures/CWE-79-xss-negative.js": "fa83561cd65d4806a2a00d8a1025f2166a415f72e6073c8836249fb8b568600c",
+    "security-review/fixtures/CWE-79-xss-positive.js": "5a2544afca53f247e965234d489a48c5e757d7cff86053aa7c59b2dedd816c1b",
+    "security-review/fixtures/CWE-89-sqli-negative.py": "b52e6b9d11603dc343563e965e3106b292ad57d112d45dbdefa72f527926b236",
+    "security-review/fixtures/CWE-89-sqli-positive.py": "a8abee7054e6264e2d7ca79aef2f137c3ba2ab5cba07d2e7218a6754aa21811c",
+    "security-review/fixtures/CWE-fail-open-verify-negative.sh": "d650bcb5b0fcbe03d603e484000928150911b20aa456e952c8a0cd9cc44a03c1",
+    "security-review/fixtures/CWE-fail-open-verify-positive.sh": "3707b01ac8c3dfb53712c61e57079e5c096539730ac6f2434f6424240e74ceef",
+    "simple-english/REFERENCE.md": "f2b7057c63b31715131d7e79fb54af9cb06cfb00ee13a9bad7ca4751294a6771",
+    "simple-english/SKILL.md": "91cd7a919487bb504b0be097cfcc68ea5aa56358c79fe2ba0fac0a32eabebc71",
+    "simple-english/scripts/ste_lint.py": "79f3b8c63c5b71e09e6d9c563209b98246111a5fcd48a58c4645fed8827194f4",
+    "simplify-code/SKILL.md": "ec62d16c943c9fcfd8aed3535032f6f4898c8b4a3da31b671535d37e72fe5df0",
+    "smoke-test/REFERENCE.md": "e5b6e1780d346ff818526cc1284c4b3c3169be93c742273d3ac3d0ba978094a2",
+    "smoke-test/SKILL.md": "4c71d1284e2ab24e297a4dd4e5ac1d4a813d930c3d30a669fda795b104a5aaf7",
+    "spike/SKILL.md": "0e00d36401e4eb24f2bea92cff8166937e1bd283b0c21082fb49bdd61c02b888",
+    "validate-contracts/REFERENCE.md": "c7f76d3bbdfba0d27f672b178eefc423e30db5c3ace9a9bed1d9d928306a0193",
+    "validate-contracts/SKILL.md": "3c57d2831563e8dabc88552a340d92cbae1e804761b26c5fd6456f6cc8c1ab27"
+  },
+  "localAdaptations": [
+    {
+      "id": "knowledge-audit-2026-11-05",
+      "basisCommit": "e8f5e36bf188d3195e61f8b598aa9f462330530a",
+      "changes": [
+        {
+          "skills": ["security-review"],
+          "notes": [
+            "Replace blanket exclusions with trust-boundary analysis, separate confidence from severity, and retain conditional risks and unknowns.",
+            "Correct path containment and symlink/race limits, pickle versus PyTorch options, and JSON parsing guidance.",
+            "Remove absent review helpers and framework integration mandates; retain the existing illustrative CWE fixture pairs."
+          ]
+        },
+        {
+          "skills": ["context7-mcp", "enforce-first", "deepen-architecture", "smoke-test", "validate-contracts", "simple-english"],
+          "notes": [
+            "Make procedures and companion references self-contained with explicit optional runtimes, MCP/network tools, project policy, and validation limits.",
+            "Remove original-repository cache, churn, boundary, smoke, contract, and convention prerequisites without reinstalling their framework.",
+            "Keep smoke checks read-only and separate deployment, repair, authentication, private access, and persistent artifacts from validation."
+          ]
+        },
+        {
+          "skills": ["edit-document", "design-interface", "define-language", "elaborate-spec", "grill-me", "deepen-architecture"],
+          "notes": [
+            "Remove arbitrary paragraph limits, fixed delegation quotas, absent companion workflows, and routine clarification gates.",
+            "Narrow triggers and preserve explicit authorization for writes, implementation, network actions, and persistent planning."
+          ]
+        },
+        {
+          "skills": ["align-grid"],
+          "notes": [
+            "Retain modular grid scaffold and measurements, remove automatic publishing and unavailable image/hosting tools, and make browser prerequisites explicit.",
+            "Remove remote font links from generated scaffolds; support the repository ESM context, local file paths, dependency-free help, and the default browser sandbox."
+          ]
+        }
+      ]
+    }
+  ],
+  "adaptations": {
+    "repository": "https://github.com/NousResearch/hermes-agent",
+    "commit": "47676981f55de91231fdeef2f0eec47e7c209e78",
+    "license": "MIT",
+    "licenseFile": "LICENSE.hermes",
+    "skills": {
+      "diagnose-root": {
+        "path": "skills/software-development/systematic-debugging/SKILL.md",
+        "sha256": "bd480f51a2e9969c88544003c30b7539b7df0b7358703f99b0495514c2dd878a",
+        "changes": [
+          "Retain the existing Pi name and replace unavailable companion skills and mandatory bug artifacts.",
+          "Use symptom-specific checks, boundary tracing, and falsifiable hypotheses without fixed phase or test quotas."
+        ]
+      },
+      "grounded-citations": {
+        "path": "skills/research/grounded-citations/SKILL.md",
+        "sha256": "19fba3a4ceedf768af6851e094b268a66b62af750d4d0689c5d62d5d50c032b6",
+        "changes": [
+          "Use Pi source_check, fetch_content, and get_search_content instead of Hermes tools and the global Python citation ledger.",
+          "Require claim-to-passage support without mandatory numbering, extra channels, or automatic skill installation."
+        ]
+      },
+      "simplify-code": {
+        "path": "skills/software-development/simplify-code/SKILL.md",
+        "sha256": "9ee977c3362a1c07f2e327198e066ddb3c0ed67709706fc410165ee820b2ca01",
+        "changes": [
+          "Preserve four review lenses with inline execution instead of mandatory four-agent delegation.",
+          "Restrict cleanup to authorized scope and preserve public contracts and shared test policy."
+        ]
+      },
+      "spike": {
+        "path": "skills/software-development/spike/SKILL.md",
+        "sha256": "573d8fc0d6699eaf5308e742402bc02c883152ffeebe14607f164c6c538495c2",
+        "changes": [
+          "Remove GSD/Hermes commands and mandatory artifact structure.",
+          "Keep risk-first, observable experiments without automatic installs or routine confirmation."
+        ]
+      },
+      "ast-grep": {
+        "path": "optional-skills/software-development/ast-grep/SKILL.md",
+        "sha256": "e5404b443ee1b74da558d1ea6d3bfac888061a93561138adf500c0a4b124fe47",
+        "licenseFile": "ast-grep/LICENSE",
+        "changes": [
+          "Use an existing CLI only, with ordinary-search fallback and no bundled Python wrapper or installers.",
+          "Retain AST pattern, dry-run, separate apply-pass, and semantic-verification guidance."
+        ]
+      }
+    }
+  }
+}

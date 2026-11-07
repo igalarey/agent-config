@@ -29,7 +29,12 @@ Do not register a second copy of the same package.
 profiles, bridges and external viewer are not part of the new base.
 
 Shared instructions, guides and skills are projected into `~/.agents`. Curated skills
-from `pi-skills/` go to `~/.pi/agent/skills`. Prompt templates go to `~/.pi/agent/prompts`.
+from `pi-skills/` go to `~/.pi/agent/skills`. The nine active curated skills are
+`context7-mcp`, `security-review`, `elaborate-spec`, `diagnose-root`, `enforce-first`,
+`edit-document`, `simple-english`, `smoke-test`, and `grounded-citations`.
+Nine retired skills and all their assets/provenance remain in the source-only
+[recovery archive](archive/README.md), outside discovery, projection and new releases.
+Prompt templates go to `~/.pi/agent/prompts`.
 Existing shared files are preserved, especially
 `SYSTEM.md`; the installer does not silently replace shared user policy. Fresh homes receive
 the repository's defaults. Edit shared policy separately.
@@ -149,7 +154,8 @@ Do not delete pending proposals or ownership markers to bypass a refusal.
 | `config/web-search.json` | Direct fetch, local PDF extraction, no browser cookies or curator |
 | `config/herdr/config.toml` | Optional tracked Herdr theme and interface configuration |
 | `native/package*.json` | Exact npm defaults and transitive dependency lock |
-| `manifests/curated-skills.json`, `pi-skills/` | Curated skills, provenance, assets and hashes |
+| `manifests/curated-skills.json`, `pi-skills/` | Active curated skills, provenance, assets and hashes |
+| `archive/` | Source-only retired skills, exact provenance snapshot and restoration instructions; not released or installed |
 | `config/HARNESS-AUTHORITY.md` | Component responsibilities and configuration authority |
 | `scripts/verify-compatibility.mjs` | Check the generated inventory against the active release |
 | `agents/` | Five model/tool profiles and an inactive historical Luna priority hook |
@@ -287,7 +293,7 @@ Project Tasks settings require explicit user-owned trust. Interactive settings p
 - PDF/YouTube skills are retained for local page rendering and actual captions; they need
   separately installed Python/PyMuPDF/yt-dlp. `analyze-sessions` is our original local
   implementation, not a third-party skill, and only reads sessions on explicit request.
-- Bigpowers is not installed. The 18 curated skills are maintained as self-contained procedures.
+- Bigpowers is not installed. The nine active curated skills are maintained as self-contained procedures.
   Their provenance retains Bigpowers selections, Hermes adaptations, and documented local safety changes.
   Required local references and assets have a deterministic validator. Original source hashes and applicable MIT notices remain.
   Publication, deployment, installation, and file creation require task-specific authorization rather than a skill trigger alone.

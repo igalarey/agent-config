@@ -28,7 +28,12 @@ The core review covered these source paths and their relevant tests:
 Gateway, cron, providers, and desktop/TUI directories were identified for scope, not audited in depth.
 They do not solve a demonstrated gap in this lightweight coding harness.
 
-## Selection
+## Selection (historical adoption)
+
+The table records the original adoption decisions, not the current active catalog.
+`diagnose-root` and `grounded-citations` remain active; `simplify-code`, `spike` and
+`ast-grep` now live in the [source-only recovery archive](../archive/README.md).
+Their bytes, licenses and complete pre-archive provenance are preserved there.
 
 | Local resource | Source | Decision |
 | --- | --- | --- |
@@ -41,7 +46,8 @@ They do not solve a demonstrated gap in this lightweight coding harness.
 | `/learn`, `learning_propose` | Review prompts, ownership guards, and staged approval | Add a small native Pi adaptation, not a Python port. |
 
 Adaptations retain useful methods rather than claiming byte-identical imports.
-`manifests/curated-skills.json` records the exact upstream commit, source paths, original hashes, adaptation notes, and deployed file hashes.
+`manifests/curated-skills.json` records the exact upstream commit, source paths, original hashes, adaptation notes, and file hashes for active skills.
+`archive/curated-skills.original.json` preserves the full pre-archive manifest for the historical selections.
 Its `source` retains the original Bigpowers provenance. Its `adaptations` identifies the Hermes-derived additions and replacement.
 The generated harness inventory includes the adaptation provenance.
 The Nous Research MIT notice and the separate ast-grep author notice remain with the skills.

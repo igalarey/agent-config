@@ -94,13 +94,13 @@ test('repository skills pass standalone validation and CLI failure uses a nonzer
 });
 
 test('grid verifier can load in the repository ESM context without requiring a browser', () => {
-  const result = spawnSync(process.execPath, [join(repo, 'pi-skills/align-grid/scripts/verify_grid.js'), '--help'], { encoding: 'utf8' });
+  const result = spawnSync(process.execPath, [join(repo, 'archive/pi-skills/align-grid/scripts/verify_grid.js'), '--help'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /CHROME.*PUP/s);
 });
 
 test('grid scaffold is deterministic and contains no remote assets', () => {
-  const command = [join(repo, 'pi-skills/align-grid/scripts/grid_tokens.py'), '--scaffold'];
+  const command = [join(repo, 'archive/pi-skills/align-grid/scripts/grid_tokens.py'), '--scaffold'];
   const first = spawnSync('python3', command, { encoding: 'utf8' });
   const second = spawnSync('python3', command, { encoding: 'utf8' });
   assert.equal(first.status, 0, first.stderr);

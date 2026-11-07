@@ -7,7 +7,8 @@
 | Shared policy | User's `~/.agents/SYSTEM.md` | Same file | User; never replaced during an upgrade |
 | Shared guides | `guides/` supplies new-home defaults | `~/.agents/guides/` | User owns existing files; installer only fills missing defaults |
 | Common skill defaults | `skills/` supplies reviewed defaults | `~/.agents/skills/` | User owns existing files; explicit reviewed synchronization only |
-| Curated Pi skills | `pi-skills/` and `manifests/curated-skills.json` | `~/.pi/agent/skills/` | Verified harness release |
+| Active curated Pi skills | `pi-skills/` and `manifests/curated-skills.json` | `~/.pi/agent/skills/` | Verified harness release |
+| Archived curated skills | `archive/pi-skills/` and historical archive manifests | None; source Git only, excluded from new releases | Explicit reviewed source restoration |
 | External common skills, such as Herdr | Their own reviewed source | `~/.agents/skills/` | Their external installer |
 | Prompt commands | `prompts/` | `~/.pi/agent/prompts/` | Verified harness release |
 | Approved learned skills | Reviewed private proposals | `~/.pi/agent/skills/learned/` | Human approval through Learning |
@@ -32,6 +33,9 @@ Do not delete a present skill merely because another installer does not list it.
 Use the harness inventory and installed directories to explain current availability.
 Do not introduce another editable version registry.
 A skill description cached in a running Pi session can outlive its file; restart Pi after a release change.
+The nine active curated names are listed in the [README](../README.md). Retired skills
+retain exact bytes, assets, licenses and provenance in the [recovery archive](../archive/README.md).
+Do not register that archive as a skill path or treat its historical manifest as active inventory.
 
 ## Keep knowledge classes separate
 

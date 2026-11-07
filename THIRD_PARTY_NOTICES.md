@@ -73,7 +73,11 @@ The original 14 curated skill directories came from the local Bigpowers 2.88.6 d
 `diagnose-root` now contains a Hermes-derived adaptation instead of its original content. The source package is [danielvm-git/bigpowers](https://github.com/danielvm-git/bigpowers)
 and is distributed under MIT. `pi-skills/LICENSE.bigpowers` retains the complete upstream
 license text; `manifests/curated-skills.json` records the npm integrity and SHA-256 hash
-for every retained asset. The manifest distinguishes original provenance from Hermes-derived and local adaptations.
+for every active asset. Nine retired skills retain their exact files and copies of
+shared licenses in `archive/pi-skills/`. `archive/curated-skills.json` records their
+hashes, and `archive/curated-skills.original.json` preserves the complete pre-archive
+provenance manifest. The archive is source-only, not projected or included in new releases.
+The manifest distinguishes original provenance from Hermes-derived and local adaptations.
 Local safety changes remove unsafe exclusions, unavailable dependencies, and implicit publication or deployment.
 The files are maintained derivatives, not byte-identical upstream copies. They do not use generated `.pi/skills/` variants. No Bigpowers hooks, prompt templates or extension are installed.
 
@@ -83,12 +87,15 @@ The adapted `diagnose-root`, `grounded-citations`, `simplify-code`, `spike`, and
 skills derive from [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)
 commit `47676981f55de91231fdeef2f0eec47e7c209e78`.
 `pi-skills/LICENSE.hermes` retains the MIT notice, copyright (c) 2025 Nous Research.
-`manifests/curated-skills.json` records exact source paths, hashes, and local changes.
+`manifests/curated-skills.json` records exact source paths, hashes, and local changes
+for the active `diagnose-root` and `grounded-citations` adaptations. The archived
+`simplify-code`, `spike` and `ast-grep` retain the same provenance in
+`archive/curated-skills.original.json`, with a copy of `LICENSE.hermes` alongside them.
 These are method adaptations for Pi, not unmodified Hermes skills or a Hermes runtime.
 
 Hermes attributes systematic-debugging to [obra/superpowers](https://github.com/obra/superpowers).
 Its spike skill credits the GSD /gsd-spike workflow, MIT copyright (c) 2025 Lex Christopherson.
-The ast-grep skill credits Yeongyu Kim, whose separate MIT notice remains in `pi-skills/ast-grep/LICENSE`.
+The ast-grep skill credits Yeongyu Kim, whose separate MIT notice remains in `archive/pi-skills/ast-grep/LICENSE`.
 The learning extension is a local implementation informed by Hermes review prompts,
 ownership guards, and staged approvals. It does not copy the Python agent fork or memory store.
 See [the source review and exclusions](docs/hermes-adoption.md).

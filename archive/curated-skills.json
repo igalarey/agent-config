@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "status": "archived-not-discoverable",
+  "skillRoot": "pi-skills/",
+  "originalManifest": {
+    "path": "curated-skills.original.json",
+    "sha256": "07a4b56f4fa2154312d8999e99ba19f6735fdb252fe68a688375f2adf26469de",
+    "sourceCommit": "1b2fa277dd48a008ff9f3826ea556d5931e3be3d",
+    "sourcePath": "manifests/curated-skills.json",
+    "scope": "full pre-archive snapshot; includes active and archived skills"
+  },
+  "skills": [
+    "ast-grep", "define-language", "design-interface", "grill-me", "simplify-code",
+    "align-grid", "deepen-architecture", "spike", "validate-contracts"
+  ],
+  "files": {
+    "LICENSE.bigpowers": "ab5c332485a9ffad649f5a341d5ecfd35abff52249bf2a5c958f168a002ce376",
+    "LICENSE.hermes": "821556e6336796450ab852d375117b48a4887e71d255794fd6318d99982a5ab6",
+    "align-grid/SKILL.md": "288262887f903847913e8c1f938db10c028e391a57a459861ecf1cc49ea38000",
+    "align-grid/scripts/grid_tokens.py": "a639cf885d45b9e4c51578959abee53fa81e06ad91167a040bd30b9dfc93fafe",
+    "align-grid/scripts/verify_grid.js": "a88e963bb69e47f12299d21fdf422c5107d7d71b732c370a8087e78668e45574",
+    "ast-grep/LICENSE": "b083425948376611de9b92b0aeb7377e604505756ea427e541a34d9b030d4dc1",
+    "ast-grep/SKILL.md": "dea3c83a681323a45cd2a0f24a85d4526b59e29fe667108649da8401bbbccfd2",
+    "deepen-architecture/DEEPENING.md": "314a93659f350a90157553b8a6ca3df09b026bf366837dbadecdcf5d4aa77473",
+    "deepen-architecture/INTERFACE-DESIGN.md": "c7a95fd60221cf5b08a9a5c7b054ea278bc96820c874eb8a6805e2f57806e4ef",
+    "deepen-architecture/LANGUAGE.md": "6feca2140439c54a774749e8367f18350899ff69c777144ed2248cd4407949fa",
+    "deepen-architecture/SKILL.md": "d74024e66bd5675ae1a920c97b568c8b7c7d583c75f9408e0b258f96a43456b1",
+    "define-language/SKILL.md": "2d790bfa96c3ccb293306da333042f4666ea73c523987be952aaf41403c144fd",
+    "design-interface/SKILL.md": "a57610d8137d93f93f01c7fb64ed70b2c71605616da274686e521e489eca12d5",
+    "grill-me/REFERENCE.md": "c4bc472a4b4ae6e333da4aefb001776720e1cd76b418656399363cd512bc30b9",
+    "grill-me/SKILL.md": "228502b1219b3c8ea300ba54175a4177a72330670bb0c8c0dd8e9221c9f09c60",
+    "simplify-code/SKILL.md": "ec62d16c943c9fcfd8aed3535032f6f4898c8b4a3da31b671535d37e72fe5df0",
+    "spike/SKILL.md": "0e00d36401e4eb24f2bea92cff8166937e1bd283b0c21082fb49bdd61c02b888",
+    "validate-contracts/REFERENCE.md": "c7f76d3bbdfba0d27f672b178eefc423e30db5c3ace9a9bed1d9d928306a0193",
+    "validate-contracts/SKILL.md": "3c57d2831563e8dabc88552a340d92cbae1e804761b26c5fd6456f6cc8c1ab27"
+  }
+}

@@ -16,7 +16,10 @@ Pi owns session execution, the task package owns task state, and Carbon changes 
 
 ## Curated skills
 
-`pi-skills/` contains 18 curated skills and their required assets.
+`pi-skills/` contains nine active curated skills and their required assets.
+The [source-only archive](../archive/README.md) preserves the nine retired skills,
+licenses and historical provenance without discovery or installation. The release
+builder excludes `archive/`; historical sealed releases keep their original catalogs.
 Their history includes Bigpowers selections and Hermes-derived adaptations, not those runtimes.
 The installer projects them to `~/.pi/agent/skills/`. It does not create duplicate
 copies in `~/.agents/skills/` or reinstall the Bigpowers npm package.
