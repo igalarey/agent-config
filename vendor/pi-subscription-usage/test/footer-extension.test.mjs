@@ -90,6 +90,78 @@ function footerData(statuses = new Map()) {
   };
 }
 
+test("inline display-only footer puts sanitized cwd after full stats and keeps metadata on two rows", () => {
+  const { ctx } = fixtureContext();
+  ctx.cwd = "/home/me/中文/e\u0301/project\u001b[2J";
+  let branch = "main";
+  let branchChange;
+  let renders = 0;
+  let unsubscribes = 0;
+  const component = createSubscriptionFooter({
+    ctx, pathAfterTokens: true,
+    footerData: {
+      ...footerData(new Map([["other", "status\u001b[2J"], ["subagents", "HIDDEN"]])),
+      getGitBranch: () => branch,
+      onBranchChange(callback) { branchChange = callback; return () => { unsubscribes++; }; },
+    },
+    tui: { requestRender() { renders++; } }, theme, home: "/home/me",
+  });
+  const [first, second] = component.render(180);
+  assert.match(first, /^↑1\.0k ↓525 R200 W100 CH15\.4% \$0\.215 50\.0%\/200k · ~\/中文\/e\u0301\/project \(main\) • quota-work/);
+  assert.match(second, /^status +\(openai-codex\) gpt-5\.4 • high$/);
+  assert.doesNotMatch(first + second, /↻|N\/D|Codex|HIDDEN|\u001b/);
+  branch = "changed";
+  branchChange();
+  assert.equal(renders, 1);
+  assert.match(component.render(180)[0], /\(changed\)/);
+  for (const width of [0, 1, 2, 3, 5, 20, 49, 50, 52, 55, 60, 80, 120]) {
+    const lines = component.render(width);
+    assert.equal(lines.length, 2);
+    for (const line of lines) assert.ok(visibleWidth(line) <= width, `width ${width}: ${line}`);
+    assert.ok(lines[0].startsWith("↑") || width === 0);
+    assert.doesNotMatch(lines.join(""), /↻|\u001b\[2J/);
+    assert.equal(component.handleMouse({ type: "click", button: "left", x: width - 1, y: 0 }), undefined);
+  }
+  assert.match(component.render(60)[0], /^↑1\.0k ↓525 R200 W100 CH15\.4% \$0\.215 50\.0%\/200k · ~/);
+  assert.doesNotMatch(component.render(60)[0], /changed|quota-work/);
+  component.dispose();
+  component.dispose();
+  branchChange();
+  assert.equal(unsubscribes, 1);
+  assert.equal(renders, 1);
+  assert.equal(component.handleMouse({ type: "click", button: "left", x: 0, y: 0 }), undefined);
+});
+
+test("inline quota layout keeps stats before cwd and retains refresh at wide and narrow widths", () => {
+  const { ctx } = fixtureContext();
+  let refreshes = 0;
+  const component = createSubscriptionFooter({
+    ctx, pathAfterTokens: true, footerData: footerData(), home: "/home/me",
+    controller: {
+      getState: () => ({ kind: "known", target: { key: "codex", label: "Codex" }, usage: {
+        windows: [{ label: "5h", usedPercent: 23 }, { label: "7d", usedPercent: 41 }], fetchedAt: 0,
+      } }),
+      async requestRefresh() { refreshes++; return "started"; },
+    },
+    tui: { requestRender() {} }, theme,
+  });
+  const lines = component.render(180);
+  assert.match(lines[0], /^↑1\.0k .*50\.0%\/200k · ~\/project \(feat\/quota\) • quota-work/);
+  assert.match(lines[0], /Codex · 5h 23% used · 7d 41% used · ↻$/);
+  for (const width of [0, 1, 2, 5, 20, 40, 80, 120, 180]) {
+    const rendered = component.render(width);
+    assert.equal(rendered.length, 2);
+    for (const line of rendered) assert.ok(visibleWidth(line) <= width);
+    if (rendered[0].endsWith("↻")) {
+      const x = visibleWidth(rendered[0].slice(0, rendered[0].lastIndexOf("↻")));
+      assert.equal(component.handleMouse({ type: "click", button: "left", x, y: 0 })?.handled, true);
+    }
+  }
+  assert.ok(refreshes > 0);
+  component.dispose();
+  assert.equal(component.handleMouse({ type: "click", button: "left", x: 179, y: 0 }), undefined);
+});
+
 test("known markers explicitly label real window percentages as used and keep token spend separate", () => {
   const marker = formatSubscriptionMarker({
     kind: "known",
@@ -399,6 +471,91 @@ function schedulerFixture() {
     clearTimeout(handle) { timeouts.delete(handle); },
   };
 }
+
+test("explicit global inline layout installs a display-only footer with no provider/auth/timer work", async t => {
+  for (const customFactory of [false, true]) {
+    const agentDir = mkdtempSync(join(home, "display-only-"));
+    t.after(() => rmSync(agentDir, { recursive: true, force: true }));
+    writeFileSync(join(agentDir, "settings.json"), JSON.stringify({
+      subscriptionUsage: { showFooter: false }, footerLayout: { pathAfterTokens: true },
+    }));
+    let settingsReads = 0;
+    let providerCalls = 0;
+    let authCalls = 0;
+    let renders = 0;
+    let unsubscribes = 0;
+    const scheduler = schedulerFixture();
+    const { handlers, commands } = registerExtension({
+      getAgentDir() { settingsReads++; return agentDir; },
+      ...(customFactory ? { providerFactory() { providerCalls++; throw new Error("display-only provider"); } } : {}),
+      scheduler,
+    });
+    const fixture = fixtureContext();
+    fixture.ctx.modelRegistry = {
+      isUsingOAuth() { authCalls++; throw new Error("display-only auth"); },
+      async getApiKeyAndHeaders() { authCalls++; throw new Error("display-only auth"); },
+    };
+    await handlers.get("session_start")({}, fixture.ctx);
+    assert.equal(typeof fixture.getFooterFactory(), "function");
+    const component = fixture.getFooterFactory()({ requestRender() { renders++; } }, theme, {
+      ...footerData(), onBranchChange: () => () => { unsubscribes++; },
+    });
+    assert.equal(settingsReads, 1);
+    assert.match(component.render(180)[0], /^↑.* · \/home\/me\/project/);
+    assert.doesNotMatch(component.render(180).join(""), /↻|N\/D|Codex/);
+    await commands.get("subscription-refresh").handler("", fixture.ctx);
+    await handlers.get("model_select")({ model: codexMini });
+    assert.equal(settingsReads, 1);
+    assert.equal(providerCalls, 0);
+    assert.equal(authCalls, 0);
+    assert.equal(scheduler.intervals.size, 0);
+    assert.equal(scheduler.timeouts.size, 0);
+    assert.match(fixture.notifications[0].message, /hidden.*subscriptionUsage\.showFooter/i);
+    writeFileSync(join(agentDir, "settings.json"), '{"subscriptionUsage":{"showFooter":false}}');
+    await handlers.get("session_start")({}, fixture.ctx);
+    assert.equal(fixture.getFooterFactory(), undefined);
+    assert.equal(unsubscribes, 1);
+    const renderCount = renders;
+    await handlers.get("session_shutdown")({});
+    component.dispose();
+    assert.equal(unsubscribes, 1);
+    assert.equal(renders, renderCount);
+  }
+});
+
+test("inline layout requires boolean true globally and never reads project layout settings", async t => {
+  for (const value of [undefined, false, "true", 1, null]) {
+    const agentDir = mkdtempSync(join(home, "layout-default-"));
+    t.after(() => rmSync(agentDir, { recursive: true, force: true }));
+    writeFileSync(join(agentDir, "settings.json"), JSON.stringify({
+      subscriptionUsage: { showFooter: false }, footerLayout: { pathAfterTokens: value },
+    }));
+    const projectDir = join(agentDir, "project", ".pi");
+    mkdirSync(projectDir, { recursive: true });
+    writeFileSync(join(projectDir, "settings.json"), '{"footerLayout":{"pathAfterTokens":true}}');
+    const { handlers } = registerExtension({ getAgentDir: () => agentDir });
+    const fixture = fixtureContext();
+    fixture.ctx.cwd = join(agentDir, "project");
+    await handlers.get("session_start")({}, fixture.ctx);
+    assert.deepEqual(fixture.footerCalls, []);
+  }
+});
+
+test("global inline setting also reorders the enabled subscription footer", async t => {
+  const agentDir = mkdtempSync(join(home, "layout-quota-"));
+  t.after(() => rmSync(agentDir, { recursive: true, force: true }));
+  writeFileSync(join(agentDir, "settings.json"), '{"footerLayout":{"pathAfterTokens":true}}');
+  const scheduler = schedulerFixture();
+  const { handlers } = registerExtension({ getAgentDir: () => agentDir, providers: [], scheduler });
+  const fixture = fixtureContext();
+  await handlers.get("session_start")({}, fixture.ctx);
+  const component = fixture.getFooterFactory()({ requestRender() {} }, theme, footerData());
+  assert.match(component.render(180)[0], /^↑.* · \/home\/me\/project/);
+  assert.match(component.render(180)[0], /N\/D · ↻$/);
+  assert.equal(scheduler.intervals.size, 1);
+  component.dispose();
+  assert.equal(scheduler.intervals.size, 0);
+});
 
 test("global false leaves the native footer and hidden refresh does no provider/auth/timer work", async t => {
   const settingsPath = join(process.env.PI_CODING_AGENT_DIR, "settings.json");

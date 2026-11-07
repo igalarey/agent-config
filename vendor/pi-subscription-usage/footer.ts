@@ -27,7 +27,8 @@ type FooterTheme = ExtensionContext["ui"]["theme"];
 export interface SubscriptionFooterOptions {
   ctx: ExtensionContext;
   footerData: ReadonlyFooterDataProvider;
-  controller: ControllerView;
+  controller?: ControllerView;
+  pathAfterTokens?: boolean;
   tui: Pick<TUI, "requestRender">;
   theme: FooterTheme;
   now?: () => number;
@@ -177,21 +178,30 @@ function collectUsage(entries: readonly unknown[]): {
 export function createSubscriptionFooter(options: SubscriptionFooterOptions) {
   const { ctx, footerData, controller, tui, theme } = options;
   const now = options.now ?? Date.now;
-  const unsubscribeBranch = footerData.onBranchChange(() => tui.requestRender());
+  let disposed = false;
+  const unsubscribeBranch = footerData.onBranchChange(() => {
+    if (!disposed) tui.requestRender();
+  });
   let refreshBounds: { start: number; end: number } | undefined;
 
   return {
     invalidate() {},
-    dispose: unsubscribeBranch,
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      refreshBounds = undefined;
+      unsubscribeBranch();
+    },
     render(width: number): string[] {
+      width = Math.max(0, width);
       const branchValue = footerData.getGitBranch();
       const branch = branchValue ? sanitizeSingleLine(branchValue) : null;
       const cwd = sanitizeSingleLine(formatCwd(
         ctx.cwd,
         options.home ?? process.env.HOME ?? process.env.USERPROFILE,
       ));
-      const state = controller.getState();
-      const fullMarker = formatSubscriptionMarker(state, now());
+      const state = controller?.getState();
+      const fullMarker = state ? formatSubscriptionMarker(state, now()) : "";
       const sessionNameValue = ctx.sessionManager.getSessionName();
       const sessionSuffix = sessionNameValue ? ` • ${sanitizeSingleLine(sessionNameValue)}` : "";
       const fullLocation = branch ? `${cwd} (${branch})` : cwd;
@@ -222,11 +232,11 @@ export function createSubscriptionFooter(options: SubscriptionFooterOptions) {
 
       const stats = parts.join(" ");
       const markerBudget = Math.max(0, width - Math.min(Math.floor(width / 3), visibleWidth(stats)) - 2);
-      const marker = visibleWidth(fullMarker) <= markerBudget
+      const marker = !state || visibleWidth(fullMarker) <= markerBudget
         ? fullMarker
         : fitMarkerWithRefresh(formatSubscriptionMarker(state, now(), { compact: true }), markerBudget);
       const markerWidth = visibleWidth(marker);
-      const leftBudget = Math.max(0, width - markerWidth - 2);
+      const leftBudget = Math.max(0, width - markerWidth - (marker ? 2 : 0));
       const locationBudget = Math.max(0, Math.min(Math.floor(width / 3),
         leftBudget - visibleWidth(visibleWidth(stats) + 2 < leftBudget ? stats : contextDisplay) - 2));
       const renderedLocation = visibleWidth(fullLine) <= locationBudget
@@ -234,7 +244,17 @@ export function createSubscriptionFooter(options: SubscriptionFooterOptions) {
         : fitLocation(cwd, branch, locationBudget);
       const statsBudget = Math.max(0, leftBudget - (renderedLocation ? visibleWidth(renderedLocation) + 2 : 0));
       const fittedStats = truncateToWidth(visibleWidth(stats) <= statsBudget ? stats : parts[parts.length - 1], statsBudget, "");
-      const statsLeft = renderedLocation ? `${renderedLocation}  ${fittedStats}` : fittedStats;
+      let statsLeft = renderedLocation ? `${renderedLocation}  ${fittedStats}` : fittedStats;
+      if (options.pathAfterTokens) {
+        statsLeft = truncateToWidth(stats, leftBudget, "");
+        const pathBudget = Math.max(0, leftBudget - visibleWidth(statsLeft) - 3);
+        if (pathBudget > 0) {
+          let location = truncateToWidth(cwd, pathBudget, "...");
+          if (visibleWidth(fullLocation) <= pathBudget) location = fullLocation;
+          if (visibleWidth(fullLine) <= pathBudget) location = fullLine;
+          statsLeft += ` · ${location}`;
+        }
+      }
       const padding = " ".repeat(Math.max(0, width - visibleWidth(statsLeft) - markerWidth));
       const lines = [theme.fg("dim", statsLeft + padding + marker)];
       const statuses = [...footerData.getExtensionStatuses().entries()]
@@ -259,11 +279,11 @@ export function createSubscriptionFooter(options: SubscriptionFooterOptions) {
       lines.push(statusLeft + theme.fg("dim", statusPadding + renderedRight));
       const refreshIndex = marker.lastIndexOf("↻");
       const refreshStart = width - markerWidth + visibleWidth(marker.slice(0, refreshIndex));
-      refreshBounds = refreshIndex >= 0 ? { start: refreshStart, end: refreshStart + 1 } : undefined;
-      return lines;
+      refreshBounds = !disposed && refreshIndex >= 0 ? { start: refreshStart, end: refreshStart + 1 } : undefined;
+      return lines.map(line => truncateToWidth(line, width, ""));
     },
     handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {
-      if (event.type !== "click" || event.button !== "left" || event.y !== 0 || !refreshBounds) return undefined;
+      if (disposed || !controller || event.type !== "click" || event.button !== "left" || event.y !== 0 || !refreshBounds) return undefined;
       if (event.x < refreshBounds.start || event.x >= refreshBounds.end) return undefined;
       void controller.requestRefresh();
       tui.requestRender();

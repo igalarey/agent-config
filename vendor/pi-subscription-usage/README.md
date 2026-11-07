@@ -15,13 +15,33 @@ To keep Pi's native footer, add this option to your global `settings.json`:
 ```
 
 The extension reads this file from Pi's official `getAgentDir()` directory, normally `~/.pi/agent`, with support for `PI_CODING_AGENT_DIR`.
-Project settings do not affect this option. The default is `true`. Only boolean `false` hides the custom footer.
+Project settings do not affect this option. The default is `true`. Only boolean `false` hides subscription usage.
 Missing, unreadable, or malformed settings keep the default.
 
-When the footer is hidden, the extension creates no providers, controller, or timers and performs no authentication or usage requests.
+To put the cwd immediately after token/context/cost statistics, add this global setting:
+
+```json
+{
+  "subscriptionUsage": {
+    "showFooter": false
+  },
+  "footerLayout": {
+    "pathAfterTokens": true
+  }
+}
+```
+
+`footerLayout.pathAfterTokens` defaults to `false`. Only boolean `true` enables this layout. Project settings do not affect it.
+The first row shows statistics, a `·` separator, then the cwd. Branch and session metadata appear when space permits.
+Statistics take priority over the cwd. The second row keeps extension statuses and model/thinking information.
+This layout does not enable or change OM status settings.
+
+With `showFooter: false`, this layout uses a display-only custom footer without quota or refresh controls.
+Without the layout option, `showFooter: false` preserves Pi's native footer.
+When subscription usage is hidden, the extension creates no providers, controller, or timers and performs no authentication or usage requests.
 `/subscription-refresh` reports that the footer is hidden and does not enable it.
 After a settings change, run `/reload` or restart Pi.
-RPC, JSON, and print modes do not read this option or start subscription work.
+RPC, JSON, and print modes do not read either option or start subscription work.
 
 ## Behavior
 
@@ -48,7 +68,8 @@ RPC, JSON, and print modes do not read this option or start subscription work.
 
 ## Authentication and safety boundary
 
-The extension calls `setFooter()` only when `ctx.mode === "tui"`. Default provider objects, controller timers, OAuth resolution, and HTTP transport are created or started only when the real TUI invokes that footer factory. RPC has `hasUI === true`, but is excluded by the exact mode check; JSON and print modes are excluded as well.
+The extension calls `setFooter()` only when `ctx.mode === "tui"`. It reads both global options once at session start.
+When subscription usage is visible, the real TUI footer factory creates providers, the controller, and timers. Display-only mode does not start subscription work. RPC has `hasUI === true`, but is excluded by the exact mode check; JSON and print modes are excluded as well.
 
 Adapters use only Pi 0.87.1's public `ModelRegistry` methods:
 

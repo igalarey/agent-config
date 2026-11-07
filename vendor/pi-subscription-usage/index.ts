@@ -37,12 +37,15 @@ function currentModel(ctx: ExtensionContext): SubscriptionModel | undefined {
   return ctx.model;
 }
 
-function shouldShowFooter(agentDir: () => string): boolean {
+function readFooterSettings(agentDir: () => string): { showFooter: boolean; pathAfterTokens: boolean } {
   try {
     const settings = JSON.parse(readFileSync(join(agentDir(), "settings.json"), "utf8"));
-    return settings?.subscriptionUsage?.showFooter !== false;
+    return {
+      showFooter: settings?.subscriptionUsage?.showFooter !== false,
+      pathAfterTokens: settings?.footerLayout?.pathAfterTokens === true,
+    };
   } catch {
-    return true;
+    return { showFooter: true, pathAfterTokens: false };
   }
 }
 
@@ -53,7 +56,7 @@ export function createSubscriptionUsageExtension(
     let showFooter = true;
     let nextRuntimeGeneration = 0;
     let active: {
-      controller: SubscriptionUsageController;
+      controller?: SubscriptionUsageController;
       generation: number;
       dispose(): void;
     } | undefined;
@@ -70,7 +73,7 @@ export function createSubscriptionUsageExtension(
           return;
         }
         const runtime = active;
-        if (!runtime) {
+        if (!runtime?.controller) {
           ctx.ui.notify("Subscription footer is not active.", "warning");
           return;
         }
@@ -106,8 +109,9 @@ export function createSubscriptionUsageExtension(
       active?.dispose();
       if (ctx.mode !== "tui") return;
 
-      showFooter = shouldShowFooter(options.getAgentDir ?? getAgentDir);
-      if (!showFooter) {
+      const settings = readFooterSettings(options.getAgentDir ?? getAgentDir);
+      showFooter = settings.showFooter;
+      if (!showFooter && !settings.pathAfterTokens) {
         if (hadActive) ctx.ui.setFooter(undefined);
         return;
       }
@@ -115,21 +119,21 @@ export function createSubscriptionUsageExtension(
       ctx.ui.setFooter((tui, theme, footerData) => {
         active?.dispose();
         let disposed = false;
-        const providers = options.providers
-          ?? options.providerFactory?.(ctx.modelRegistry)
-          ?? createDefaultSubscriptionProviders(ctx.modelRegistry, { now: options.now });
-        const controller = new SubscriptionUsageController({
-          providers,
+        const controller = settings.showFooter ? new SubscriptionUsageController({
+          providers: options.providers
+            ?? options.providerFactory?.(ctx.modelRegistry)
+            ?? createDefaultSubscriptionProviders(ctx.modelRegistry, { now: options.now }),
           pollIntervalMs: options.pollIntervalMs,
           minRefreshIntervalMs: options.minRefreshIntervalMs,
           now: options.now,
           scheduler: options.scheduler,
           onChange: () => tui.requestRender(),
-        });
+        }) : undefined;
         const footer = createSubscriptionFooter({
           ctx,
           footerData,
           controller,
+          pathAfterTokens: settings.pathAfterTokens,
           tui,
           theme,
           now: options.now,
@@ -142,12 +146,12 @@ export function createSubscriptionUsageExtension(
             disposed = true;
             runtime.generation++;
             footer.dispose();
-            controller.dispose();
+            controller?.dispose();
             if (active === runtime) active = undefined;
           },
         };
         active = runtime;
-        controller.start(currentModel(ctx));
+        controller?.start(currentModel(ctx));
         return {
           invalidate: footer.invalidate,
           render: footer.render,
@@ -161,7 +165,7 @@ export function createSubscriptionUsageExtension(
       const runtime = active;
       if (!runtime) return;
       runtime.generation++;
-      runtime.controller.setModel(event.model);
+      runtime.controller?.setModel(event.model);
     });
 
     pi.on("session_shutdown", () => {
