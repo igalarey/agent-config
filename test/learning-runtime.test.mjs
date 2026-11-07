@@ -72,6 +72,8 @@ id = await call('learned-runtime-approved');
 beforeConfirm = () => fs.writeFileSync(skill, 'User changed the target during review.');
 await prompt('/learn approve '+id); assert.match(notices.at(-1), /changed|Stale/i);
 assert.equal(fs.readFileSync(skill, 'utf8'), 'User changed the target during review.');
+const { exerciseAutomatic } = await import(${JSON.stringify(pathToFileURL(path.resolve('test/fixtures/learning-automatic.mjs')).href)});
+await exerciseAutomatic(session, process.env.PI_CODING_AGENT_DIR);
 await session.dispose();
 `);
     const run = spawnSync(process.execPath, [script], { cwd, env, encoding: 'utf8', timeout: 50000, shell: false });

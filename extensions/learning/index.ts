@@ -1,11 +1,14 @@
 import { Type } from '@earendil-works/pi-ai';
 import { getAgentDir, type ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { createStore } from './store.mjs';
+import { installAutomaticReview } from './automatic.mjs';
+import { installProcedureRouting } from './routing.mjs';
 import { join, resolve } from 'node:path';
 
 const reviewInstruction = (focus: string) => `Review ONLY this current conversation for genuinely reusable, TESTED procedural lessons${focus ? ` about ${focus}` : ''}. Do not search session logs, launch background agents, or write memory files. Compare against existing discoverable skills before proposing anything: do not duplicate curated or user skills and do not modify them. A skill is a class-level procedure with ordered steps, concrete tools and verified pitfalls, not a one-off incident or an untested workaround. Include the actual evidence from this conversation (not a guess), a concise summary, and a complete single-file SKILL.md. If no new tested lesson is worth saving, report "Nothing to learn" and do not call a tool. If one qualifies, call learning_propose to stage it for human review; never claim it is approved or installed. Only learned-* names are valid. The human must run /learn approve ID in interactive TUI to publish it.`;
 
 export default function learning(pi: ExtensionAPI) {
+  installProcedureRouting(pi);
   const checkCollision = (name: string) => {
     const target = resolve(join(getAgentDir(), 'skills', 'learned', name, 'SKILL.md'));
     const matches = pi.getCommands().filter(command => command.source === 'skill' && command.name === `skill:${name}`);
@@ -13,6 +16,7 @@ export default function learning(pi: ExtensionAPI) {
       throw new Error('Learned skill name collides with an existing discoverable skill');
     }
   };
+  const automatic = installAutomaticReview(pi, getAgentDir, checkCollision);
   pi.registerTool({
     name: 'learning_propose', label: 'Propose learning',
     description: 'Stage one evidence-backed single-file SKILL.md proposal for human review. Does not install or approve any skill.',
@@ -35,6 +39,7 @@ export default function learning(pi: ExtensionAPI) {
       const args = (raw || '').trim();
       const store = createStore(getAgentDir());
       try {
+        if (automatic.command(args, ctx)) return;
         if (!args || args === 'review' || args.startsWith('review ')) {
           const focus = args.startsWith('review ') ? args.slice(7).trim() : '';
           if (focus.length > 200) throw new Error('Review focus too long');
@@ -47,7 +52,7 @@ export default function learning(pi: ExtensionAPI) {
           return;
         }
         const match = /^(show|approve|reject) ([a-f0-9]{24})$/.exec(args);
-        if (!match) throw new Error('Use /learn [review [focus]|pending|show ID|approve ID|reject ID]');
+        if (!match) throw new Error('Use /learn [review [focus]|status|cancel|auto off|pending|show ID|approve ID|reject ID]');
         const [, action, id] = match;
         if (action !== 'show' && ctx.mode !== 'tui') throw new Error('Approval and rejection require interactive TUI');
         const record = await store.get(id);
