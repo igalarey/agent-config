@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { execute, plan, readJSON } from '../scripts/install.mjs';
 import { inspect } from '../scripts/doctor.mjs';
-import { readSourceMap, runBootstrap, validateRecipe } from '../scripts/bootstrap.mjs';
+import { readSourceMap, runBootstrap, validateRecipe, sourceRepositories } from '../scripts/bootstrap.mjs';
 import {
   applyNotificationOverlay,
   executeRelease,
@@ -1342,6 +1342,14 @@ test('release switches with a different managed key or resource set are blocked'
   assert.ok(next.conflicts.some(item => item.includes('incompatible release rollback/update')));
   assert.throws(() => execute(next), /nothing written/);
   assert.equal(fs.existsSync(path.join(home, '.agents/skills/new-skill/SKILL.md')), false);
+});
+
+test('bootstrap fetches audited source pins from user-owned repositories', () => {
+  assert.deepEqual(sourceRepositories, {
+    subagents: 'igalarey/pi-subagents',
+    memory: 'igalarey/pi-observational-memory',
+  });
+  assert.equal(Object.isFrozen(sourceRepositories), true);
 });
 
 test('versioned bootstrap recipe pins the active release without local source paths', () => {

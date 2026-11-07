@@ -9,7 +9,7 @@ Do not register a second copy of the same package.
 
 | Package | Source |
 | --- | --- |
-| Subagents (`Agent`, `/agents`, workflows) | [tintinweb/pi-subagents](https://github.com/tintinweb/pi-subagents) |
+| Subagents (`Agent`, `/agents`, workflows) | [igalarey/pi-subagents](https://github.com/igalarey/pi-subagents), audited fork of tintinweb/pi-subagents |
 | Supervisor (`start_supervision`, `/supervise`) | [tintinweb/pi-supervisor](https://github.com/tintinweb/pi-supervisor) |
 | Observational memory (`/om`) | [igalarey/pi-observational-memory](https://github.com/igalarey/pi-observational-memory) |
 | User questions | `vendor/pi-ask-user-question` |
@@ -17,14 +17,17 @@ Do not register a second copy of the same package.
 | Public browser | `vendor/pi-browser` |
 | MCP gateway | `npm:pi-mcp-adapter`, nicobailon upstream directly; official Pi codemode |
 | Project-owned prompt templates | `prompts/*.md`, installed as global Pi commands |
-| Codex/Claude subscription footer | `vendor/pi-subscription-usage` |
+| Compact footer and optional subscription status | `vendor/pi-subscription-usage` |
 | Native Ollama provider | `npm:pi-ollama` |
 | Claude provider bridge | `npm:pi-claude-bridge` |
 | Carbon UI and theme | `extensions/`, `themes/`; [configuration](docs/carbon-ui.md) |
 | Curated local skills | `pi-skills/`, retained Bigpowers skills and selective Hermes adaptations with MIT notices |
 | Reviewed procedural learning | `extensions/learning`, staged proposals and human approval |
 
-**RTK and pi-interactive-subagents are retired.** The old worker/scout/researcher
+The active installation contains **10 packages: six local packages and four npm packages**.
+Carbon, Learning, prompt templates, and skills are separate resources, not extra packages.
+
+**Tasks, RTK and pi-interactive-subagents are retired.** The old worker/scout/researcher
 profiles, bridges and external viewer are not part of the new base.
 
 Shared instructions, guides and skills are projected into `~/.agents`. Curated skills
@@ -66,6 +69,8 @@ external sources at exact commits, prepares six base packages and four native np
 and activates only after success. Supervisor is a reviewed source snapshot
 inside this repository. Its revision is in `manifests/tintinweb.json`.
 `manifests/active-release.json` pins the harness, subagents and memory commits.
+Bootstrap fetches Subagents from `igalarey/pi-subagents` and memory from `igalarey/pi-observational-memory`.
+Publish the pinned commits to those repositories before publishing a recipe that uses them.
 
 No extra development clones are needed. Sources are cached under
 `~/.agent-config/sources`; verified runtime packages live in `~/.agent-config/releases`.
@@ -160,6 +165,31 @@ Do not delete pending proposals or ownership markers to bypass a refusal.
 | `agents/` | Five model/tool profiles and an inactive historical Luna priority hook |
 | `prompts/` | Five global Pi prompt templates installed by filename |
 | `SYSTEM.md`, `guides/`, `skills/` | Defaults for new shared instruction/skill resources |
+
+### Minimal interface
+
+The current personal configuration uses these options in `~/.pi/agent/settings.json`:
+
+```json
+{
+  "observational-memory": { "showStatus": false },
+  "subscriptionUsage": { "showFooter": false },
+  "footerLayout": { "pathAfterTokens": true },
+  "learning": { "automaticReview": true }
+}
+```
+
+Merge these fields into existing settings. Do not replace the complete file.
+These are personal preferences, not the defaults for a fresh installation.
+
+The footer shows tokens, context, and the folder path on the left, with the model and reasoning level aligned right.
+It shortens the path when space is limited. A second row appears only for nonempty extension statuses.
+Hidden subscription status does not create quota polling or authentication work.
+
+Memory remains active without its panel or footer indicator. `/om:status`, policy notices, and errors remain available.
+Learning has no persistent footer indicator. Automatic review can stage proposals, but publication still requires human approval.
+Run `/reload` or restart Pi after changing these settings.
+See the [footer options](vendor/pi-subscription-usage/README.md) for layout details and API limits.
 
 ### Herdr (optional)
 
@@ -288,7 +318,8 @@ Supervisor advice is labeled as advice, not sent as a human instruction. Waiting
   and `inheritEnv: false`.
 - Subscription usage uses Pi's OAuth resolver and fixed provider endpoints. Refresh runs
   only in interactive TUI, not RPC. Offline tests do not certify authenticated quota or clicks.
-  Codex models show ChatGPT quota. Direct `anthropic` and `claude-bridge` models show
+  Native `openai` OAuth reports the ChatGPT connection, not quota. Usage remains unavailable through that connection.
+  Legacy Codex models can show ChatGPT quota. Direct `anthropic` and `claude-bridge` models show
   Claude quota. Bridge models use Pi's Anthropic OAuth, so they need `/login anthropic`
   in Pi with the same Claude account that Claude Code uses.
 - Observational memory retains the existing compaction configuration. Its observer and

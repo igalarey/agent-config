@@ -13,6 +13,11 @@ import {
   verifyRelease,
 } from './releases.mjs';
 
+export const sourceRepositories = Object.freeze({
+  subagents: 'igalarey/pi-subagents',
+  memory: 'igalarey/pi-observational-memory',
+});
+
 const FULL_SHA = /^[0-9a-f]{40}$/;
 const RELEASE_ID = /^h-[0-9a-f]{12}-s-[0-9a-f]{12}-m-[0-9a-f]{12}$/;
 const recipePath = path.join(root, 'manifests', 'active-release.json');
@@ -243,7 +248,7 @@ export function main(argv = process.argv.slice(2)) {
       return 0;
     }
     repositories = { harness: root };
-    for (const [key, repository] of Object.entries({ subagents: 'tintinweb/pi-subagents', memory: 'igalarey/pi-observational-memory' })) {
+    for (const [key, repository] of Object.entries(sourceRepositories)) {
       const destination = path.join(options.home, '.agent-config/sources', `${key}-${recipe.sources[key]}`);
       noSymlinks(destination);
       if (!fs.existsSync(destination)) {
