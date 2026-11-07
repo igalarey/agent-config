@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
-export async function exerciseAutomatic(session, agentDir) {
+export async function exerciseAutomatic(session, agentDir, ai) {
   fs.writeFileSync(path.join(agentDir, 'settings.json'), JSON.stringify({ learning: { automaticReview: true } }));
   const runner = session.extensionRunner;
   const original = runner.createContext.bind(runner);
@@ -12,6 +12,12 @@ export async function exerciseAutomatic(session, agentDir) {
     streamSimple(_model, context, options) {
       calls++;
       assert.equal(context.tools, undefined);
+      assert.equal(context.messages[0].role, 'system');
+      assert.equal(typeof context.messages[0].timestamp, 'number');
+      const normalized = ai.normalizeContext(context);
+      assert.equal(ai.getCurrentSystemPrompt(normalized.messages), context.messages[0].content);
+      assert.deepEqual(ai.getCurrentTools(normalized.messages), []);
+      assert.deepEqual(normalized.messages.map(message => message.role), ['system', 'user']);
       assert.equal(options.maxRetries, 0);
       assert.equal(options.maxTokens, 2048);
       return { result: async () => ({ stopReason: 'stop', content: [{ type: 'text', text: JSON.stringify({

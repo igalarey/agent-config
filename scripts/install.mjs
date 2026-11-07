@@ -291,6 +291,8 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
       const settingsShapeUnchanged = changedSettings.length === 0;
       const permittedWorkflowGuideChange = settingsShapeUnchanged
         && changedResources.every(relative => relative === '.agents/guides/task-workflow.md');
+      const permittedLearningHelpers = settingsShapeUnchanged && changedResources.every(relative =>
+        ['.pi/agent/extensions/learning/automatic.mjs', '.pi/agent/extensions/learning/routing.mjs'].includes(relative));
       const permittedPromptChange = settingsShapeUnchanged
         && changedResources.every(relative => relative.startsWith('.pi/agent/prompts/'));
       const carbonResources = new Set([
@@ -329,7 +331,7 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
           && readJSON(path.join(after, 'manifests/packages.json')).piVersion === '1.3.0'
           && readJSON(path.join(before, 'config/pi.settings.json')).extensions === undefined
           && isDeepStrictEqual(readJSON(path.join(after, 'config/pi.settings.json')).extensions, ['-builtin:mcp']));
-      if (permittedOrcaShapeChange || permittedWorkflowGuideChange || permittedPromptChange || permittedCarbonShapeChange
+      if (permittedLearningHelpers || permittedOrcaShapeChange || permittedWorkflowGuideChange || permittedPromptChange || permittedCarbonShapeChange
           || permittedCompatibilityShapeChange || permittedMcpShapeChange || permittedCodemodeShapeChange || permittedKnowledgeIndexChange
           || (modern && migrateBase && changedResources.every(relative => relative.startsWith('.pi/agent/agents/')))) {
         retiredResources.push(...removed);

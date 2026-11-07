@@ -106,8 +106,14 @@ conversation context. These templates are maintained in this repository.
 ### Reviewed learning
 
 `/learn` reviews the current conversation for tested, reusable procedures.
-It does not search past sessions, replace observational-memory, or start background model calls.
+It does not search past sessions or replace observational-memory.
 The model can use `learning_propose` to save a pending proposal, not to approve a skill.
+
+Optional automatic review uses a separate, bounded model request after a verified human turn.
+Enable it only in user settings with `"learning": { "automaticReview": true }`.
+It is off when this setting is absent. Automatic review only stages proposals.
+See [automatic learning](docs/learning-automatic.md) for eligibility, cancellation, input limits and auxiliary usage.
+The coordinator also receives procedure-selection and capability-request instructions. These instructions do not grant permissions.
 
 - `/learn review [focus]` narrows the review to a topic.
 - `/learn pending` lists proposals and their session/project provenance.
@@ -195,11 +201,11 @@ Astra remains the parent default. Profiles inherit instructions, not the parent'
 
 | Profile | Model / reasoning | Local tools | Turn default |
 | --- | --- | --- | --- |
-| Explore | `gpt-6.1-sol` high | read, grep, find, ls | 20 |
+| Explore | `gpt-6.1-sol` low | read, grep, find, ls | 20 |
 | general-purpose | `gpt-6.1-sol` high | Above plus bash, edit, write | 30 |
 | Plan | `gpt-6-astra` low | Read/search only | 30 |
-| deep-implementation | `gpt-6-astra` low | Read/search plus bash, edit, write | 40 |
-| deep-review | `gpt-6-astra` low | Read/search only | 30 |
+| deep-implementation | `gpt-6-astra` medium | Read/search plus bash, edit, write | 40 |
+| deep-review | `gpt-6.1-sol` medium | Read/search only | 30 |
 
 All profiles use the `openai-codex` provider. The parent default is `gpt-6-astra`.
 Read-only profiles cannot run `git diff`; include the diff in a review prompt.
@@ -213,13 +219,16 @@ Local token-price estimates are not subscription usage.
 `high` is supported: missing standard levels in thinkingLevelMap use default mappings.
 
 The runtime smoke selects policy from profile content, not the hook's presence.
-It verifies Sol high and Astra low serialization, and retains historical Luna reasoning and priority checks.
+It verifies each profile's configured reasoning level and retains historical policy checks.
 
 Children do not load MCP, browser, web, task, supervisor or memory tools. Skill discovery
 is off, but inherited parent instructions can still contain skill descriptions. Fresh
 conversation context is the upstream default; send only the task's necessary context.
-External operations and decisions belong to the parent. Bash remains capable of external
-access: these tool scopes and prompt instructions are not an OS sandbox.
+External operations and decisions belong to the parent. A child can return a `capability_request`
+for a skill, prompt, extension, delegation or turn budget. The coordinator checks the evidence and decides.
+This is a result convention, not a live parent-call tool. It does not remove concurrency or depth limits.
+The coordinator supplies relevant procedures when it delegates and can resume a blocked child.
+Bash remains capable of external access. These tool scopes and prompt instructions are not an OS sandbox.
 
 Nesting is disabled globally (`maxSubagentDepth: 1`). The background pool is limited to
 six agents and the foreground pool to two, independently. Model, thinking and turn

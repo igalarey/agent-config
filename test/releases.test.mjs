@@ -183,6 +183,25 @@ test('verified codemode upgrade and rollback preserve restrictive user tool sett
   assert.ok(plan({ home, release: after.id }).conflicts.some(message => /explicit codemode exclusion/.test(message)));
 });
 
+test('learning helper upgrade and rollback retain unrelated settings', t => {
+  const home = temporary(t), source = fixture(t);
+  const harness = source.repositories.harness;
+  const before = ready(t, home, source);
+  execute(plan({ home, release: before.id }));
+  put(harness, 'extensions/learning/automatic.mjs', 'export const automatic = true;\n');
+  put(harness, 'extensions/learning/routing.mjs', 'export const routing = true;\n');
+  source.commits.harness = commit(harness, 'learning helpers');
+  const after = ready(t, home, source);
+  const update = plan({ home, release: after.id });
+  assert.deepEqual(update.conflicts, []);
+  execute(update);
+  assert.equal(fs.existsSync(path.join(home, '.pi/agent/extensions/learning/automatic.mjs')), true);
+  const rollback = plan({ home, release: before.id });
+  assert.deepEqual(rollback.conflicts, []);
+  execute(rollback);
+  assert.equal(fs.existsSync(path.join(home, '.pi/agent/extensions/learning/automatic.mjs')), false);
+});
+
 test('candidate composition success is required and cannot be removed before activation', t => {
   const home = temporary(t), source = fixture(t);
   const candidate = ready(t, home, source);

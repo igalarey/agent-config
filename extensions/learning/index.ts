@@ -52,7 +52,7 @@ export default function learning(pi: ExtensionAPI) {
           return;
         }
         const match = /^(show|approve|reject) ([a-f0-9]{24})$/.exec(args);
-        if (!match) throw new Error('Use /learn [review [focus]|status|cancel|auto off|pending|show ID|approve ID|reject ID]');
+        if (!match) throw new Error('Use /learn [review [focus]|status|cancel|auto on|auto off|pending|show ID|approve ID|reject ID]');
         const [, action, id] = match;
         if (action !== 'show' && ctx.mode !== 'tui') throw new Error('Approval and rejection require interactive TUI');
         const record = await store.get(id);

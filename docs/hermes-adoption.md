@@ -50,7 +50,7 @@ The Nous Research MIT notice and the separate ast-grep author notice remain with
 
 - Keep observational-memory as the sole owner of conversation observations and consolidation.
 - Do not add Hermes `MEMORY.md`, `USER.md`, external memory providers, or a second compaction layer.
-- Do not copy the background Python review fork, prompt-cache manager, or post-turn model calls.
+- Do not copy the background Python review fork or prompt-cache manager. Native Pi automatic review is a separate, bounded adaptation.
 - Keep the existing Pi model providers, MCP adapter, public browser restrictions, and delegation runtime.
 - Do not copy the Python execute-code RPC subsystem or describe tool filtering as a sandbox.
 - Do not replace shared PDF reading, actual YouTube captions, or opt-in local session analysis with broader service-dependent skills.
@@ -66,8 +66,10 @@ Loader verification does not certify a codemod with an absent binary.
 
 ## Reviewed learning
 
-The learning extension reviews the current conversation only when the user requests `/learn`.
-It does not search historical sessions or inspect generated observational-memory files.
+The learning extension supports manual `/learn` review and optional automatic review after verified human turns.
+Automatic review requires `learning.automaticReview: true` in user settings. It is off by default.
+Neither path searches historical sessions or generated observational-memory files.
+See [automatic learning](learning-automatic.md) for request limits, cancellation, usage and evidence checks.
 The model can propose a tested procedure with evidence, but it cannot approve it through this extension.
 A proposal does not become an active skill before human approval.
 
@@ -127,7 +129,7 @@ These checks establish program behavior, not whether a model selects the best le
 For a live acceptance check:
 
 1. Complete a real task with a reusable, verified procedure.
-2. Run `/learn` and inspect the proposal and its evidence.
+2. Run `/learn`, or enable automatic review and complete an eligible turn. Inspect any proposal and its evidence.
 3. Reject a weak proposal and confirm that no skill appears.
 4. Approve a useful proposal through the interactive review.
 5. Reload Pi and invoke the resulting learned skill in a new relevant task.
