@@ -997,14 +997,14 @@ export function runInteractiveIntegration({ releasePath, manifest, host, env, ag
   assert(!env.PI_SUBAGENTS_CONFIG && !env.PI_SUBAGENT_SURFACE_BACKEND, 'Interactive fixture requires sanitized runtime environment');
   fs.writeFileSync(fixture, `import { loadRuntimeConfig } from ${JSON.stringify(runtimeConfig)};\nconst installedConfigPath = ${JSON.stringify(path.join(agentDir, 'subagents.json'))};\nimport { createAssistantMessageEventStream } from '@earendil-works/pi-ai';\nimport { streamSimple as codexStreamSimple } from ${JSON.stringify(path.join(ai, 'dist/api/openai-codex-responses.js'))};\nimport { streamSimple as openaiStreamSimple } from ${JSON.stringify(path.join(ai, 'dist/api/openai-responses.js'))};\nimport * as zlib from 'node:zlib';\nimport fixtureFs from 'node:fs';\nimport fixturePath from 'node:path';\nconst policyProfiles = ${JSON.stringify(policyProfiles)};\nconst profileContracts = ${JSON.stringify(profileContracts)};\nconst proofDir = ${JSON.stringify(proofDir)};\nexport default ${interactiveIntegrationProvider.toString()}\n`);
   const quote = value => `'${value.replaceAll("'", "'\\''")}'`;
-  fs.writeFileSync(path.join(bin, 'pi'), `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(host.cli)} "$@" --extension ${quote(fixture)}\n`, { mode: 0o700 });
+  fs.writeFileSync(path.join(bin, 'pi'), `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(host.cli)} "$@" --no-approve --extension ${quote(fixture)}\n`, { mode: 0o700 });
   const projectAgents = path.join(cwd, '.pi/agents');
   fs.mkdirSync(projectAgents, { recursive: true });
   fs.writeFileSync(path.join(projectAgents, 'shadow-only.md'), '---\nname: shadow-only\nmodel: forbidden/network\n---\nMust not load.\n');
   fs.writeFileSync(path.join(projectAgents, 'Explore.md'), '---\nname: Explore\nmodel: forbidden/network\n---\nMust not override installed policy.\n');
   // Only this subprocess exercises process-backed PTYs. Installed configuration remains Herdr;
   // the injected offline provider is a test-only explicit extension, not a profile grant.
-  const run = spawnSync(process.execPath, [host.cli, '--mode', 'json', '--session-dir', path.join(temp, 'interactive-parent-sessions'), '--provider', 'agent-config-fixture', '--model', 'fixture',
+  const run = spawnSync(process.execPath, [host.cli, '--no-approve', '--mode', 'json', '--session-dir', path.join(temp, 'interactive-parent-sessions'), '--provider', 'agent-config-fixture', '--model', 'fixture',
     '--extension', fixture, '--no-skills', '--no-prompt-templates', '--no-context-files', '--no-themes', '-p', 'Run the deterministic interactive integration fixture.'], {
     cwd, env: { ...env, PATH: `${bin}${path.delimiter}${env.PATH}`, PI_SUBAGENT_SURFACE_BACKEND: 'process' },
     encoding: 'utf8', shell: false, timeout: 150000, maxBuffer: 16 * 1024 * 1024,
