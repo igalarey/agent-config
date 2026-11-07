@@ -3,8 +3,8 @@ import type { Api, Model } from "@earendil-works/pi-ai";
 export type SubscriptionModel = Model<Api>;
 
 export interface SubscriptionTarget {
-  key: "openai-codex" | "anthropic" | "unsupported";
-  label: "Codex" | "Claude" | "Subscription";
+  key: "openai" | "openai-codex" | "anthropic" | "unsupported";
+  label: "OpenAI" | "Codex" | "Claude" | "Subscription";
 }
 
 export interface SubscriptionQuotaWindow {
@@ -29,7 +29,7 @@ export interface UnavailableSubscriptionUsage {
   kind: "unavailable";
 }
 
-export type SubscriptionUsageResult = KnownSubscriptionUsage | UnavailableSubscriptionUsage;
+export type SubscriptionUsageResult = KnownSubscriptionUsage | UnavailableSubscriptionUsage | { kind: "connected" };
 
 export interface SubscriptionUsageRequest {
   model: SubscriptionModel;
@@ -79,6 +79,7 @@ export function createTransportUsageProvider<TRaw>(
 }
 
 export function resolveSubscriptionTarget(model: SubscriptionModel | undefined): SubscriptionTarget | undefined {
+  if (model?.provider === "openai") return { key: "openai", label: "OpenAI" };
   if (model?.provider === "openai-codex") return { key: "openai-codex", label: "Codex" };
   if (model?.provider === "anthropic" || model?.provider === "claude-bridge") return { key: "anthropic", label: "Claude" };
   return undefined;
@@ -99,7 +100,7 @@ export function normalizeSubscriptionUsage(result: SubscriptionUsageResult, fetc
   windows: readonly SubscriptionQuotaWindow[];
   tokenSpend?: SubscriptionTokenSpend;
 } | undefined {
-  if (result.kind === "unavailable") return undefined;
+  if (result.kind !== "known") return undefined;
   if (result.windows.length === 0) throw new Error("Invalid subscription usage response");
 
   const windows = result.windows.map(window => {

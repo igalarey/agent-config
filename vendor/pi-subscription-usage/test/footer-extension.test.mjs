@@ -90,6 +90,7 @@ test("known markers explicitly label real window percentages as used and keep to
     },
   }, 100_000);
   assert.equal(marker, "Codex · 5h 23% used (resets in 2h) · 7d 41% used · tokens 12k used/month · ↻");
+  assert.equal(formatSubscriptionMarker({ kind: "connected", target: { key: "openai", label: "OpenAI" } }, 0), "OpenAI · ChatGPT connected · usage N/D · ↻");
   assert.match(formatSubscriptionMarker({ kind: "unavailable", target: { key: "anthropic", label: "Claude" } }, 0), /^Claude · N\/D · ↻$/);
 });
 

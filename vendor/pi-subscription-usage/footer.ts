@@ -94,6 +94,7 @@ export function formatSubscriptionMarker(
 ): string {
   const prefix = sanitizeSingleLine(state.target.label);
   if (state.kind === "loading") return `${prefix} · loading… · ↻`;
+  if (state.kind === "connected") return `${prefix} · ChatGPT connected · usage N/D · ↻`;
   if (state.kind === "unavailable") return `${prefix} · N/D · ↻`;
   if (state.kind === "error") return `${prefix} · error · ↻`;
 

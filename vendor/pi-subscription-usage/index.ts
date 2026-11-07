@@ -68,14 +68,16 @@ export function createSubscriptionUsageExtension(
         } else if (outcome === "started") {
           const state = runtime.controller.getState();
           ctx.ui.notify(
-            state.kind === "error"
+            state.kind === "connected"
+              ? "ChatGPT subscription connection detected. Usage is not exposed by this connection. Check https://chatgpt.com/settings/usage"
+              : state.kind === "error"
               ? "Subscription refresh failed."
               : state.kind === "stale"
                 ? "Subscription refresh failed; showing previous data."
                 : state.kind === "unavailable"
                   ? "Subscription usage is N/D for the active model."
                   : "Subscription usage refreshed.",
-            state.kind === "known" ? "info" : "warning",
+            state.kind === "known" || state.kind === "connected" ? "info" : "warning",
           );
         }
       },

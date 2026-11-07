@@ -7,6 +7,7 @@ import {
   REQUEST_TIMEOUT_MS,
   createAnthropicUsageProvider,
   createCodexUsageProvider,
+  createOpenAIUsageProvider,
   createFetchSubscriptionTransport,
 } from "../adapters.ts";
 import { SubscriptionUsageController } from "../controller.ts";
@@ -118,6 +119,28 @@ test("Codex adapter resolves rotated Pi OAuth auth and maps only documented wind
   assert.equal(transport.requests[0].headers.Authorization, `Bearer ${rotated}`);
   assert.equal(transport.requests[0].headers["ChatGPT-Account-ID"], "account-from-rotated-token");
   assert.equal("x-private" in transport.requests[0].headers, false);
+});
+
+test("native OpenAI subscription uses its own OAuth and keeps API keys and custom endpoints out", async () => {
+  const model = { provider: "openai", id: "gpt-6-astra", api: "openai-responses", baseUrl: "https://api.openai.com/v1" };
+  const modelRegistry = registry();
+  const transport = transportWith([{ status: 200, headers: {}, body: JSON.stringify({ rate_limit: { primary_window: { used_percent: 12, limit_window_seconds: 18000 } } }) }]);
+  const provider = createOpenAIUsageProvider({ modelRegistry, transport });
+  assert.equal(provider.supports(model), true);
+  assert.deepEqual(await provider.fetchUsage({ model, signal: new AbortController().signal }), { kind: "connected" });
+  assert.equal(modelRegistry.calls.find(call => call.type === "auth").model.provider, "openai");
+  assert.equal(transport.requests.length, 0);
+  const opaque = createOpenAIUsageProvider({ modelRegistry: registry({ auth: { ok: true, apiKey: "opaque-subscription-token" } }), transport });
+  assert.deepEqual(await opaque.fetchUsage({ model, signal: new AbortController().signal }), { kind: "connected" });
+  const failed = createOpenAIUsageProvider({ modelRegistry: registry({ auth: { ok: false, error: "fixture" } }), transport });
+  assert.deepEqual(await failed.fetchUsage({ model, signal: new AbortController().signal }), { kind: "unavailable" });
+  assert.equal(createCodexUsageProvider({ modelRegistry, transport }).supports(model), false);
+  for (const invalid of [{ ...model, baseUrl: "https://proxy.example/v1" }, { ...model, api: "openai-decisions" }, { ...model, provider: "proxy" }]) {
+    assert.equal(provider.supports(invalid), false);
+  }
+  const noOauth = createOpenAIUsageProvider({ modelRegistry: registry({ oauth: false }), transport });
+  assert.deepEqual(await noOauth.fetchUsage({ model, signal: new AbortController().signal }), { kind: "unavailable" });
+  assert.equal(transport.requests.length, 0);
 });
 
 test("Codex accepts unpadded base64url JWT payloads and rejects unsafe account IDs", async () => {

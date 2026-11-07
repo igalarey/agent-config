@@ -25,6 +25,7 @@ export type SubscriptionUsageState =
   | { kind: "loading"; target: SubscriptionTarget }
   | { kind: "known"; target: SubscriptionTarget; usage: CachedSubscriptionUsage }
   | { kind: "stale"; target: SubscriptionTarget; usage: CachedSubscriptionUsage }
+  | { kind: "connected"; target: SubscriptionTarget }
   | { kind: "unavailable"; target: SubscriptionTarget }
   | { kind: "error"; target: SubscriptionTarget };
 
@@ -286,6 +287,11 @@ export class SubscriptionUsageController {
       try {
         const result = await provider.fetchUsage({ model, signal: abortController.signal });
         if (abortController.signal.aborted || this.disposed || generation !== this.generation) return;
+        if (result.kind === "connected") {
+          this.cache.delete(key);
+          this.publish({ kind: "connected", target });
+          return;
+        }
         const normalized = normalizeSubscriptionUsage(result, this.now());
         this.cooldownUntil.delete(key);
         if (!normalized) {

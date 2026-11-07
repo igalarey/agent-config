@@ -56,10 +56,31 @@ function providerFor(providerId, fetchUsage) {
 
 test("targets only the active Codex subscription or direct Anthropic provider", () => {
   assert.deepEqual(resolveSubscriptionTarget(codex), { key: "openai-codex", label: "Codex" });
+  assert.deepEqual(resolveSubscriptionTarget({ provider: "openai", id: "gpt-6-astra", api: "openai-responses" }), { key: "openai", label: "OpenAI" });
   assert.deepEqual(resolveSubscriptionTarget(claude), { key: "anthropic", label: "Claude" });
   assert.deepEqual(resolveSubscriptionTarget({ provider: "claude-bridge", id: "claude-opus-5-5", api: "claude-bridge" }), { key: "anthropic", label: "Claude" });
   assert.equal(resolveSubscriptionTarget({ provider: "openrouter", id: "anthropic/claude", api: "openai-completions" }), undefined);
   assert.equal(resolveSubscriptionTarget(undefined), undefined);
+});
+
+test("OpenAI connection state does not reuse legacy quota or cache fabricated usage", async () => {
+  let result = { kind: "connected" };
+  const native = { provider: "openai", id: "gpt-6-astra", api: "openai-responses" };
+  const controller = new SubscriptionUsageController({
+    providers: [providerFor("openai", async () => result), providerFor("openai-codex", async () => ({ kind: "known", windows: [{ label: "5h", usedPercent: 30 }] }))],
+    scheduler: fakeScheduler(), minRefreshIntervalMs: 0,
+  });
+  try {
+    controller.start(codex);
+    await controller.requestRefresh();
+    assert.equal(controller.getState().kind, "known");
+    controller.setModel(native);
+    await controller.requestRefresh();
+    assert.deepEqual(controller.getState(), { kind: "connected", target: { key: "openai", label: "OpenAI" } });
+    result = { kind: "unavailable" };
+    await controller.requestRefresh();
+    assert.equal(controller.getState().kind, "unavailable");
+  } finally { controller.dispose(); }
 });
 
 test("transport-backed providers are injectable and parse normalized usage offline", async () => {

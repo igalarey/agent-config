@@ -4,6 +4,11 @@ Harness-owned optional extension package for Pi 0.87.1. It adds subscription usa
 
 ## Behavior
 
+- Detects **OpenAI** ChatGPT connections for canonical `openai` models with the `openai-responses` API.
+  This connection does not expose quota data. The footer shows `OpenAI · ChatGPT connected · usage N/D`.
+  `/subscription-refresh` gives the usage page: https://chatgpt.com/settings/usage.
+  Connection detection confirms OAuth resolution, not plan eligibility or remaining allowance.
+  Native OpenAI credentials never go to the legacy Codex endpoint. Separate cache keys prevent reuse of legacy quota data.
 - Selects **Codex** only for canonical direct `openai-codex` models and **Claude** for canonical direct `anthropic` models and `claude-bridge` models from `pi-claude-bridge`.
 - Requires Pi to report OAuth for the active model. API-key auth, unsupported models, and custom/proxy base URLs return `N/D` without an HTTP request.
 - Renders provider-reported windows explicitly as used quota:
@@ -14,7 +19,7 @@ Harness-owned optional extension package for Pi 0.87.1. It adds subscription usa
 
 - Shows reset countdowns only when the response supplies a valid reset. At constrained widths, reset countdowns and the session name are dropped before either quota percentage or `↻`; cwd is truncated while preserving the branch when it fits.
 - Shows token spend as a separate `tokens … used` field; it never derives a quota percentage from token or credit values.
-- Supports `loading`, `known`, `stale`, `unavailable`, and `error` states without rendering raw provider errors.
+- Supports `loading`, `known`, `stale`, `connected`, `unavailable`, and `error` states without rendering raw provider errors.
 - Refreshes approximately every 60 seconds. Requests are memory-cached, coalesced, subject to a 15-second minimum interval, aborted on provider/model-family switch or disposal, and protected from late-result races. Repeated model selection within one subscription shares in-flight work and schedules at most one `unref()`'d refresh after the minimum interval.
 - Honors valid `Retry-After` cooldowns. Anthropic 429 responses without a useful delay impose a ten-minute cooldown. Polling, manual refresh, and model selection cannot bypass cooldowns, and adapters do not retry within one refresh cycle.
 - The `↻` marker is clickable in fullscreen TUI mouse mode. Regular terminal mode does not expose footer mouse input, so `/subscription-refresh` is the fallback. Refresh never calls `ctx.reload()` or restarts Pi.
@@ -40,7 +45,7 @@ Only the resolved `apiKey` access token is used. Registry-provided headers and b
 - Codex: `GET https://chatgpt.com/backend-api/wham/usage`
 - Anthropic: `GET https://api.anthropic.com/api/oauth/usage`
 
-Every operation has a 10-second deadline. HTTP uses `redirect: "manual"`, rejects 3xx, discards non-2xx bodies before interpreting status headers, and bounds successful response bodies to 64 KiB. The package never prints tokens/account IDs, logs raw responses/errors, uses cookies, or makes background model calls. No authenticated/live test is included or was run.
+Every operation has a 10-second deadline. HTTP uses `redirect: "manual"`, rejects 3xx, discards non-2xx bodies before interpreting status headers, and bounds successful response bodies to 64 KiB. The package never prints tokens/account IDs, logs raw responses/errors, uses cookies, or makes background model calls. Automated tests use synthetic credentials. A separate local check verified native OpenAI OAuth resolution without printing credentials or making a quota request.
 
 ### Codex adapter
 
@@ -89,6 +94,7 @@ interface SubscriptionUsageProvider {
         };
       }
     | { kind: "unavailable" }
+    | { kind: "connected" }
   >;
 }
 ```

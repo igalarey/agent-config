@@ -435,6 +435,16 @@ export function createCodexUsageProvider(options: ProviderAdapterOptions): Subsc
   return providerRequest(options, isCanonicalCodex, fetchCodexUsage);
 }
 
+export function createOpenAIUsageProvider(options: ProviderAdapterOptions): SubscriptionUsageProvider {
+  return providerRequest(options,
+    model => model.provider === "openai" && model.api === "openai-responses"
+      && model.baseUrl.replace(/\/+$/, "") === "https://api.openai.com/v1",
+    async function openAIConnection() {
+      // ChatGPT token sharing has no supported quota endpoint; never send its token to legacy Codex.
+      return { kind: "connected" };
+    });
+}
+
 export function createAnthropicUsageProvider(options: ProviderAdapterOptions): SubscriptionUsageProvider {
   return providerRequest(options, supportsAnthropic, fetchAnthropicUsage);
 }
@@ -444,6 +454,7 @@ export function createDefaultSubscriptionProviders(
   options: DefaultProviderOptions = {},
 ): readonly SubscriptionUsageProvider[] {
   return [
+    createOpenAIUsageProvider({ modelRegistry, ...options }),
     createCodexUsageProvider({ modelRegistry, ...options }),
     createAnthropicUsageProvider({ modelRegistry, ...options }),
   ];
