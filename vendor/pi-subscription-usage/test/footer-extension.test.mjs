@@ -90,7 +90,7 @@ function footerData(statuses = new Map()) {
   };
 }
 
-test("inline display-only footer puts sanitized cwd after full stats and keeps metadata on two rows", () => {
+test("inline display-only footer puts stats, sanitized cwd, and right-aligned model on one row plus relevant statuses", () => {
   const { ctx } = fixtureContext();
   ctx.cwd = "/home/me/中文/e\u0301/project\u001b[2J";
   let branch = "main";
@@ -108,7 +108,9 @@ test("inline display-only footer puts sanitized cwd after full stats and keeps m
   });
   const [first, second] = component.render(180);
   assert.match(first, /^↑1\.0k ↓525 R200 W100 CH15\.4% \$0\.215 50\.0%\/200k · ~\/中文\/e\u0301\/project \(main\) • quota-work/);
-  assert.match(second, /^status +\(openai-codex\) gpt-5\.4 • high$/);
+  assert.match(first, / +\(openai-codex\) gpt-5\.4 • high$/);
+  assert.equal(visibleWidth(first), 180);
+  assert.equal(second, "status");
   assert.doesNotMatch(first + second, /↻|N\/D|Codex|HIDDEN|\u001b/);
   branch = "changed";
   branchChange();
@@ -118,18 +120,57 @@ test("inline display-only footer puts sanitized cwd after full stats and keeps m
     const lines = component.render(width);
     assert.equal(lines.length, 2);
     for (const line of lines) assert.ok(visibleWidth(line) <= width, `width ${width}: ${line}`);
-    assert.ok(lines[0].startsWith("↑") || width === 0);
+    assert.ok(lines[0].startsWith("↑") || width <= 1);
     assert.doesNotMatch(lines.join(""), /↻|\u001b\[2J/);
     assert.equal(component.handleMouse({ type: "click", button: "left", x: width - 1, y: 0 }), undefined);
   }
-  assert.match(component.render(60)[0], /^↑1\.0k ↓525 R200 W100 CH15\.4% \$0\.215 50\.0%\/200k · ~/);
-  assert.doesNotMatch(component.render(60)[0], /changed|quota-work/);
+  assert.match(component.render(80)[0], /^↑1\.0k ↓525 R200 W100 CH15\.4% \$0\.215 50\.0%\/200k · ~/);
+  assert.match(component.render(80)[0], /gpt-5\.4 • high$/);
+  assert.doesNotMatch(component.render(80)[0], /changed|quota-work/);
   component.dispose();
   component.dispose();
   branchChange();
   assert.equal(unsubscribes, 1);
   assert.equal(renders, 1);
   assert.equal(component.handleMouse({ type: "click", button: "left", x: 0, y: 0 }), undefined);
+});
+
+test("display-only inline uses one ANSI-safe row without relevant statuses and follows model changes", () => {
+  const { ctx } = fixtureContext();
+  ctx.cwd = "/home/me/中文/e\u0301/very-long-directory-name";
+  const statuses = new Map([["empty", "  \n\t"], ["control", "\u001b[2J"], ["subagents", "HIDDEN"]]);
+  const component = createSubscriptionFooter({
+    ctx, pathAfterTokens: true, footerData: footerData(statuses), home: "/home/me",
+    tui: { requestRender() {} },
+    theme: { ...theme, fg: (_color, text) => `\u001b[90m${text}\u001b[39m` },
+  });
+  const plain = line => line.replace(/\u001b\[[0-9;]*m/g, "");
+  const [wide] = component.render(180);
+  assert.equal(component.render(180).length, 1);
+  assert.match(plain(wide), /^↑.*50\.0%\/200k · ~\/中文\/e\u0301\/very-long-directory-name.*\(openai-codex\) gpt-5\.4 • high$/);
+  assert.equal(visibleWidth(wide), 180);
+  for (const width of [0, 1, 2, 3, 4, 5, 10, 20, 40, 60, 80, 120, 180]) {
+    const lines = component.render(width);
+    assert.equal(lines.length, 1);
+    assert.equal(visibleWidth(lines[0]), width);
+    assert.doesNotMatch(lines[0], /HIDDEN|\u001b\[2J/);
+    if (width >= 20) assert.match(plain(lines[0]), /^↑.*gpt-5\.4(?: • high)?$/);
+  }
+  assert.equal(plain(component.render(1)[0]), "g");
+  assert.equal(plain(component.render(2)[0]), "↑g");
+  assert.doesNotMatch(plain(component.render(60)[0]), / · |中文/);
+  ctx.model = { ...codexMini, id: "模型-e\u0301\u001b[2J", provider: "新供应商" };
+  ctx.thinkingLevel = "max";
+  const changed = component.render(180);
+  assert.equal(changed.length, 1);
+  assert.match(plain(changed[0]), /\(新供应商\) 模型-e\u0301 • max$/);
+  assert.doesNotMatch(plain(changed[0]), /gpt-5|\u001b/);
+  assert.equal(visibleWidth(changed[0]), 180);
+  statuses.set("other", "OTHER_STATUS");
+  statuses.set("a", "ALPHA");
+  assert.deepEqual(component.render(120).slice(1).map(plain), ["ALPHA OTHER_STATUS"]);
+  assert.doesNotMatch(plain(component.render(120)[1]), /模型|max/);
+  component.dispose();
 });
 
 test("inline quota layout keeps stats before cwd and retains refresh at wide and narrow widths", () => {

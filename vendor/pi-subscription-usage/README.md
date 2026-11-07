@@ -33,10 +33,17 @@ To put the cwd immediately after token/context/cost statistics, add this global 
 
 `footerLayout.pathAfterTokens` defaults to `false`. Only boolean `true` enables this layout. Project settings do not affect it.
 The first row shows statistics, a `·` separator, then the cwd. Branch and session metadata appear when space permits.
-Statistics take priority over the cwd. The second row keeps extension statuses and model/thinking information.
-This layout does not enable or change OM status settings.
+Statistics take priority over the cwd. This layout does not enable or change OM status settings.
+With subscription usage enabled, the second row keeps extension statuses and model/thinking information.
 
 With `showFooter: false`, this layout uses a display-only custom footer without quota or refresh controls.
+The active model and thinking level appear at the right edge of the statistics/cwd row. Only nonempty extension statuses add a second row.
+The footer drops optional metadata and truncates the cwd before statistics or the model.
+
+At narrow widths, statistics keep up to half the columns, with two columns reserved for separation at widths of four or more.
+The model uses the remaining columns. The footer omits thinking information before truncating the model name.
+At widths of one and two, the row shows a model prefix and then statistics/model prefixes, respectively.
+
 Without the layout option, `showFooter: false` preserves Pi's native footer.
 When subscription usage is hidden, the extension creates no providers, controller, or timers and performs no authentication or usage requests.
 `/subscription-refresh` reports that the footer is hidden and does not enable it.

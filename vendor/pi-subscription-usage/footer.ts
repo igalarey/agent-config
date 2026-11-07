@@ -121,6 +121,18 @@ function fitLocation(cwd: string, branch: string | null, width: number): string 
   return `${truncateToWidth(cwd, cwdWidth, "...")}${branchSuffix}`;
 }
 
+function fitStatsWithLocation(stats: string, cwd: string, fullLocation: string, fullLine: string, width: number): string {
+  let left = truncateToWidth(stats, width, "");
+  const pathBudget = Math.max(0, width - visibleWidth(left) - 3);
+  if (pathBudget > 0) {
+    let location = truncateToWidth(cwd, pathBudget, "...");
+    if (visibleWidth(fullLocation) <= pathBudget) location = fullLocation;
+    if (visibleWidth(fullLine) <= pathBudget) location = fullLine;
+    left += ` · ${location}`;
+  }
+  return left;
+}
+
 function fitMarkerWithRefresh(marker: string, width: number): string {
   if (visibleWidth(marker) <= width) return marker;
   const refreshSuffix = " ↻";
@@ -231,6 +243,34 @@ export function createSubscriptionFooter(options: SubscriptionFooterOptions) {
       else parts.push(contextDisplay);
 
       const stats = parts.join(" ");
+      const statuses = [...footerData.getExtensionStatuses().entries()]
+        .filter(([key]) => key !== "subagents")
+        .sort(([left], [rightKey]) => left.localeCompare(rightKey))
+        .map(([key, text]) => key === "om" ? theme.fg("dim", sanitizeSingleLine(text)) : sanitizeSingleLine(text));
+      const statusText = statuses.join(" ");
+      const modelName = sanitizeSingleLine(ctx.model?.id ?? "no-model");
+      const thinkingLevel = sanitizeSingleLine(ctx.thinkingLevel ?? "off");
+      let right = ctx.model?.reasoning
+        ? `${modelName} • ${thinkingLevel === "off" ? "thinking off" : thinkingLevel}`
+        : modelName;
+      if (options.pathAfterTokens && !controller) {
+        const gap = width >= 4 ? 2 : 0;
+        const modelBudget = Math.max(width > 0 ? 1 : 0, width - gap - Math.min(visibleWidth(stats), Math.floor(width / 2)));
+        if (ctx.model && footerData.getAvailableProviderCount() > 1) {
+          const withProvider = `(${sanitizeSingleLine(ctx.model.provider)}) ${right}`;
+          if (visibleWidth(stats) + 3 + visibleWidth(fullLine) + 2 + visibleWidth(withProvider) <= width) right = withProvider;
+        }
+        if (visibleWidth(right) > modelBudget) right = modelName;
+        const renderedRight = truncateToWidth(right, modelBudget, "");
+        const leftBudget = Math.max(0, width - visibleWidth(renderedRight) - gap);
+        const left = fitStatsWithLocation(stats, cwd, fullLocation, fullLine, leftBudget);
+        const padding = " ".repeat(Math.max(0, width - visibleWidth(left) - visibleWidth(renderedRight)));
+        const lines = [theme.fg("dim", left + padding + renderedRight)];
+        const relevantStatuses = statuses.filter(text => sanitizeSingleLine(text).length > 0).join(" ");
+        if (relevantStatuses) lines.push(relevantStatuses);
+        refreshBounds = undefined;
+        return lines.map(line => truncateToWidth(line, width, ""));
+      }
       const markerBudget = Math.max(0, width - Math.min(Math.floor(width / 3), visibleWidth(stats)) - 2);
       const marker = !state || visibleWidth(fullMarker) <= markerBudget
         ? fullMarker
@@ -246,27 +286,10 @@ export function createSubscriptionFooter(options: SubscriptionFooterOptions) {
       const fittedStats = truncateToWidth(visibleWidth(stats) <= statsBudget ? stats : parts[parts.length - 1], statsBudget, "");
       let statsLeft = renderedLocation ? `${renderedLocation}  ${fittedStats}` : fittedStats;
       if (options.pathAfterTokens) {
-        statsLeft = truncateToWidth(stats, leftBudget, "");
-        const pathBudget = Math.max(0, leftBudget - visibleWidth(statsLeft) - 3);
-        if (pathBudget > 0) {
-          let location = truncateToWidth(cwd, pathBudget, "...");
-          if (visibleWidth(fullLocation) <= pathBudget) location = fullLocation;
-          if (visibleWidth(fullLine) <= pathBudget) location = fullLine;
-          statsLeft += ` · ${location}`;
-        }
+        statsLeft = fitStatsWithLocation(stats, cwd, fullLocation, fullLine, leftBudget);
       }
       const padding = " ".repeat(Math.max(0, width - visibleWidth(statsLeft) - markerWidth));
       const lines = [theme.fg("dim", statsLeft + padding + marker)];
-      const statuses = [...footerData.getExtensionStatuses().entries()]
-        .filter(([key]) => key !== "subagents")
-        .sort(([left], [rightKey]) => left.localeCompare(rightKey))
-        .map(([key, text]) => key === "om" ? theme.fg("dim", sanitizeSingleLine(text)) : sanitizeSingleLine(text));
-      const statusText = statuses.join(" ");
-      const modelName = sanitizeSingleLine(ctx.model?.id ?? "no-model");
-      const thinkingLevel = sanitizeSingleLine(ctx.thinkingLevel ?? "off");
-      let right = ctx.model?.reasoning
-        ? `${modelName} • ${thinkingLevel === "off" ? "thinking off" : thinkingLevel}`
-        : modelName;
       if (ctx.model && footerData.getAvailableProviderCount() > 1) {
         const withProvider = `(${sanitizeSingleLine(ctx.model.provider)}) ${right}`;
         if (visibleWidth(statusText) + 2 + visibleWidth(withProvider) <= width) right = withProvider;
