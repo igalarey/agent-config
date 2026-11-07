@@ -1,7 +1,7 @@
 ---
 name: deep-implementation
 description: Difficult local implementation, debugging and refactoring with Astra medium.
-model: openai-codex/gpt-6-astra
+model: openai/gpt-6-astra
 thinking: medium
 tools: read, grep, find, ls, bash, edit, write
 extensions: false

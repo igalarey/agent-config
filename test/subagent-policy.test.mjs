@@ -34,7 +34,7 @@ test('profiles pin models with explicit local tools and bounded turns', () => {
     ['Plan', 'gpt-6-astra', 'low', false], ['deep-implementation', 'gpt-6-astra', 'medium', true], ['deep-review', 'gpt-6.1-sol', 'medium', false],
   ]) {
     const text = fs.readFileSync(new URL(`../agents/${name}.md`, import.meta.url), 'utf8');
-    assert.ok(text.includes(`model: openai-codex/${modelId}\n`), name);
+    assert.ok(text.includes(`model: openai/${modelId}\n`), name);
     assert.ok(text.includes(`thinking: ${thinking}\n`), name);
     assert.ok(text.includes(`tools: ${writable ? 'read, grep, find, ls, bash, edit, write' : 'read, grep, find, ls'}\n`), name);
     assert.match(text, /max_turns: [1-9]\d?\n/);
@@ -83,7 +83,13 @@ test('runtime smoke reads profile policy, retains historical effort and priority
     fs.writeFileSync(path.join(release, 'agents', `${name}.md`), `---\nname: ${name}\nmodel: openai-codex/${policy.model}\nthinking: ${policy.thinking}\nextensions: false\n---\n`);
   }
   assert.deepEqual(readSubagentSmokePolicy(release), requested);
-  assert.deepEqual(readSubagentSmokePolicy(path.resolve(import.meta.dirname, '..')), requested);
+  const migrated = Object.fromEntries(Object.entries(requested).map(([name, policy]) => [name, { ...policy, provider: 'openai' }]));
+  for (const name of names) {
+    const file = path.join(release, 'agents', `${name}.md`);
+    fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('openai-codex/', 'openai/'));
+  }
+  assert.deepEqual(readSubagentSmokePolicy(release), migrated);
+  assert.deepEqual(readSubagentSmokePolicy(path.resolve(import.meta.dirname, '..')), migrated);
   for (const hook of [false, true]) {
     const expected = writeProfiles(['gpt-6.1-sol', 'gpt-6-astra'], ['high', 'low'], hook);
     assert.deepEqual(readSubagentSmokePolicy(release), expected);

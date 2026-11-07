@@ -1,7 +1,7 @@
 ---
 name: Explore
 description: Bounded read-only code exploration with Sol low.
-model: openai-codex/gpt-6.1-sol
+model: openai/gpt-6.1-sol
 thinking: low
 tools: read, grep, find, ls
 extensions: false

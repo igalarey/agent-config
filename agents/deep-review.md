@@ -1,7 +1,7 @@
 ---
 name: deep-review
 description: Independent read-only review of difficult changes and security risks with Sol medium.
-model: openai-codex/gpt-6.1-sol
+model: openai/gpt-6.1-sol
 thinking: medium
 tools: read, grep, find, ls
 extensions: false

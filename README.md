@@ -207,7 +207,9 @@ Astra remains the parent default. Profiles inherit instructions, not the parent'
 | deep-implementation | `gpt-6-astra` medium | Read/search plus bash, edit, write | 40 |
 | deep-review | `gpt-6.1-sol` medium | Read/search only | 30 |
 
-All profiles use the `openai-codex` provider. The parent default is `gpt-6-astra`.
+All profiles use the `openai` provider. The parent default is `gpt-6-astra`.
+Memory workers also use `openai`, with `gpt-6-luna` and high reasoning.
+The legacy `openai-codex` connection is not used by these defaults.
 Read-only profiles cannot run `git diff`; include the diff in a review prompt.
 
 All five profiles set `extensions: false`. They request no priority service tier.

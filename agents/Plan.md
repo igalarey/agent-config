@@ -1,7 +1,7 @@
 ---
 name: Plan
 description: Difficult implementation planning and risk analysis with Astra low. Read-only.
-model: openai-codex/gpt-6-astra
+model: openai/gpt-6-astra
 thinking: low
 tools: read, grep, find, ls
 extensions: false

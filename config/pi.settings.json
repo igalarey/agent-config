@@ -15,7 +15,7 @@
   "hideThinkingBlock": true,
   "quietStartup": false,
   "collapseChangelog": true,
-  "defaultProvider": "openai-codex",
+  "defaultProvider": "openai",
   "defaultModel": "gpt-6-astra",
   "defaultThinkingLevel": "medium",
   "compaction": {
@@ -28,12 +28,12 @@
     "tailTokens": 20000,
     "models": {
       "observer": {
-        "provider": "openai-codex",
+        "provider": "openai",
         "id": "gpt-6-luna",
         "thinking": "high"
       },
       "consolidator": {
-        "provider": "openai-codex",
+        "provider": "openai",
         "id": "gpt-6-luna",
         "thinking": "high"
       }

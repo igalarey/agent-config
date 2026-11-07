@@ -514,7 +514,7 @@ test('implementation profile grants only explicit local tools', () => {
   const profile = fs.readFileSync(path.join(root, 'agents/general-purpose.md'), 'utf8');
   assert.match(profile, /tools: read, grep, find, ls, bash, edit, write\n/);
   assert.doesNotMatch(profile, /ext:|tools: "\*"/);
-  assert.match(profile, /model: openai-codex\/gpt-6\.1-sol\nthinking: high\n/);
+  assert.match(profile, /model: openai\/gpt-6\.1-sol\nthinking: high\n/);
   assert.match(profile, /extensions: false\n/);
 });
 
@@ -530,7 +530,7 @@ test('retired Orca skills are absent while find-skills remains independent', () 
 
 test('memory roles use the selected Codex Luna model and high reasoning', () => {
   const settings = readJSON(path.join(root, 'config/pi.settings.json'));
-  const expected = { provider: 'openai-codex', id: 'gpt-6-luna', thinking: 'high' };
+  const expected = { provider: 'openai', id: 'gpt-6-luna', thinking: 'high' };
   assert.deepEqual(settings['observational-memory'].models.observer, expected);
   assert.deepEqual(settings['observational-memory'].models.consolidator, expected);
 });

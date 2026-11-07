@@ -652,7 +652,8 @@ export function readSubagentSmokePolicy(releasePath) {
   });
   if (profiles.every(profile => profile.model === undefined)) return null;
   return Object.fromEntries(profiles.map(({ name, model, thinking, extensions }) => {
-    const id = model?.startsWith('openai-codex/') ? model.slice('openai-codex/'.length) : undefined;
+    const provider = model?.split('/')[0];
+    const id = ['openai', 'openai-codex'].includes(provider) ? model.slice(provider.length + 1) : undefined;
     const luna = id === 'gpt-6-luna';
     const supported = luna ? ['medium', 'high'].includes(thinking)
       : ['gpt-6-sol', 'gpt-6.1-sol'].includes(id) ? thinking === 'high'
@@ -661,7 +662,7 @@ export function readSubagentSmokePolicy(releasePath) {
     assert(supported && extensions === (luna ? '["~/.pi/agent/agents/luna-fast.mjs"]' : 'false'),
       `Unsupported subagent policy: ${name} ${model} ${thinking} extensions=${extensions}`);
     if (luna) assert(fs.existsSync(path.join(releasePath, 'agents/luna-fast.mjs')), 'Unsupported subagent policy: Luna hook missing');
-    return [name, { model: id, thinking, ...(luna ? { serviceTier: 'priority' } : {}) }];
+    return [name, { model: id, thinking, ...(provider === 'openai' ? { provider } : {}), ...(luna ? { serviceTier: 'priority' } : {}) }];
   }));
 }
 
@@ -671,15 +672,15 @@ function fauxIntegrationProvider(pi) {
     const stream = createAssistantMessageEventStream();
     queueMicrotask(async () => {
       let policyMarker = '';
-      if (policyProfiles && model.provider === 'openai-codex') {
+      if (policyProfiles && ['openai', 'openai-codex'].includes(model.provider)) {
         const prompt = context.messages.filter(message => message.role === 'user')
           .flatMap(message => typeof message.content === 'string' ? [message.content] : message.content.filter(block => block.type === 'text').map(block => block.text)).join('\n');
         const role = prompt.match(/Report scope for (Explore|general-purpose|Plan|deep-implementation|deep-review)\b/)?.[1];
         const policy = policyProfiles[role];
-        if (!policy || model.id !== policy.model) throw new Error(`Unexpected subagent model: ${role} ${model.id}`);
+        if (!policy || model.id !== policy.model || model.provider !== (policy.provider ?? 'openai-codex')) throw new Error(`Unexpected subagent model: ${role} ${model.provider}/${model.id}`);
         let captured;
         const token = `fixture.${Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'offline-fixture' } })).toString('base64url')}.fixture`;
-        await codexStreamSimple(model, context, { ...options, apiKey: token, transport: 'sse', maxRetries: 0,
+        await (model.provider === 'openai' ? openaiStreamSimple : codexStreamSimple)(model, context, { ...options, apiKey: token, transport: 'sse', maxRetries: 0,
           fetch: async (_url, init) => {
             const body = typeof init.body === 'string' ? init.body : zlib.zstdDecompressSync(init.body).toString();
             captured = JSON.parse(body);
@@ -749,8 +750,8 @@ function fauxIntegrationProvider(pi) {
     });
     return stream;
   };
-  if (policyProfiles) pi.registerProvider('openai-codex', { baseUrl: 'https://invalid.example', apiKey: 'offline-fixture', api: 'openai-codex-responses',
-    models: [...new Set(Object.values(policyProfiles).map(profile => profile.model))].map(id => ({ id, name: id, reasoning: true, thinkingLevelMap: { low: 'low', medium: 'medium', high: 'high' },
+  if (policyProfiles) for (const provider of new Set(Object.values(policyProfiles).map(profile => profile.provider ?? 'openai-codex'))) pi.registerProvider(provider, { baseUrl: 'https://invalid.example', apiKey: 'offline-fixture', api: provider === 'openai' ? 'openai-responses' : 'openai-codex-responses',
+    models: [...new Set(Object.values(policyProfiles).filter(profile => (profile.provider ?? 'openai-codex') === provider).map(profile => profile.model))].map(id => ({ id, name: id, reasoning: true, thinkingLevelMap: { low: 'low', medium: 'medium', high: 'high' },
       input: ['text'], contextWindow: 200000, maxTokens: 1024, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } })), streamSimple });
   pi.registerProvider('agent-config-fixture', { baseUrl: 'https://invalid.example', apiKey: 'offline-fixture', api: 'agent-config-fixture',
     models: [{ id: 'fixture', name: 'fixture', reasoning: false, input: ['text'], contextWindow: 200000, maxTokens: 1024,
@@ -843,7 +844,7 @@ async function runModernSmoke({ releasePath, manifest, parentEnv }) {
       const webActivation = nativeBase(manifest) && deferredWeb(releasePath)
         ? runWebActivationProbe({ host, env, cwd, temp, releasePath, manifest }) : undefined;
       const fixture = path.join(temp, 'faux-integration.mjs');
-      fs.writeFileSync(fixture, `import { createAssistantMessageEventStream } from '@earendil-works/pi-ai';\nimport { streamSimple as codexStreamSimple } from ${JSON.stringify(path.join(resolvePiHostDependency(host, '@earendil-works/pi-ai'), 'dist/api/openai-codex-responses.js'))};\nimport * as zlib from 'node:zlib';\nconst policyProfiles = ${JSON.stringify(readSubagentSmokePolicy(releasePath))};\nexport default ${fauxIntegrationProvider.toString()}\n`);
+      fs.writeFileSync(fixture, `import { createAssistantMessageEventStream } from '@earendil-works/pi-ai';\nimport { streamSimple as codexStreamSimple } from ${JSON.stringify(path.join(resolvePiHostDependency(host, '@earendil-works/pi-ai'), 'dist/api/openai-codex-responses.js'))};\nimport { streamSimple as openaiStreamSimple } from ${JSON.stringify(path.join(resolvePiHostDependency(host, '@earendil-works/pi-ai'), 'dist/api/openai-responses.js'))};\nimport * as zlib from 'node:zlib';\nconst policyProfiles = ${JSON.stringify(readSubagentSmokePolicy(releasePath))};\nexport default ${fauxIntegrationProvider.toString()}\n`);
       const run = spawnSync(process.execPath, [host.cli, '--mode', 'json', '--no-session', '--provider', 'agent-config-fixture', '--model', 'fixture',
         '--extension', fixture, '--no-skills', '--no-prompt-templates', '--no-context-files', '--no-themes', '-p', 'Run the deterministic integration fixture.'],
       { cwd, env, encoding: 'utf8', shell: false, timeout: 60_000, maxBuffer: 16 * 1024 * 1024 });
