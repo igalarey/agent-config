@@ -43,7 +43,7 @@ PI_WEB_ACTIVATION_PACKAGE=/absolute/path/to/pi-web-access node --test test/web-a
 
 The full release smoke runs the same transition check against the candidate's native package registration.
 
-## Pi 1.3.0 and Herdr 0.9.5 compatibility (historical evidence)
+## Pi 1.3.0 compatibility (historical evidence)
 
 The isolated Pi 1.3.0 fixture passed these checks:
 
@@ -56,9 +56,6 @@ The isolated Pi 1.3.0 fixture passed these checks:
 Pi's builtin MCP is disabled because this configuration retains `pi-mcp-adapter`.
 Four pinned packages still emit TypeBox packaging warnings. The official loader probe verified shared module identity.
 The smoke report retains these exact diagnostics and rejects unknown warnings.
-
-Herdr's existing configuration passed the installed validator. Its keys match the 0.9.5 documentation.
-The README describes the separate binary and integration update. Neither binary nor live sessions were changed.
 
 The initial checks used an unsealed fixture with local dependency links.
 The official candidate `h-4df8185f76e6-s-e955e29c51b7-m-bc1eba141a47` then passed all 14 package checks and five runtime checks.

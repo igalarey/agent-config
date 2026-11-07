@@ -9,7 +9,7 @@
 | Common skill defaults | `skills/` supplies reviewed defaults | `~/.agents/skills/` | User owns existing files; explicit reviewed synchronization only |
 | Active curated Pi skills | `pi-skills/` and `manifests/curated-skills.json` | `~/.pi/agent/skills/` | Verified harness release |
 | Archived curated skills | `archive/pi-skills/` and historical archive manifests | None; source Git only, excluded from new releases | Explicit reviewed source restoration |
-| External common skills, such as Herdr | Their own reviewed source | `~/.agents/skills/` | Their external installer |
+| External common skills | Their own reviewed source | `~/.agents/skills/` | Their external installer |
 | Prompt commands | `prompts/` | `~/.pi/agent/prompts/` | Verified harness release |
 | Approved learned skills | Reviewed private proposals | `~/.pi/agent/skills/learned/` | Human approval through Learning |
 | Episodic memory | Current session evidence | Session-scoped memory storage | Observational memory |

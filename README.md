@@ -156,7 +156,6 @@ Do not delete pending proposals or ownership markers to bypass a refusal.
 | `config/mcp-adapter.json` | Adapter 7 defaults; legacy settings migrate without changing the old file |
 | `config/mcp.json` | Historical adapter defaults, retained for rollback |
 | `config/web-search.json` | Direct fetch, local PDF extraction, no browser cookies or curator |
-| `config/herdr/config.toml` | Optional tracked Herdr theme and interface configuration |
 | `native/package*.json` | Exact npm defaults and transitive dependency lock |
 | `manifests/curated-skills.json`, `pi-skills/` | Active curated skills, provenance, assets and hashes |
 | `archive/` | Source-only retired skills, exact provenance snapshot and restoration instructions; not released or installed |
@@ -191,46 +190,7 @@ Learning has no persistent footer indicator. Automatic review can stage proposal
 Run `/reload` or restart Pi after changing these settings.
 See the [footer options](vendor/pi-subscription-usage/README.md) for layout details and API limits.
 
-### Herdr (optional)
-
-Target: **Herdr 0.9.5**, the stable release checked on 2026-10-17.
-The existing configuration keys remain valid in its [configuration reference](https://raw.githubusercontent.com/herdrdev/herdr/v0.9.5/docs/next/website/src/data/config-reference.json).
-No theme or sidebar migration is required.
-
-The current Herdr configuration is tracked at `config/herdr/config.toml`. It contains
-the Vesper theme, the `herdr-radar` managed sidebar and tab-bar blocks, interface
-preferences, system toast delivery with copy notifications disabled, and sounds disabled.
-The Radar blocks require the `hhdebb.herdr-radar` plugin; they do not include Herdr
-keybindings, sockets, logs or session state. The Agents panel defaults to active-first,
-grouped by recent activity; `prefix+a` switches between active-first and the flat recent
-view, and `prefix+comma` opens Radar settings. The tab-bar command contains this user's
-absolute Herdr state path, so run Radar's configure action again after copying the file
-to a different home directory.
-
-The Pi installer does not modify `~/.config/herdr/config.toml`. To apply this optional
-configuration manually, review the file and copy it to `~/.config/herdr/config.toml`, then
-install/enable `hhdebb.herdr-radar` and run:
-
-```sh
-herdr config check
-herdr server reload-config
-```
-
-Update Herdr separately from this repository. For a direct installation on the stable channel, run:
-
-```sh
-herdr update
-herdr --version
-herdr integration install pi
-herdr integration status
-```
-
-Use the original package manager for Homebrew, mise, or Nix installations.
-The Pi integration reports session identity for restore. Pi's OSC 7501 status reports do not replace that integration.
-Restart Pi after updating the integration.
-Herdr's updater normally leaves compatible servers and their panes running.
-Do not stop a server or request experimental `--handoff` during an active task.
-See the [0.9.5 update procedure](https://raw.githubusercontent.com/herdrdev/herdr/v0.9.5/docs/next/website/src/content/docs/install.mdx).
+### Subagent profiles
 
 Astra remains the parent default. Profiles inherit instructions, not the parent's model:
 
