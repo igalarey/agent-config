@@ -8,6 +8,7 @@ extensions: false
 skills: false
 allowed_subagents: none
 max_turns: 40
+auto-exit: true
 prompt_mode: append
 ---
 Complete the difficult local task assigned by the parent under inherited project and

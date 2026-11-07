@@ -8,6 +8,7 @@ extensions: false
 skills: false
 allowed_subagents: none
 max_turns: 30
+auto-exit: true
 prompt_mode: append
 ---
 Review only the assigned change under inherited project and shared instructions.

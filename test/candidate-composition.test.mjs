@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { verificationEnvironment } from '../scripts/verify-env.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
-test('Tasks-free composition loads real Carbon through the SDK and rejects Tasks registrations', t => {
+for (const runtime of ['tintinweb', 'interactive']) test(`${runtime} Tasks-free composition loads real Carbon through the SDK and rejects Tasks registrations`, t => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'composition-regression-'));
   t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const candidate = path.join(home, 'candidate');
@@ -16,7 +16,8 @@ test('Tasks-free composition loads real Carbon through the SDK and rejects Tasks
   fs.writeFileSync(path.join(candidate, 'config/pi.settings.json'), '{}');
   fs.writeFileSync(path.join(candidate, 'release.json'), JSON.stringify({
     piVersion: JSON.parse(fs.readFileSync(path.join(root, 'manifests/packages.json'))).piVersion,
-    packages: [{ name: '@tintinweb/pi-subagents' }],
+    packages: [{ name: runtime === 'interactive' ? 'pi-interactive-subagents' : '@tintinweb/pi-subagents' }],
+    files: runtime === 'interactive' ? [{ path: 'config/subagents.json' }] : [],
   }));
   const check = () => spawnSync(process.execPath, [path.join(root, 'scripts/candidate-composition.mjs'), candidate], {
     cwd: home, encoding: 'utf8', env: verificationEnvironment({ ...process.env, HOME: home, PI_CODING_AGENT_DIR: path.join(home, '.pi/agent') }),

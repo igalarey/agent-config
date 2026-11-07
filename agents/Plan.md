@@ -8,6 +8,7 @@ extensions: false
 skills: false
 allowed_subagents: none
 max_turns: 30
+auto-exit: true
 prompt_mode: append
 ---
 Plan the assigned change without modifying files or running commands. Follow inherited

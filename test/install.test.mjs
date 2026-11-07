@@ -248,20 +248,24 @@ test('generated skill environments and Python caches are never projected', t => 
   const result = plan({ home, source });
   assert.equal(result.operations.some(item => /\.venv|__pycache__|\.pyc$/.test(item.relative)), false);
 });
-test('legacy package, profiles and RTK require explicit migration and are backed up', t => {
-  const home = sandbox(t);
+test('historical tintinweb migration backs up legacy package, profiles and RTK', t => {
+  const home = sandbox(t), source = sandbox(t);
+  for (const entry of ['SYSTEM.md', 'guides', 'skills', 'agents', 'config', 'manifests']) {
+    fs.cpSync(path.join(root, entry), path.join(source, entry), { recursive: true });
+  }
+  put(source, 'config/subagents.json', JSON.stringify({ maxSubagentDepth: 1, worktreeIsolation: false }));
   put(home, rtkHook, 'legacy hook');
   put(home, '.pi/agent/agents/worker.md', 'legacy worker');
   put(home, settings, JSON.stringify({ packages: ['git:github.com/igalarey/pi-interactive-subagents', 'npm:unrelated@1'] }));
-  assert.throws(() => execute(plan({ home })), /nothing written/);
-  const migration = plan({ home, migrateBase: true });
+  assert.throws(() => execute(plan({ home, source })), /nothing written/);
+  const migration = plan({ home, source, migrateBase: true });
   const backup = execute(migration);
   assert.equal(fs.existsSync(path.join(home, rtkHook)), false);
   assert.equal(fs.existsSync(path.join(home, '.pi/agent/agents/worker.md')), false);
   assert.equal(fs.readFileSync(path.join(backup, rtkHook), 'utf8'), 'legacy hook');
   assert.equal(fs.readFileSync(path.join(backup, '.pi/agent/agents/worker.md'), 'utf8'), 'legacy worker');
   assert.equal(readJSON(path.join(home, settings)).packages[0], 'npm:unrelated@1');
-  assert.deepEqual(plan({ home }).operations, []);
+  assert.deepEqual(plan({ home, source }).operations, []);
 });
 test('applies managed defaults while preserving unrelated settings, APPEND prompt, and AGENTS content', t => {
   const home = sandbox(t);
@@ -416,6 +420,7 @@ test('Git repository aliases migrate without duplicating memory or scoped tintin
   for (const entry of ['SYSTEM.md', 'guides', 'skills', 'agents', 'config', 'manifests']) {
     fs.cpSync(path.join(root, entry), path.join(source, entry), { recursive: true });
   }
+  put(source, 'config/subagents.json', JSON.stringify({ maxSubagentDepth: 1, worktreeIsolation: false }));
   const packages = ['observational-memory', '@tintinweb/pi-subagents'].map(name => ({ name, path: `packages/${name}` }));
   put(source, 'manifests/packages.json', JSON.stringify({ packages }));
   put(home, settings, JSON.stringify({ packages: ['git:github.com/igalarey/pi-observational-memory',

@@ -5,7 +5,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { verificationEnvironment } from './verify-env.mjs';
-import { runRuntimeSmoke } from './runtime-smoke.mjs';
+import { modernInteractive, runRuntimeSmoke } from './runtime-smoke.mjs';
 import { validateCuratedAdaptations } from './harness-compatibility.mjs';
 
 const SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i;
@@ -700,7 +700,7 @@ function expectedVerificationIds(manifest) {
 }
 const LEGACY_RUNTIME_VERIFICATION_IDS = ['runtime:host', 'runtime:loader', 'runtime:tools', 'runtime:process-only', 'runtime:rpc'];
 function modernBase(manifest) { return manifest.packages.some(pkg => pkg.name === '@tintinweb/pi-subagents'); }
-function supplementalMode(manifest) { return modernBase(manifest) ? 'official-cli-faux-model-integration' : 'mock-host-api-direct-tool-execution'; }
+function supplementalMode(manifest) { return modernBase(manifest) || modernInteractive(manifest) ? 'official-cli-faux-model-integration' : 'mock-host-api-direct-tool-execution'; }
 function expectedRuntimeVerificationIds() {
   return ['runtime:host', 'runtime:loader', 'runtime:supplemental-tool-execution', 'runtime:process-only', 'runtime:rpc'];
 }

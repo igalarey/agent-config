@@ -8,6 +8,7 @@ extensions: false
 skills: false
 allowed_subagents: none
 max_turns: 20
+auto-exit: true
 prompt_mode: append
 ---
 Inspect the assigned code without modifying files or running commands. Follow inherited

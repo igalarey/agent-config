@@ -337,7 +337,9 @@ async function exerciseProcessSurface({ releasePath, developmentPath, manifest, 
 
 const PACKAGE_TOOLS = ['subagent', 'subagents_list', 'subagent_message', 'subagent_cancel', 'ask_user_question', 'web_fetch'];
 const PACKAGE_COMMANDS = ['subagent', 'subagent-cancel', 'om', 'om:status', 'om:compact', 'om:consolidate'];
-const modernBase = manifest => manifest.packages.some(pkg => pkg.name === '@tintinweb/pi-subagents');
+export const modernInteractive = manifest => manifest.packages.some(pkg => pkg.name === 'pi-interactive-subagents')
+  && manifest.files?.some(file => file.path === 'config/subagents.json') === true;
+const modernBase = manifest => modernInteractive(manifest) || manifest.packages.some(pkg => pkg.name === '@tintinweb/pi-subagents');
 const nativeBase = manifest => manifest.files?.some(file => file.path === 'native/package.json');
 export const HISTORICAL_BIGPOWERS_SKILL_ALLOWLIST = [
   '.pi/skills/align-grid',
@@ -378,9 +380,9 @@ function nativePackages(releasePath, manifest) {
 }
 const hasTasks = manifest => manifest.packages.some(pkg => pkg.name === '@tintinweb/pi-tasks');
 const packageTools = manifest => modernBase(manifest)
-  ? ['Agent', 'get_subagent_result', 'steer_subagent', ...(hasTasks(manifest) ? ['TaskCreate', 'TaskList', 'TaskGet', 'TaskUpdate', 'TaskOutput', 'TaskStop', 'TaskExecute'] : []), 'start_supervision', 'ask_user_question', ...(nativeBase(manifest) ? ['web_search', 'fetch_content', 'get_search_content', 'source_check'] : ['web_fetch'])] : PACKAGE_TOOLS;
+  ? [...(modernInteractive(manifest) ? ['subagent', 'subagents_list', 'subagent_message', 'subagent_cancel', 'subagent_status', 'implementation_route'] : ['Agent', 'get_subagent_result', 'steer_subagent']), ...(hasTasks(manifest) ? ['TaskCreate', 'TaskList', 'TaskGet', 'TaskUpdate', 'TaskOutput', 'TaskStop', 'TaskExecute'] : []), 'start_supervision', 'ask_user_question', ...(nativeBase(manifest) ? ['web_search', 'fetch_content', 'get_search_content', 'source_check'] : ['web_fetch'])] : PACKAGE_TOOLS;
 const packageCommands = manifest => modernBase(manifest)
-  ? ['agents', ...(hasTasks(manifest) ? ['tasks'] : []), 'supervise', 'om', 'om:status', 'om:compact', 'om:consolidate'] : PACKAGE_COMMANDS;
+  ? [...(modernInteractive(manifest) ? ['subagent', 'subagent-cancel', 'subagents', 'subagent-log'] : ['agents']), ...(hasTasks(manifest) ? ['tasks'] : []), 'supervise', 'om', 'om:status', 'om:compact', 'om:consolidate'] : PACKAGE_COMMANDS;
 const WEB_TOOLS = ['web_search', 'fetch_content', 'get_search_content', 'source_check'];
 const deferredWeb = releasePath => ['0.32.0', '0.47.0'].includes(JSON.parse(fs.readFileSync(path.join(releasePath, 'native/package.json'), 'utf8')).dependencies?.['pi-web-access']);
 const codemodeMcp = releasePath => JSON.parse(fs.readFileSync(path.join(releasePath, 'native/package.json'), 'utf8')).dependencies?.['pi-mcp-adapter'] === '7.0.1';
@@ -417,13 +419,16 @@ export function assertPromptTemplateRegistrations(evidence, manifest) {
   }
 }
 
-function writeInspectorExtension(file) {
-  fs.writeFileSync(file, `export default function runtimeInspector(pi) {
+function writeInspectorExtension(file, releasePath, manifest) {
+  const interactive = modernInteractive(manifest);
+  const source = interactive && path.join(releasePath, manifest.packages.find(pkg => pkg.name === 'pi-interactive-subagents').path, 'pi-extension/subagents/runtime-config.ts');
+  fs.writeFileSync(file, `${interactive ? `import { loadRuntimeConfig } from ${JSON.stringify(source)};\n` : ''}export default function runtimeInspector(pi) {
   pi.registerCommand("agent-config-runtime-inspect", {
     description: "Inspect tools registered by the official Pi loader",
     handler: async (_args, ctx) => {
       const bridge = globalThis[Symbol.for("pi.subagents.tool-extension-registry")];
       const payload = {
+        ${interactive ? 'interactiveConfig: loadRuntimeConfig(),' : ''}
         mcpSubagentBridge: typeof bridge?.registerToolExtension === "function"
           && bridge === globalThis.__pi_interactive_subagents,
         allTools: pi.getAllTools().map(tool => ({ name: tool.name, sourceInfo: tool.sourceInfo })),
@@ -438,7 +443,9 @@ function writeInspectorExtension(file) {
 
 function runRpc({ releasePath, manifest, host, env, agentDir, sessionDir, cwd, temp }) {
   const hasLearning = manifest.files?.some(file => file.path === 'extensions/learning/index.ts');
-  if (hasLearning) fs.cpSync(path.join(releasePath, 'extensions/learning'), path.join(agentDir, 'extensions/learning'), { recursive: true });
+  if (modernInteractive(manifest) && fs.existsSync(path.join(releasePath, 'extensions'))) {
+    fs.cpSync(path.join(releasePath, 'extensions'), path.join(agentDir, 'extensions'), { recursive: true });
+  } else if (hasLearning) fs.cpSync(path.join(releasePath, 'extensions/learning'), path.join(agentDir, 'extensions/learning'), { recursive: true });
   if (manifest.files?.some(file => file.path === 'manifests/curated-skills.json')) {
     fs.cpSync(path.join(releasePath, 'pi-skills'), path.join(agentDir, 'skills'), { recursive: true });
   }
@@ -448,7 +455,7 @@ function runRpc({ releasePath, manifest, host, env, agentDir, sessionDir, cwd, t
     packages: [...manifest.packages.map(pkg => path.join(releasePath, pkg.path)), ...nativePackages(releasePath, manifest)],
   }));
   const inspector = path.join(temp, 'runtime-inspector.mjs');
-  writeInspectorExtension(inspector);
+  writeInspectorExtension(inspector, releasePath, manifest);
   const input = [
     { id: 'state', type: 'get_state' },
     { id: 'commands', type: 'get_commands' },
@@ -551,6 +558,15 @@ export function assertCuratedSkillRegistrations(evidence, releasePath, manifest,
 
 export function assertOfficialLoaderEvidence(evidence, releasePath, manifest, agentDir) {
   assert(evidence.inspect?.success === true, 'Official loader inspector command failed');
+  if (modernInteractive(manifest)) {
+    for (const entries of [evidence.inspection.allTools, evidence.inspection.commands]) {
+      const names = entries.map(entry => entry.name);
+      assert(new Set(names).size === names.length, 'Official Pi loader registrations must occur once; duplicate registration');
+    }
+    const retired = ['Agent', 'get_subagent_result', 'steer_subagent', 'SubagentWorkflow', 'TaskCreate', 'TaskExecute', 'TaskGet', 'TaskList', 'TaskOutput', 'TaskStop', 'TaskUpdate'];
+    assert(!evidence.inspection.allTools.some(tool => retired.includes(tool.name)), 'Retired subagent runtime or Tasks tool loaded');
+    assert(!evidence.inspection.commands.some(command => ['agents', 'tasks'].includes(command.name)), 'Retired runtime or Tasks command loaded');
+  }
   const allTools = new Map(evidence.inspection.allTools.map(tool => [tool.name, tool]));
   const activeTools = new Set(evidence.inspection.activeTools);
   for (const name of packageTools(manifest)) {
@@ -827,6 +843,194 @@ export default function(pi) {
   return { mode: 'official-cli-web-activation', networkModelCalls: 0, nextRequestTools: WEB_TOOLS };
 }
 
+function interactiveIntegrationProvider(pi) {
+  let mode;
+  let calls = 0;
+  const role = process.env.PI_SUBAGENT_AGENT;
+  const proofFile = suffix => fixturePath.join(proofDir, `${role}.${suffix}.json`);
+  const require = (condition, message) => { if (!condition) throw new Error(message); };
+  pi.on('session_start', (_event, ctx) => {
+    mode = { mode: ctx.mode, stdin: process.stdin.isTTY === true, stdout: process.stdout.isTTY === true };
+    if (!role) {
+      const installed = JSON.parse(fixtureFs.readFileSync(installedConfigPath, 'utf8'));
+      const effective = loadRuntimeConfig();
+      require(Object.keys(effective).every(key => JSON.stringify(effective[key]) === JSON.stringify(installed[key]))
+        && effective.surfaceBackend === 'herdr' && effective.herdrViewer.enabled === false, 'Installed interactive configuration not consumed');
+      fixtureFs.writeFileSync(fixturePath.join(proofDir, 'config.json'), JSON.stringify(effective));
+    }
+  });
+  pi.on('agent_settled', () => {
+    if (role) fixtureFs.writeFileSync(proofFile('settled'), JSON.stringify({ pid: process.pid }));
+  });
+  const streamSimple = (model, context, options) => {
+    const stream = createAssistantMessageEventStream();
+    queueMicrotask(async () => {
+      try {
+      const text = value => [{ type: 'text', text: value }];
+      const tool = (name, args) => [{ type: 'toolCall', id: `interactive-fixture-${++calls}`, name, arguments: args }];
+      require(calls < 20, 'Interactive fixture turn budget exceeded');
+      let content;
+      if (role) {
+        const contract = profileContracts[role];
+        const policy = policyProfiles[role];
+        require(contract && policy, `Unexpected child profile ${role}`);
+        require(model.provider === (policy.provider ?? 'openai-codex') && model.id === policy.model, `Child model mismatch: ${role}`);
+        const prompt = context.messages.filter(message => message.role === 'user')
+          .flatMap(message => typeof message.content === 'string' ? [message.content] : message.content.filter(block => block.type === 'text').map(block => block.text)).join('\n');
+        require(prompt.includes(`Report scope for ${role}`), `Tool task did not reach ${role}`);
+        require(JSON.stringify(context).includes(JSON.stringify(contract.identity).slice(1, -1)), `Profile identity did not reach ${role}`);
+        const active = pi.getActiveTools().sort();
+        const expected = [...contract.tools, 'ask_question'].sort();
+        require(JSON.stringify(active) === JSON.stringify(expected), `Child active scope mismatch ${role}: ${active}`);
+        const registered = pi.getAllTools().map(tool => tool.name).sort();
+        const allowed = ['ask_question', 'bash', 'edit', 'find', 'grep', 'ls', 'powershell', 'read', 'write'];
+        require(registered.every(name => allowed.includes(name)), `Child extension scope escaped ${role}: ${registered}`);
+        require(pi.getCommands().filter(command => command.source === 'skill').length === 0, `Child skills enabled: ${role}`);
+        require(mode?.mode === 'tui' && mode.stdin && mode.stdout, `Child is not TUI under PTY: ${role}`);
+        let captured;
+        const token = `fixture.${Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'offline-fixture' } })).toString('base64url')}.fixture`;
+        await (model.provider === 'openai' ? openaiStreamSimple : codexStreamSimple)(model, context, {
+          ...options, apiKey: token, transport: 'sse', maxRetries: 0,
+          fetch: async (_url, init) => {
+            captured = JSON.parse(typeof init.body === 'string' ? init.body : zlib.zstdDecompressSync(init.body).toString());
+            throw new Error('OFFLINE_CAPTURE_ONLY');
+          },
+        }).result();
+        require(captured?.model === policy.model && captured?.reasoning?.effort === policy.thinking
+          && captured.service_tier === policy.serviceTier, `Child serialized policy mismatch: ${role}`);
+        fixtureFs.writeFileSync(proofFile('scope'), JSON.stringify({ role, pid: process.pid, ...mode, active, registered,
+          model: model.id, provider: model.provider, thinking: captured.reasoning.effort, prompt }));
+        content = text(`${role}_POLICY_OK INTERACTIVE_SCOPE_OK`);
+      } else if (pi.getActiveTools().includes('subagent')) {
+        const results = context.messages.filter(message => message.role === 'toolResult');
+        require(!results.some(message => message.isError), `Interactive tool failed: ${JSON.stringify(results)}`);
+        const listed = results.find(message => message.toolName === 'subagents_list');
+        const starts = results.filter(message => message.toolName === 'subagent');
+        const stops = results.filter(message => message.toolName === 'subagent_cancel');
+        const roles = Object.keys(profileContracts);
+        if (!listed) content = tool('subagents_list', {});
+        else {
+          const agents = listed.details?.agents;
+          require(Array.isArray(agents) && JSON.stringify(agents.map(agent => agent.name).sort()) === JSON.stringify([...roles].sort()), 'Installed profile discovery contract failed');
+          for (const name of roles) {
+            const agent = agents.find(agent => agent.name === name), contract = profileContracts[name];
+            require(agent.model === contract.model && agent.thinking === contract.thinking && agent.source === 'global'
+              && agent.disableSkills === true && agent.disableExtensions === true && agent.maxTurns === contract.maxTurns
+              && agent.systemPromptMode === 'append' && agent.subagentAgents?.length === 0, `Listed profile policy mismatch: ${name}`);
+          }
+          if (starts.length > stops.length) {
+            const name = roles[starts.length - 1];
+            const started = starts.at(-1).details;
+            require(started?.status === 'started', `Subagent did not start: ${JSON.stringify(starts.at(-1))}`);
+            const deadline = Date.now() + 25000;
+            const settled = fixturePath.join(proofDir, `${name}.settled.json`);
+            while (!fixtureFs.existsSync(settled) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50));
+            require(fixtureFs.existsSync(settled), `Child did not settle: ${name}, session=${fixtureFs.existsSync(started.sessionFile) ? fixtureFs.readFileSync(started.sessionFile, 'utf8').slice(-10000) : '(missing)'}`);
+            const childFailure = fixturePath.join(proofDir, `${name}.failure.json`);
+            require(!fixtureFs.existsSync(childFailure), fixtureFs.existsSync(childFailure) ? fixtureFs.readFileSync(childFailure, 'utf8') : '');
+            const loadout = JSON.parse(fixtureFs.readFileSync(`${started.sessionFile}.loadout.json`, 'utf8'));
+            const contract = profileContracts[name];
+            require(loadout.model === contract.model && loadout.thinking === contract.thinking && loadout.maxTurns === contract.maxTurns
+              && loadout.disableSkills === true && loadout.disableExtensions === true && loadout.spawnable?.length === 0
+              && loadout.systemPromptMode === 'append', `Persisted loadout mismatch: ${name}`);
+            require(JSON.stringify(loadout.toolAllowlist.split(',').map(name => name.trim()).sort()) === JSON.stringify([...contract.tools, 'ask_question'].sort()), `Loadout tools mismatch: ${name}`);
+            const script = fixtureFs.readFileSync(started.launchScriptFile, 'utf8');
+            require(!/--mode\s+rpc/.test(script) && script.includes('--no-skills') && script.includes('--no-extensions'), `Child launch transport/scope mismatch: ${name}`);
+            fixtureFs.writeFileSync(fixturePath.join(proofDir, `${name}.loadout.json`), JSON.stringify(loadout));
+            content = tool('subagent_cancel', { name });
+          } else if (starts.length < roles.length) {
+            const name = roles[starts.length];
+            content = tool('subagent', { agent: name, name, task: `Report scope for ${name}` });
+          } else if (!results.some(message => message.toolName === 'start_supervision')) {
+            content = tool('start_supervision', { outcome: 'Verify offline fixture only', sensitivity: 'low', model: 'agent-config-fixture/fixture' });
+          } else content = text('INTERACTIVE_INTEGRATION_OK');
+        }
+      } else content = text(JSON.stringify({ action: 'done', reasoning: 'SUPERVISOR_FIXTURE_OK', confidence: 1 }));
+      const message = { role: 'assistant', content, api: model.api, provider: model.provider, model: model.id,
+        stopReason: content[0].type === 'toolCall' ? 'toolUse' : 'stop', timestamp: Date.now(),
+        usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
+      stream.push({ type: 'start', partial: message });
+      stream.push({ type: 'done', reason: message.stopReason, message });
+      stream.end();
+      } catch (error) {
+        if (role) fixtureFs.writeFileSync(proofFile('failure'), JSON.stringify({ error: String(error.stack ?? error) }));
+        const message = { role: 'assistant', content: [{ type: 'text', text: `INTERACTIVE_FIXTURE_FAILED ${error.stack ?? error}` }],
+          api: model.api, provider: model.provider, model: model.id, stopReason: 'stop', timestamp: Date.now(),
+          usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
+        stream.push({ type: 'done', reason: 'stop', message });
+        stream.end();
+      }
+    });
+    return stream;
+  };
+  for (const provider of new Set(Object.values(policyProfiles).map(profile => profile.provider ?? 'openai-codex'))) pi.registerProvider(provider, {
+    baseUrl: 'https://invalid.example', apiKey: 'offline-fixture', api: provider === 'openai' ? 'openai-responses' : 'openai-codex-responses',
+    models: [...new Set(Object.values(policyProfiles).filter(profile => (profile.provider ?? 'openai-codex') === provider).map(profile => profile.model))].map(id => ({
+      id, name: id, reasoning: true, thinkingLevelMap: { low: 'low', medium: 'medium', high: 'high' }, input: ['text'], contextWindow: 200000, maxTokens: 1024,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } })), streamSimple,
+  });
+  pi.registerProvider('agent-config-fixture', { baseUrl: 'https://invalid.example', apiKey: 'offline-fixture', api: 'agent-config-fixture',
+    models: [{ id: 'fixture', name: 'fixture', reasoning: false, input: ['text'], contextWindow: 200000, maxTokens: 1024,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } }], streamSimple });
+}
+
+export function runInteractiveIntegration({ releasePath, manifest, host, env, agentDir, cwd, temp }) {
+  assert(process.platform !== 'win32', 'Interactive offline PTY fixture requires a POSIX host');
+  const policyProfiles = readSubagentSmokePolicy(releasePath);
+  assert(policyProfiles, 'Interactive profile policies missing');
+  const profileContracts = Object.fromEntries(Object.keys(policyProfiles).map(name => {
+    const source = fs.readFileSync(path.join(releasePath, 'agents', `${name}.md`), 'utf8');
+    const header = source.match(/^---\r?\n([\s\S]*?)\r?\n---/)[1];
+    const field = key => header.match(new RegExp(`^${key}: ([^\\r\\n]+)$`, 'm'))?.[1];
+    assert(field('skills') === 'false' && field('extensions') === 'false' && field('allowed_subagents') === 'none' && field('prompt_mode') === 'append', `Unsafe interactive profile: ${name}`);
+    const maxTurns = Number(field('max_turns'));
+    assert(Number.isSafeInteger(maxTurns) && maxTurns > 0, `Missing turn bound: ${name}`);
+    return [name, { model: field('model'), thinking: field('thinking'), maxTurns,
+      tools: field('tools').split(',').map(name => name.trim()), identity: source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n*/, '').trim() }];
+  }));
+  const proofDir = path.join(temp, 'interactive-proof');
+  const bin = path.join(temp, 'interactive-bin');
+  fs.mkdirSync(proofDir); fs.mkdirSync(bin);
+  const fixture = path.join(temp, 'interactive-provider.mjs');
+  const ai = resolvePiHostDependency(host, '@earendil-works/pi-ai');
+  const runtimeConfig = path.join(releasePath, manifest.packages.find(pkg => pkg.name === 'pi-interactive-subagents').path, 'pi-extension/subagents/runtime-config.ts');
+  assert(!env.PI_SUBAGENTS_CONFIG && !env.PI_SUBAGENT_SURFACE_BACKEND, 'Interactive fixture requires sanitized runtime environment');
+  fs.writeFileSync(fixture, `import { loadRuntimeConfig } from ${JSON.stringify(runtimeConfig)};\nconst installedConfigPath = ${JSON.stringify(path.join(agentDir, 'subagents.json'))};\nimport { createAssistantMessageEventStream } from '@earendil-works/pi-ai';\nimport { streamSimple as codexStreamSimple } from ${JSON.stringify(path.join(ai, 'dist/api/openai-codex-responses.js'))};\nimport { streamSimple as openaiStreamSimple } from ${JSON.stringify(path.join(ai, 'dist/api/openai-responses.js'))};\nimport * as zlib from 'node:zlib';\nimport fixtureFs from 'node:fs';\nimport fixturePath from 'node:path';\nconst policyProfiles = ${JSON.stringify(policyProfiles)};\nconst profileContracts = ${JSON.stringify(profileContracts)};\nconst proofDir = ${JSON.stringify(proofDir)};\nexport default ${interactiveIntegrationProvider.toString()}\n`);
+  const quote = value => `'${value.replaceAll("'", "'\\''")}'`;
+  fs.writeFileSync(path.join(bin, 'pi'), `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(host.cli)} "$@" --extension ${quote(fixture)}\n`, { mode: 0o700 });
+  const projectAgents = path.join(cwd, '.pi/agents');
+  fs.mkdirSync(projectAgents, { recursive: true });
+  fs.writeFileSync(path.join(projectAgents, 'shadow-only.md'), '---\nname: shadow-only\nmodel: forbidden/network\n---\nMust not load.\n');
+  fs.writeFileSync(path.join(projectAgents, 'Explore.md'), '---\nname: Explore\nmodel: forbidden/network\n---\nMust not override installed policy.\n');
+  // Only this subprocess exercises process-backed PTYs. Installed configuration remains Herdr;
+  // the injected offline provider is a test-only explicit extension, not a profile grant.
+  const run = spawnSync(process.execPath, [host.cli, '--mode', 'json', '--session-dir', path.join(temp, 'interactive-parent-sessions'), '--provider', 'agent-config-fixture', '--model', 'fixture',
+    '--extension', fixture, '--no-skills', '--no-prompt-templates', '--no-context-files', '--no-themes', '-p', 'Run the deterministic interactive integration fixture.'], {
+    cwd, env: { ...env, PATH: `${bin}${path.delimiter}${env.PATH}`, PI_SUBAGENT_SURFACE_BACKEND: 'process' },
+    encoding: 'utf8', shell: false, timeout: 150000, maxBuffer: 16 * 1024 * 1024,
+  });
+  assert(run.status === 0, run.error?.message ?? run.stderr ?? `exit ${run.status}`);
+  assert(!offlineRuntimeStderr(run.stderr, { host, manifest, releasePath }), run.stderr);
+  const events = run.stdout.split('\n').filter(Boolean).map(line => JSON.parse(line));
+  assert(!events.some(event => event.type === 'extension_error'), 'Interactive extension error');
+  const messages = events.filter(event => event.type === 'message_end').map(event => event.message);
+  assert(!messages.some(message => message.role === 'toolResult' && message.isError), 'Interactive integration tool error');
+  assert(messages.filter(message => message.role === 'assistant').at(-1)?.content?.some(block => block.text === 'INTERACTIVE_INTEGRATION_OK'), `Interactive integration incomplete: ${JSON.stringify(messages.filter(message => message.role === 'assistant').at(-1))}`);
+  for (const [name, count] of [['subagents_list', 1], ['subagent', 5], ['subagent_cancel', 5], ['start_supervision', 1]]) {
+    assert(messages.filter(message => message.role === 'toolResult' && message.toolName === name).length === count, `Missing real ${name} executions`);
+  }
+  const profiles = Object.keys(profileContracts).map(role => {
+    const proof = JSON.parse(fs.readFileSync(path.join(proofDir, `${role}.scope.json`), 'utf8'));
+    assert(proof.mode === 'tui' && proof.stdin && proof.stdout && proof.pid !== run.pid, `Invalid child PTY proof: ${role}`);
+    return proof;
+  });
+  assert(new Set(profiles.map(profile => profile.pid)).size === profiles.length, 'Interactive children must be separate processes');
+  const configuredBackend = JSON.parse(fs.readFileSync(path.join(proofDir, 'config.json'), 'utf8')).surfaceBackend;
+  return { mode: 'official-cli-faux-model-integration', networkModelCalls: 0, profileContracts: true, childExtensionScope: true, restrictedScope: true,
+    processEvidence: { mode: 'official-cli-tui-pty-children', configuredBackend, exercisedBackend: 'process', herdrExercised: false,
+      override: 'isolated supplemental subprocess only; not Herdr integration evidence', profiles }, diagnostics: run.stderr.trim().split('\n').filter(Boolean) };
+}
+
 async function runModernSmoke({ releasePath, manifest, parentEnv }) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-config-modern-smoke-'));
   const home = path.join(root, 'home'), agentDir = path.join(home, '.pi/agent');
@@ -834,14 +1038,17 @@ async function runModernSmoke({ releasePath, manifest, parentEnv }) {
   for (const folder of [home, agentDir, cwd, temp, sessionDir]) fs.mkdirSync(folder, { recursive: true });
   fs.cpSync(path.join(releasePath, 'agents'), path.join(agentDir, 'agents'), { recursive: true });
   copyReleasePrompts(releasePath, agentDir, manifest);
-  for (const name of ['subagents.json', 'tasks-config.json', 'SUPERVISOR.md']) fs.copyFileSync(path.join(releasePath, 'config', name), path.join(agentDir, name));
+  for (const name of ['subagents.json', 'tasks-config.json', 'SUPERVISOR.md']) {
+    const source = path.join(releasePath, 'config', name);
+    if (name !== 'tasks-config.json' || fs.existsSync(source)) fs.copyFileSync(source, path.join(agentDir, name));
+  }
   const mcpConfigName = nativeBase(manifest) && codemodeMcp(releasePath) ? 'mcp-adapter.json' : 'mcp.json';
   for (const name of [mcpConfigName, 'web-search.json']) {
     const source = path.join(releasePath, 'config', name);
     if (fs.existsSync(source)) fs.copyFileSync(source, path.join(agentDir, name));
   }
   const env = runtimeEnvironment(parentEnv, { home, agentDir, temp, cwd });
-  let host, rpcEvidence, integration;
+  let host, rpcEvidence, integration, interactiveIntegration;
   const results = [];
   try {
     results.push(await check('runtime:host', async () => {
@@ -850,9 +1057,24 @@ async function runModernSmoke({ releasePath, manifest, parentEnv }) {
     }));
     results.push(await check('runtime:loader', async () => {
       assert(host, 'Missing exact Pi host');
+      if (modernInteractive(manifest)) {
+        const config = JSON.parse(fs.readFileSync(path.join(agentDir, 'subagents.json'), 'utf8'));
+        assert(config.surfaceBackend === 'herdr' && config.herdrViewer?.enabled === false,
+          'Interactive installed configuration must select Herdr without opening a viewer');
+        assert(config.includeBundledAgents === false && config.allowProjectAgents === false && config.requireProfile === true,
+          'Interactive installed profile discovery policy is unsafe');
+        assert(readSubagentSmokePolicy(releasePath), 'Interactive candidate profile models and thinking policy missing');
+      }
       rpcEvidence = runRpc({ releasePath, manifest, host, env, agentDir, sessionDir, cwd, temp });
       assertOfficialLoaderEvidence(rpcEvidence, releasePath, manifest, agentDir);
-      for (const name of PACKAGE_TOOLS.filter(name => name.startsWith('subagent'))) {
+      if (modernInteractive(manifest)) {
+        const installed = JSON.parse(fs.readFileSync(path.join(agentDir, 'subagents.json'), 'utf8'));
+        const effective = rpcEvidence.inspection.interactiveConfig;
+        assert(effective && Object.keys(effective).every(key => JSON.stringify(effective[key]) === JSON.stringify(installed[key])),
+          'Candidate runtime did not consume the installed personal subagents configuration');
+        assert(effective.surfaceBackend === 'herdr', 'Candidate runtime backend is not Herdr');
+      }
+      for (const name of modernInteractive(manifest) ? [] : PACKAGE_TOOLS.filter(name => name.startsWith('subagent'))) {
         assert(!rpcEvidence.inspection.allTools.some(tool => tool.name === name), `Legacy tool still loaded: ${name}`);
       }
       return { mode: 'official-cli-rpc', diagnostics: rpcEvidence.diagnostics };
@@ -861,6 +1083,10 @@ async function runModernSmoke({ releasePath, manifest, parentEnv }) {
       assert(host, 'Missing exact Pi host');
       const webActivation = nativeBase(manifest) && deferredWeb(releasePath)
         ? runWebActivationProbe({ host, env, cwd, temp, releasePath, manifest }) : undefined;
+      if (modernInteractive(manifest)) {
+        interactiveIntegration = runInteractiveIntegration({ releasePath, manifest, host, env, agentDir, cwd, temp });
+        return { ...interactiveIntegration, webActivation };
+      }
       const fixture = path.join(temp, 'faux-integration.mjs');
       fs.writeFileSync(fixture, `import { createAssistantMessageEventStream } from '@earendil-works/pi-ai';\nimport { streamSimple as codexStreamSimple } from ${JSON.stringify(path.join(resolvePiHostDependency(host, '@earendil-works/pi-ai'), 'dist/api/openai-codex-responses.js'))};\nimport { streamSimple as openaiStreamSimple } from ${JSON.stringify(path.join(resolvePiHostDependency(host, '@earendil-works/pi-ai'), 'dist/api/openai-responses.js'))};\nimport * as zlib from 'node:zlib';\nconst policyProfiles = ${JSON.stringify(readSubagentSmokePolicy(releasePath))};\nexport default ${fauxIntegrationProvider.toString()}\n`);
       const run = spawnSync(process.execPath, [host.cli, '--mode', 'json', '--no-session', '--provider', 'agent-config-fixture', '--model', 'fixture',
@@ -879,6 +1105,10 @@ async function runModernSmoke({ releasePath, manifest, parentEnv }) {
         diagnostics: run.stderr.trim().split('\n').filter(Boolean) };
     }));
     results.push(await check('runtime:process-only', async () => {
+      if (modernInteractive(manifest)) {
+        assert(interactiveIntegration?.processEvidence, 'Interactive TUI/PTY integration did not execute');
+        return interactiveIntegration.processEvidence;
+      }
       assert(integration, 'Integration did not execute');
       const output = JSON.stringify(integration);
       const pids = [...output.matchAll(/pid=(\d+)/g)].map(match => match[1]);

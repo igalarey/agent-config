@@ -47,12 +47,14 @@ Read `~/.agents/SYSTEM.md` and the applicable shared guides before work.
   Read-only roles have no Bash. Extensions, skills, and nested delegation remain disabled for these child profiles.
 - Verify child tool scopes against actual registration, including deferred MCP tools and codemode.
   Tool lists and worktrees are not OS sandboxes. Model defaults are not hard spending quotas.
-- Background and foreground pools are independent. Workflow concurrency is separate.
-  Workflows and Supervisor require explicit user requests. Supervisor advice cannot authorize actions or declare incomplete work finished.
-- Worktree automation remains disabled because upstream can commit with `--no-verify`.
-  Use manual worktrees with hooks. Do not restore retired registry bridges or interactive-subagents.
-- Completion delivery must remain retractable until committed. Preserve consumption, idle, grouping, shutdown, and branch-acknowledgment guarantees.
-  Maintain a single delivery mechanism. See `docs/notification-delivery.md`.
+- Interactive children use native Herdr terminals and a private coordination mailbox.
+  The installed policy requires a global profile, disables project/bundled profiles, and limits depth and concurrent descendants.
+  The tintinweb runtime and its workflow tool are retired. Do not load both subagent runtimes.
+- Supervisor requires an explicit user request. Its advice cannot authorize actions or declare incomplete work finished.
+  Use manual worktrees with hooks. Do not restore retired registry bridges.
+- Keep one result delivery mechanism. Preserve cancellation, consumption, shutdown, and restricted resume guarantees.
+  Completion delivery must remain retractable until committed. Do not silently weaken the historical delivery contract during migration.
+  A mailbox ACK confirms submission to Pi, not task completion. `docs/notification-delivery.md` records the historical tintinweb contract.
 - Release overlays require exact commit, original/result hashes, unique replacements, and non-overlap checks.
   Do not apply old overlays blindly to a new upstream revision.
 - Tasks is absent from new candidates. Preserve private task data and configuration during retirement and rollback.

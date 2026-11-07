@@ -11,7 +11,7 @@ import { identifyInstalledPiHost, runtimeEnvironment } from '../scripts/runtime-
 const VERSION = '1.5.0';
 const repo = fileURLToPath(new URL('../', import.meta.url));
 
-test('real SDK delivers only unconsumed subagent completions at the next model boundary', { timeout: 60000 }, async t => {
+test('historical tintinweb SDK delivers only unconsumed subagent completions at the next model boundary', { timeout: 60000 }, async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'notification-runtime-'));
   try {
     const home = path.join(root, 'home'), agentDir = path.join(home, '.pi', 'agent');
@@ -69,7 +69,7 @@ test('real SDK delivers only unconsumed subagent completions at the next model b
     fs.cpSync(path.join(source, 'src'), path.join(fixture, 'src'), { recursive: true });
     fs.copyFileSync(path.join(source, 'package.json'), path.join(fixture, 'package.json'));
     fs.symlinkSync(path.join(source, 'node_modules'), path.join(fixture, 'node_modules'), 'dir');
-    const overlayFile = path.join(repo, 'manifests', 'subagents-notifications.json');
+    const overlayFile = path.join(repo, 'test', 'fixtures', 'tintinweb-overlays', 'subagents-notifications.json');
     if (!sourceOverride && fs.existsSync(overlayFile)) {
       const overlay = JSON.parse(fs.readFileSync(overlayFile, 'utf8'));
       const index = path.join(fixture, 'src', 'index.ts');
@@ -88,8 +88,8 @@ test('real SDK delivers only unconsumed subagent completions at the next model b
     }
     fs.mkdirSync(path.join(agentDir, 'agents'));
     fs.writeFileSync(path.join(agentDir, 'agents', 'notification-child.md'), '---\nname: notification-child\ndescription: Offline notification fixture\ntools: read\nskills: false\nextensions: []\nallowed_subagents: none\nmax_turns: 10\n---\nReturn the requested fixture token without tools.\n');
-    const settings = JSON.parse(fs.readFileSync(path.join(repo, 'config', 'subagents.json'), 'utf8'));
-    assert.equal(settings.defaultJoinMode, 'group', 'harness must explicitly retain grouped delivery');
+    const settings = JSON.parse(fs.readFileSync(path.join(repo, 'test', 'fixtures', 'tintinweb-overlays', 'subagents.json'), 'utf8'));
+    assert.equal(settings.defaultJoinMode, 'group', 'historical fixture must retain grouped delivery');
     fs.writeFileSync(path.join(agentDir, 'subagents.json'), JSON.stringify(settings));
     const run = spawnSync(process.execPath, [path.join(repo, 'test', 'fixtures', 'notification-runtime.mjs'), host.packageRoot, path.join(fixture, 'src', 'index.ts')], {
       env, cwd, encoding: 'utf8', timeout: 50000, shell: false, maxBuffer: 4 * 1024 * 1024,

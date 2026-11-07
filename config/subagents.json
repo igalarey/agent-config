@@ -1,11 +1,17 @@
 {
-  "defaultJoinMode": "group",
-  "worktreeIsolation": false,
-  "maxSubagentDepth": 1,
-  "maxConcurrent": 6,
-  "maxConcurrentForeground": 2,
-  "fleetView": false,
-  "widgetMode": "all",
-  "showCost": true,
-  "showModel": true
+  "status": {
+    "enabled": true
+  },
+  "delegation": {
+    "maxDepth": 1,
+    "maxConcurrentDescendants": 6,
+    "maxLaunchesPerLineage": null
+  },
+  "herdrViewer": {
+    "enabled": false
+  },
+  "surfaceBackend": "herdr",
+  "includeBundledAgents": false,
+  "allowProjectAgents": false,
+  "requireProfile": true
 }

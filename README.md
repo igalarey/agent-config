@@ -9,7 +9,7 @@ Do not register a second copy of the same package.
 
 | Package | Source |
 | --- | --- |
-| Subagents (`Agent`, `/agents`, workflows) | [igalarey/pi-subagents](https://github.com/igalarey/pi-subagents), audited fork of tintinweb/pi-subagents |
+| Subagents (`subagent`, `/subagents`, native Herdr panels) | [igalarey/pi-interactive-subagents](https://github.com/igalarey/pi-interactive-subagents), customized interactive runtime |
 | Supervisor (`start_supervision`, `/supervise`) | [tintinweb/pi-supervisor](https://github.com/tintinweb/pi-supervisor) |
 | Observational memory (`/om`) | [igalarey/pi-observational-memory](https://github.com/igalarey/pi-observational-memory) |
 | User questions | `vendor/pi-ask-user-question` |
@@ -27,8 +27,10 @@ Do not register a second copy of the same package.
 The active installation contains **10 packages: six local packages and four npm packages**.
 Carbon, Learning, prompt templates, and skills are separate resources, not extra packages.
 
-**Tasks, RTK and pi-interactive-subagents are retired.** The old worker/scout/researcher
-profiles, bridges and external viewer are not part of the new base.
+**Tasks, RTK and the tintinweb subagent runtime are retired.**
+Each interactive child runs Pi in a native Herdr pane, with a separate coordination mailbox.
+Bundled worker/scout/researcher profiles and the external viewer are disabled.
+The five existing local profiles remain active. Nicobailon profile migration is separate work.
 
 Shared instructions, guides and skills are projected into `~/.agents`. Curated skills
 from `pi-skills/` go to `~/.pi/agent/skills`. The nine active curated skills are
@@ -52,6 +54,8 @@ See [knowledge ownership](docs/knowledge-ownership.md) for common, curated, exte
 ## Install
 
 Requirements: **Node 22.23.2**, npm, Git and **Pi 1.5.0** already installed.
+The interactive backend also requires the installed Herdr app and core (`herdr-app` and `hc`).
+Start Pi inside Herdr to launch children into its panels.
 The release seal binds exact Node, OS and architecture. This revision is verified on
 Linux; another platform must prepare and verify its own candidate. Bootstrap does not
 install Node/Pi, authenticate providers, or download Chrome, RTK or Python executables.
@@ -69,7 +73,8 @@ external sources at exact commits, prepares six base packages and four native np
 and activates only after success. Supervisor is a reviewed source snapshot
 inside this repository. Its revision is in `manifests/tintinweb.json`.
 `manifests/active-release.json` pins the harness, subagents and memory commits.
-Bootstrap fetches Subagents from `igalarey/pi-subagents` and memory from `igalarey/pi-observational-memory`.
+Bootstrap fetches Subagents from `igalarey/pi-interactive-subagents` and memory from `igalarey/pi-observational-memory`.
+Unpublished local revisions require the local source map described below.
 Publish the pinned commits to those repositories before publishing a recipe that uses them.
 
 No extra development clones are needed. Sources are cached under
@@ -85,8 +90,8 @@ npm run bootstrap -- --migrate-base --apply
 npm run doctor
 ```
 
-`--migrate-base` explicitly retires the old package registration, the Pi RTK hook and
-old global `.pi/agent/agents/*.md` profiles other than the three new base profiles.
+For the Herdr migration, `--migrate-base` removes tintinweb package registrations and the Pi RTK hook.
+It preserves private agent profiles, including files outside the five managed profiles.
 It backs up exact originals before replacement/removal. It does not delete sessions,
 memories, credentials, unrelated extensions, or a shared RTK executable/configuration.
 Backups are private under `~/.agent-config/backups`.
@@ -150,7 +155,7 @@ Do not delete pending proposals or ownership markers to bypass a refusal.
 | File | Purpose |
 | --- | --- |
 | `config/pi.settings.json` | Parent model/thinking and observational-memory settings |
-| `config/subagents.json` | Global tintinweb subagent defaults |
+| `config/subagents.json` | Personal interactive-subagent policy and Herdr backend selection |
 | `config/tasks-config.json` | Historical task defaults, not projected by Tasks-free releases |
 | `config/SUPERVISOR.md` | Advisory supervisor policy, not human authorization |
 | `config/mcp-adapter.json` | Adapter 7 defaults; legacy settings migrate without changing the old file |
@@ -227,25 +232,30 @@ This is a result convention, not a live parent-call tool. It does not remove con
 The coordinator supplies relevant procedures when it delegates and can resume a blocked child.
 Bash remains capable of external access. These tool scopes and prompt instructions are not an OS sandbox.
 
-Nesting is disabled globally (`maxSubagentDepth: 1`). The background pool is limited to
-six agents and the foreground pool to two, independently. Model, thinking and turn
-values are defaults that upstream invocation options can override, not hard spending caps.
-The agents widget shows foreground and background agents with their model and estimated
-cost (`widgetMode: all`, `showModel`, `showCost`); `fleetView` is off.
+The installed policy requires a named global profile and disables project and bundled profiles.
+It limits delegation to one level and six concurrent descendants per lineage.
+All children are separate interactive processes. There is no separate foreground pool.
+Profiles use `auto-exit: true` to return completed tasks automatically and close their panes.
+Direct user interaction can keep a child open. A follow-up resumes its saved session in a new process.
+Turn limits stop incomplete work and remain in the saved resume policy.
+A resumed process receives a new turn budget. These limits are not spending quotas.
 
-`config/subagents.json` is installed as the global `~/.pi/agent/subagents.json`.
-A `.pi/subagents.json` file in a project, including `~/.pi/subagents.json` when Pi
-starts in the home directory, applies only to that project.
+`config/subagents.json` is installed as `~/.pi/agent/subagents.json`.
+`surfaceBackend: "herdr"` selects native panels without a shell startup change.
+`PI_SUBAGENT_SURFACE_BACKEND=process` explicitly selects the process backend for isolated tests.
+Project configuration cannot enable this backend or expand the installed policy.
 
-Completion notices stay cancellable until a Pi 1.5.0 turn boundary.
-Results already collected do not create redundant notices or model requests.
-[Completion delivery](docs/notification-delivery.md) describes the pinned correction and SDK regression.
+The coordinator uses `subagent`, `subagent_message`, `subagent_cancel`, `subagents_list`, and `subagent_status`.
+The mailbox ACK confirms submission to Pi, not model execution or task completion.
+The terminal belongs to Herdr. Session files and exit records carry task results.
+The [previous delivery report](docs/notification-delivery.md) describes the retired tintinweb runtime, not this transport.
 
-Upstream worktree automation is disabled because it creates preservation commits with
-`--no-verify`. Use ordinary Git worktrees with hooks instead. Background concurrency,
-workflow concurrency and nested depth are different upstream limits, not the old lineage
-budget. Agent mentions, workflows and supervision can incur additional model usage;
-model availability and account quota require your own authentication.
+The separate user extension `project-sessions` needs its interactive-runtime adapter before this migration.
+Its earlier version depends on tintinweb tools. Do not load both runtimes to satisfy that dependency.
+Existing project bindings and private data must remain intact.
+
+Use ordinary Git worktrees with hooks. The tintinweb workflow tool is not installed.
+Delegation and supervision can incur model usage. Model availability and account quota require your own authentication.
 
 Tasks and its Carbon adapter are uninstalled from new candidates, not merely disabled.
 Activation removes the prior managed package registration and unchanged wrapper, with backups.
@@ -309,9 +319,11 @@ npm run health               # installed release seals, integrity, compatibility
 node scripts/validate-skills.mjs  # curated local assets, links, and known obsolete dependencies
 ```
 
-The complete candidate additionally verifies subagents and memory (12 base package suites)
-and five runtime checks using the official Pi CLI: loader/RPC, memory status, synthetic
-Agent execution, child extension scope, read-only scope and in-process child execution.
+The complete candidate also verifies subagents and memory, including the interactive integration and compatibility suites.
+Five runtime checks use the official Pi CLI: loader/RPC, memory status, synthetic delegation, child scope, and process execution.
+Interactive children use TUI/PTY mode, not RPC.
+Offline process checks do not open Herdr or certify its visible panels.
+A separate authorized app test verifies two native Herdr panes with synthetic providers.
 A separate mandatory gate loads Carbon through the official SDK and verifies its decorated built-ins and absence of Tasks tools and commands.
 Historical owner/adapter candidates retain task execution and duplicate-activation checks. New candidates also validate curated skill references.
 It starts Supervisor with a scripted offline provider, not a real account.
@@ -350,7 +362,7 @@ See [verification evidence](docs/verification.md).
 For source development, an optional unversioned source map can override the cache:
 
 ```json
-{"harness":".","subagents":"../pi-subagents","memory":"../pi-observational-memory"}
+{"harness":".","subagents":"../pi-interactive-subagents","memory":"../pi-observational-memory"}
 ```
 
 Pass `--source-map sources.local.json`. Paths resolve relative to that file. Repositories

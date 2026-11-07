@@ -14,7 +14,7 @@ import {
 } from './releases.mjs';
 
 export const sourceRepositories = Object.freeze({
-  subagents: 'igalarey/pi-subagents',
+  subagents: 'igalarey/pi-interactive-subagents',
   memory: 'igalarey/pi-observational-memory',
 });
 

@@ -8,6 +8,7 @@ extensions: false
 skills: false
 allowed_subagents: none
 max_turns: 30
+auto-exit: true
 prompt_mode: append
 ---
 Complete one bounded local task under the inherited project and shared instructions.

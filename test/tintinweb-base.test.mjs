@@ -7,7 +7,7 @@ const root = new URL('../', import.meta.url);
 const read = name => fs.readFileSync(new URL(name, root), 'utf8');
 const json = name => JSON.parse(read(name));
 
-test('new upstream sources are exact reviewed Git commits, not floating branches', () => {
+test('retained tintinweb provenance uses reviewed Git commits, not floating branches', () => {
   const manifest = json('manifests/tintinweb.json');
   assert.equal(manifest.schemaVersion, 1);
   assert.equal(manifest.piVersion, '1.5.0');
@@ -22,8 +22,8 @@ test('new upstream sources are exact reviewed Git commits, not floating branches
   }
 });
 
-test('new base disables upstream hook-bypassing worktree automation', () => {
-  assert.equal(json('config/subagents.json').worktreeIsolation, false);
+test('historical tintinweb policy disables upstream hook-bypassing worktree automation', () => {
+  assert.equal(json('test/fixtures/tintinweb-overlays/subagents.json').worktreeIsolation, false);
 });
 
 test('historical task defaults remain available without installing Tasks', () => {

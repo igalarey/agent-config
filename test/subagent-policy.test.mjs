@@ -40,6 +40,7 @@ test('profiles pin models with explicit local tools and bounded turns', () => {
     assert.match(text, /max_turns: [1-9]\d?\n/);
     assert.match(text, /prompt_mode: append/);
     assert.match(text, /skills: false/);
+    assert.match(text, /auto-exit: true/);
     assert.match(text, /allowed_subagents: none/);
     assert.ok(text.includes('extensions: false\n'), name);
     assert.doesNotMatch(text, /Luna|priority|luna-fast/);
@@ -50,10 +51,13 @@ test('profiles pin models with explicit local tools and bounded turns', () => {
     assert.match(text, /skill\|prompt\|extension\|delegation\|budget/);
   }
   const settings = JSON.parse(fs.readFileSync(new URL('../config/subagents.json', import.meta.url)));
-  assert.equal(settings.maxSubagentDepth, 1);
-  assert.equal(settings.worktreeIsolation, false);
-  assert.equal(settings.maxConcurrent, 6);
-  assert.equal(settings.maxConcurrentForeground, 2);
+  assert.equal(settings.delegation.maxDepth, 1);
+  assert.equal(settings.delegation.maxConcurrentDescendants, 6);
+  assert.equal(settings.surfaceBackend, 'herdr');
+  assert.equal(settings.includeBundledAgents, false);
+  assert.equal(settings.allowProjectAgents, false);
+  assert.equal(settings.requireProfile, true);
+  assert.equal(settings.herdrViewer.enabled, false);
 });
 
 test('runtime smoke reads profile policy, retains historical effort and priority, and rejects unsupported pins', t => {

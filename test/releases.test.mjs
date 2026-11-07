@@ -142,6 +142,23 @@ function verify(home, id, seen = []) {
     runRuntimeChecks: () => runtimeSmoke(),
   });
 }
+test('configured interactive candidates require official supplemental evidence, not historical mock evidence', t => {
+  const home = temporary(t);
+  const source = fixture(t);
+  put(source.repositories.harness, 'config/subagents.json', JSON.stringify({ surfaceBackend: 'herdr' }));
+  source.commits.harness = commit(source.repositories.harness, 'configured interactive runtime');
+  const candidate = prepare(t, home, source);
+  dependencies(home, candidate.id);
+  const run = mode => verifyRelease({
+    home, id: candidate.id, apply: true,
+    runChecks: () => ({ ok: true }),
+    runRuntimeChecks: () => ({ ...runtimeSmoke(), supplemental: { mode } }),
+    runCompositionChecks: () => ({ ok: true, applicable: true, tasks: 'absent', mode: 'official-sdk-resource-loader' }),
+  });
+  assert.equal(run('mock-host-api-direct-tool-execution').passed, false);
+  assert.equal(run('official-cli-faux-model-integration').passed, true);
+});
+
 function ready(t, home, source) {
   const candidate = prepare(t, home, source);
   dependencies(home, candidate.id);
@@ -1346,7 +1363,7 @@ test('release switches with a different managed key or resource set are blocked'
 
 test('bootstrap fetches audited source pins from user-owned repositories', () => {
   assert.deepEqual(sourceRepositories, {
-    subagents: 'igalarey/pi-subagents',
+    subagents: 'igalarey/pi-interactive-subagents',
     memory: 'igalarey/pi-observational-memory',
   });
   assert.equal(Object.isFrozen(sourceRepositories), true);

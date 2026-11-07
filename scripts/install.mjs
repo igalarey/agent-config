@@ -260,6 +260,7 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
   const successor = release ? validateRelease({ home, id: release, requireVerified: true }) : null;
   if (successor) source = successor.path;
   const modern = fs.existsSync(path.join(source, 'config/subagents.json'));
+  const interactive = modern && readJSON(path.join(source, 'config/subagents.json')).surfaceBackend === 'herdr';
   if (withRtk) throw new Error('RTK is retired from this base');
   const operations = [], conflicts = [], tracked = { ...previous.files }, retiredResources = [];
   const predecessorHashes = legacyCompatibilityHashes(source);
@@ -391,9 +392,9 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
       }
       add(relative, fs.readFileSync(path.join(source, 'config', name), 'utf8'));
     }
-    const legacyResources = ['.pi/agent/extensions/rtk.ts', '.pi/agent/agents/scout.md',
-      '.pi/agent/agents/researcher.md', '.pi/agent/agents/worker.md'];
-    if (migrateBase) {
+    const legacyResources = ['.pi/agent/extensions/rtk.ts', ...(!interactive ? ['.pi/agent/agents/scout.md',
+      '.pi/agent/agents/researcher.md', '.pi/agent/agents/worker.md'] : [])];
+    if (migrateBase && !interactive) {
       const agentFolder = path.join(home, '.pi/agent/agents');
       noSymlinks(agentFolder);
       const managedAgents = new Set(files(path.join(source, 'agents')).map(file => path.basename(file)));
@@ -434,8 +435,9 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
   if (modern) {
     for (let index = packages.length - 1; index >= 0; index--) {
       const from = packageSource(packages[index]);
-      const retired = ['pi-interactive-subagents', 'rtk-pi-hook', ...(defaults.packages?.length ? ['pi-mcp', 'pi-web-fetch'] : [])];
-      if (!retired.some(name => packageNameMatches(from, name))) continue;
+      const retired = [interactive ? '@tintinweb/pi-subagents' : 'pi-interactive-subagents', 'rtk-pi-hook', ...(defaults.packages?.length ? ['pi-mcp', 'pi-web-fetch'] : [])];
+      const obsoleteFork = interactive && /(?:github\.com[/:])(?:igalarey|tintinweb)\/pi-subagents(?:\.git)?(?:$|[@#?])/.test(from);
+      if (!obsoleteFork && !retired.some(name => packageNameMatches(from, name))) continue;
       if (!migrateBase) conflicts.push('Legacy package requires --migrate-base');
       else { packages.splice(index, 1); migrations.push({ name: 'retired-base-package', from, to: null }); }
     }

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { identifyInstalledPiHost } from './runtime-smoke.mjs';
+import { identifyInstalledPiHost, modernInteractive } from './runtime-smoke.mjs';
 import { validateSkills } from './validate-skills.mjs';
 
 const names = ['TaskCreate', 'TaskExecute', 'TaskGet', 'TaskList', 'TaskOutput', 'TaskStop', 'TaskUpdate'];
@@ -16,7 +16,7 @@ export async function checkCandidateComposition(candidatePath) {
   }
   const owner = manifest.packages.find(pkg => pkg.name === '@tintinweb/pi-tasks');
   const adapter = path.join(candidatePath, 'extensions/carbon-tasks/index.ts');
-  if (!owner && !fs.existsSync(adapter) && !manifest.packages.some(pkg => pkg.name === '@tintinweb/pi-subagents')) {
+  if (!owner && !fs.existsSync(adapter) && !modernInteractive(manifest) && !manifest.packages.some(pkg => pkg.name === '@tintinweb/pi-subagents')) {
     return { applicable: false, reason: 'Historical candidate has no Carbon/Tasks composition' };
   }
   const tasksAbsent = !owner && !fs.existsSync(adapter);
