@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "release": "h-04bbd5150b80-s-0cdffff2b436-m-35275b8ce08a",
+  "release": "h-04bbd5150b80-s-f049ad72cbc8-m-35275b8ce08a",
   "piVersion": "1.5.0",
   "runtime": {
     "node": "v22.23.2"
   },
   "sources": {
     "harness": "04bbd5150b8054314c095f82fa79a0209961bde5",
-    "subagents": "0cdffff2b43613ca8a57cfd86a48334d26b66891",
+    "subagents": "f049ad72cbc88003f59f5033a5d60a235f62eae5",
     "memory": "35275b8ce08a54d3056b1ada578bacb085d53819"
   }
 }

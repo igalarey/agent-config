@@ -1014,7 +1014,7 @@ export function runInteractiveIntegration({ releasePath, manifest, host, env, ag
   const events = run.stdout.split('\n').filter(Boolean).map(line => JSON.parse(line));
   assert(!events.some(event => event.type === 'extension_error'), 'Interactive extension error');
   const messages = events.filter(event => event.type === 'message_end').map(event => event.message);
-  assert(!messages.some(message => message.role === 'toolResult' && message.isError), 'Interactive integration tool error');
+  assert(!messages.some(message => message.role === 'toolResult' && message.isError), `Interactive integration tool error: ${JSON.stringify(messages.filter(message => message.role === 'toolResult' && message.isError))}`);
   assert(messages.filter(message => message.role === 'assistant').at(-1)?.content?.some(block => block.text === 'INTERACTIVE_INTEGRATION_OK'), `Interactive integration incomplete: ${JSON.stringify(messages.filter(message => message.role === 'assistant').at(-1))}`);
   for (const [name, count] of [['subagents_list', 1], ['subagent', 5], ['subagent_cancel', 5], ['start_supervision', 1]]) {
     assert(messages.filter(message => message.role === 'toolResult' && message.toolName === name).length === count, `Missing real ${name} executions`);
