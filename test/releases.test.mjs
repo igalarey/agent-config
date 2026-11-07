@@ -1349,13 +1349,13 @@ test('versioned bootstrap recipe pins the active release without local source pa
   assert.equal(spawnSync('git', ['cat-file', '-t', recipe.sources.harness], { encoding: 'utf8' }).stdout.trim(), 'commit');
   assert.deepEqual(recipe, {
     schemaVersion: 1,
-    release: `h-${recipe.sources.harness.slice(0, 12)}-s-48b798c04e9c-m-f8f2b67791e9`,
+    release: `h-${recipe.sources.harness.slice(0, 12)}-s-48b798c04e9c-m-25acf87eaa2a`,
     piVersion: '1.5.0',
     runtime: { node: 'v22.23.2' },
     sources: {
       harness: recipe.sources.harness,
       subagents: '48b798c04e9ce98f6cf86266f222b48181d453ec',
-      memory: 'f8f2b67791e97b5d5f35ac476524e52889ba5daf',
+      memory: '25acf87eaa2a0b5ebca89b20cd452a9d7b3c9d9b',
     },
   });
 });
