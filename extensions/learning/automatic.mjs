@@ -61,10 +61,8 @@ export function installAutomaticReview(pi, agentDir, checkCollision, { now = Dat
   let generation = 0, turn, human, job, controller, attempts = 0, last = -Infinity;
   const pausedSessions = new Set();
   const enabled = ctx => automaticEnabled(agentDir()) && !pausedSessions.has(ctx.sessionManager.getSessionId());
-  const status = (ctx, value) => { if (ctx.hasUI) ctx.ui.setStatus?.('learning', `Learning: ${value}`); };
   const cancel = (ctx) => {
     generation++; controller?.abort(); turn = undefined; human = undefined;
-    status(ctx, 'cancelled');
   };
   for (const event of ['session_before_tree', 'session_tree', 'session_before_switch', 'session_before_fork', 'session_shutdown', 'session_before_compact', 'model_select']) pi.on(event, (_, ctx) => cancel(ctx));
   pi.on('session_start', (_, ctx) => {
@@ -72,7 +70,7 @@ export function installAutomaticReview(pi, agentDir, checkCollision, { now = Dat
     const records = ctx.sessionManager.getEntries().filter(e => e.type === 'custom' && e.customType === TYPE && e.data?.phase === 'reserved');
     attempts = records.length;
     last = records.reduce((v, e) => Math.max(v, Number(e.data.timestamp) || 0), -Infinity);
-    status(ctx, enabled(ctx) ? 'auto ready' : 'auto off');
+    if (ctx.hasUI) ctx.ui.setStatus?.('learning', undefined);
   });
   pi.on('input', (event, ctx) => {
     cancel(ctx);
@@ -82,7 +80,6 @@ export function installAutomaticReview(pi, agentDir, checkCollision, { now = Dat
     generation++; controller?.abort();
     turn = human !== undefined && event.messageType === 'user' && event.prompt === human ? { human, assistant: '', verification: null, sensitive: false } : undefined;
     human = undefined;
-    status(ctx, enabled(ctx) ? 'observing' : 'auto off');
   });
   pi.on('agent_start', () => { generation++; controller?.abort(); });
   pi.on('message_end', event => {
@@ -143,7 +140,6 @@ export function installAutomaticReview(pi, agentDir, checkCollision, { now = Dat
       clearTimeout(timer);
       if (generation === token) {
         pi.appendEntry(TYPE, { phase: 'finished', timestamp: now(), outcome, ...modelIdentity, ...(usage ? { usage } : {}) });
-        status(ctx, outcome);
       }
     }
   }
@@ -152,11 +148,10 @@ export function installAutomaticReview(pi, agentDir, checkCollision, { now = Dat
     if (event.aborted || job || !enabled(ctx) || !ctx.model || !ctx.isIdle() || !snapshot?.verification || !snapshot.assistant || snapshot.sensitive || redact(snapshot.human) !== snapshot.human || attempts >= 2 || now() - last < 300000) return;
     let request;
     try { request = prepareReview(pi.getCommands(), snapshot, now()); }
-    catch { status(ctx, 'deferred (catalog or input unavailable within budget)'); return; }
+    catch { return; }
     attempts++; last = now(); controller = new AbortController();
     pi.appendEntry(TYPE, { phase: 'reserved', timestamp: last, attempt: attempts });
     const token = generation;
-    status(ctx, 'reviewing (auxiliary; /learn cancel)');
     job = review(ctx, snapshot, token, request, controller).finally(() => { job = undefined; });
   });
   return {
@@ -167,7 +162,6 @@ export function installAutomaticReview(pi, agentDir, checkCollision, { now = Dat
         const id = ctx.sessionManager.getSessionId();
         if (args === 'auto off') { pausedSessions.add(id); cancel(ctx); }
         else pausedSessions.delete(id);
-        status(ctx, enabled(ctx) ? 'auto ready' : 'auto off');
         ctx.ui.notify(enabled(ctx) ? 'Learning automatic review resumed for this session.' : 'Learning automatic review is off. User settings opt-in is required; session pause does not rewrite settings.', 'info');
         return true;
       }

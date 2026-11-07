@@ -25,7 +25,7 @@ export async function exerciseAutomatic(session, agentDir, ai) {
         content: '---\nname: learned-automatic-integration\ndescription: Validate isolated fixtures\n---\n1. Run node --test fixture.mjs.\n2. Confirm both assertions pass.',
       }) }], usage: { input: 50, output: 30 } }) };
     },
-  }, ui: { ...original().ui, setStatus: (_key, value) => { if (value === 'Learning: pending' || value === 'Learning: failed') finish(value); } } });
+  }, ui: { ...original().ui, setStatus: (_key, value) => { assert.equal(value, undefined); }, notify: value => { if (/Learning proposal .* pending/.test(value)) finish('pending'); } } });
   try {
     const before = session.sessionManager.getEntries().filter(e => e.type === 'message').length;
     await runner.emitInput('Fix and verify fixture', undefined, 'interactive');
@@ -35,7 +35,7 @@ export async function exerciseAutomatic(session, agentDir, ai) {
     await runner.emitMessageEnd({ type: 'message_end', message: { role: 'assistant', stopReason: 'stop', content: [{ type: 'text', text: 'Verified fixture assertions after the repair.' }] } });
     await runner.emit({ type: 'agent_settled', aborted: false });
     let timer;
-    try { assert.equal(await Promise.race([done, new Promise(resolve => { timer = setTimeout(() => resolve('timeout'), 2000); })]), 'Learning: pending'); }
+    try { assert.equal(await Promise.race([done, new Promise(resolve => { timer = setTimeout(() => resolve('timeout'), 2000); })]), 'pending'); }
     finally { clearTimeout(timer); }
     assert.equal(calls, 1);
     assert.equal(session.sessionManager.getEntries().filter(e => e.type === 'message').length, before, 'auxiliary review inserted a main conversation turn');

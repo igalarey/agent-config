@@ -31,6 +31,18 @@ function fixture(t, response = answer) {
   };
   return { dir, pi, ctx, calls, notices, metadata, emit, turn, auto, tick: () => { now += 300001; }, stale: () => { leaf = 'other'; }, switchSession: async id => { sessionId = id; await emit('session_start'); } };
 }
+test('automatic learning stays silent in the footer but retains proposals and explicit status', async t => {
+  const f = fixture(t), statuses = [];
+  f.ctx.ui.setStatus = (key, value) => statuses.push({ key, value });
+  await f.emit('session_start');
+  await f.turn();
+  assert.equal(f.calls.length, 1);
+  assert.equal((await createStore(f.dir).list()).length, 1);
+  assert(f.notices.some(value => /proposal .* pending/.test(value)));
+  assert(statuses.every(({ key, value }) => key === 'learning' && value === undefined));
+  f.auto.command('status', f.ctx);
+  assert.match(f.notices.at(-1), /Learning auto: on/);
+});
 function catalog(f, descriptions, bytes = 3500) {
   return descriptions.map((description, index) => {
     const dir = path.join(f.dir, `catalog-${index}`);
@@ -99,11 +111,12 @@ test('automatic pause follows session identity and never overrides mandatory use
   const f = fixture(t);
   f.auto.command('auto off', f.ctx);
   await f.switchSession('session');
-  assert.match(f.notices.at(-1), /auto off/);
+  f.auto.command('status', f.ctx); assert.match(f.notices.at(-1), /auto: off/);
   await f.turn(); assert.equal(f.calls.length, 0);
-  await f.switchSession('other'); assert.match(f.notices.at(-1), /auto ready/);
+  await f.switchSession('other');
+  f.auto.command('status', f.ctx); assert.match(f.notices.at(-1), /auto: on/);
   await f.turn(); assert.equal(f.calls.length, 1);
-  await f.switchSession('session'); assert.match(f.notices.at(-1), /auto off/);
+  await f.switchSession('session');
   f.auto.command('status', f.ctx); assert.match(f.notices.at(-1), /auto: off/);
   assert.equal(f.auto.command('auto on', f.ctx), true);
   await f.turn(); assert.equal(f.calls.length, 2);
