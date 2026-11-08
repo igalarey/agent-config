@@ -7,7 +7,7 @@ import { validateRelease } from '../../scripts/releases.mjs';
 
 const sourceRoot = path.resolve(import.meta.dirname, '../..');
 const nativePin = '21628a941dbcca3678d659e722b5a8fd10f18105';
-const coordinatorPin = 'ce4f82674f4cb6ccc17f0fb48148f05b8140582c';
+const coordinatorPin = '58b02fa776fe4bc0d9aca6ad0b3b3f5a6b9320c4';
 const memoryPin = '35275b8ce08a54d3056b1ada578bacb085d53819';
 function git(repo, ...args) {
   const result = spawnSync('git', ['-C', repo, ...args], { encoding: 'utf8', env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' } });

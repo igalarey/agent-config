@@ -8,6 +8,19 @@ The coordinator activated `h-8388fb58ea11-s-21628a941dbc-m-35275b8ce08a` after v
 Verified payload: harness `8388fb58ea115811ef164ece79282d5f89cbe03d`, native `21628a941dbcca3678d659e722b5a8fd10f18105`.
 Recipe commit `7ae5e7f` selects that payload, not the later recipe or documentation HEAD. This receipt requires no rebuild or reseal.
 
+## Public-source verification prerequisite
+
+The current integration fixture requires public coordinator commit `58b02fa776fe4bc0d9aca6ad0b3b3f5a6b9320c4`, not the historical private coordinator commit.
+Only its README differs from the historical coordinator tree. Runtime, profile, and test bytes and modes remain unchanged.
+The native and memory source pins remain unchanged. Exact native export hashes, file modes, provider paths, and candidate runner bindings remain mandatory.
+Use a clean checkout of the required coordinator commit. Do not use an installed coordinator checkout with a different HEAD.
+
+The existing input regression first rejected the public coordinator, then passed after the exact pin change.
+All three focused tests passed. The root suite passed 213 tests with seven skips.
+The source-export combined fixture passed with 82 native files validated. The coordinator suite passed 37 tests with one historical skip.
+These are source checks, not verification or activation of a new candidate.
+The recipe still selects the earlier local harness until a new candidate passes verification and receives an explicit source-commit pin.
+
 ## SQLite lineage mutex activation receipt
 
 The coordinator completed official verification and candidate acceptance before activation:
@@ -222,6 +235,7 @@ From the harness root, supply existing dependency locations:
 
 ```sh
 PI_SCOPED_SOURCE_EXPORT=1 \
+PI_SCOPED_COORDINATOR=/existing/clean/public-coordinator \
 PI_BROWSER_DEPENDENCIES=/existing/browser/node_modules \
 PI_RESEARCH_UPSTREAM_PACKAGE=/existing/node_modules/pi-web-access \
 node --test test/fixtures/scoped-integration.mjs
@@ -363,7 +377,8 @@ research/browser backing availability, and preserved `ask_question` controls.
 Missing evidence fails verification and later release validation. Historical releases without the canonical marker retain their previous gates.
 Runner hashes, source integrity, and dependency/runtime digests retain their existing authority.
 
-The externally owned coordinator lifecycle E2E remains a separate acceptance step:
+The externally owned coordinator lifecycle E2E remains a separate acceptance step.
+Set `COORDINATOR` to the absolute path of the clean public coordinator checkout required by the current fixture:
 
 ```sh
 C="$CH/.agent-config/releases/$ID"
@@ -373,7 +388,7 @@ env -u PI_SCOPED_SOURCE_EXPORT -u PI_BROWSER_DEPENDENCIES \
   PI_SCOPED_NATIVE="$C/packages/pi-interactive-subagents/pi-extension/subagents" \
   PI_SCOPED_BROWSER="$C/packages/pi-browser" \
   PI_RESEARCH_UPSTREAM_PACKAGE="$C/native/node_modules/pi-web-access" \
-  PI_SCOPED_COORDINATOR="$PWD/../pi-project-sessions-coordinator" \
+  PI_SCOPED_COORDINATOR="$COORDINATOR" \
   node --test test/fixtures/scoped-integration.mjs
 ```
 

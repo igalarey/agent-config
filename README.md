@@ -72,7 +72,7 @@ Linux; another platform must prepare and verify its own candidate. Bootstrap doe
 install Node/Pi, authenticate providers, or download Chrome, RTK or Python executables.
 
 ```sh
-git clone https://github.com/igalarey/agent-config.git
+git clone --branch publish/sanitized-harness https://github.com/igalarey/agent-config.git
 cd agent-config
 npm run bootstrap
 npm run bootstrap -- --apply
@@ -423,5 +423,5 @@ Other drift still causes refusal. See [the recovery boundaries](docs/hermes-adop
 Do not modify a sealed release to repair a failed integrity check.
 
 No push is performed by installation. Do not use `git push --all` or `--mirror`: development
-checkouts may contain private historical refs. Push only the reviewed `main` branch.
+checkouts may contain private historical refs. Push only the explicitly reviewed public branch: `publish/sanitized-harness` for this snapshot.
 Original code is MIT; [third-party notices](THIRD_PARTY_NOTICES.md) preserve upstream licenses.
