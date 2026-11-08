@@ -44,7 +44,8 @@ Read `~/.agents/SYSTEM.md` and the applicable shared guides before work.
 ## Runtime boundaries
 
 - Profiles in `agents/` define models, tool scopes, and turn defaults. Do not change parent or memory models as a side effect.
-  Read-only roles have no Bash. Extensions, skills, and nested delegation remain disabled for these child profiles.
+  Read-only roles have no Bash. Retired legacy profiles live only in historical test fixtures, never active projection.
+  Canonical profiles require scoped extensions and personal skill catalogs. All managed specialist profiles disable nested delegation.
 - Verify child tool scopes against actual registration, including deferred MCP tools and codemode.
   Tool lists and worktrees are not OS sandboxes. Model defaults are not hard spending quotas.
 - Interactive children use native Herdr terminals and a private coordination mailbox.

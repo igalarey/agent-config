@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -658,6 +659,80 @@ function assertRpcEvidence(evidence, releasePath, sessionDir, manifest = { packa
   }
 }
 
+export function assertScopedProfileCapabilities(agents, markers) {
+  const require = (value, detail) => { if (!value) throw new Error(`Candidate scoped capability check failed: ${detail}`); };
+  require(markers?.version === 1, 'native marker version');
+  for (const key of ['personalSkillCatalog', 'perParentChildLimit', 'persistedExtensionBindings', 'scopedExtensionProfiles']) require(markers[key] === true, key);
+  const research = ['web_search', 'fetch_content', 'get_search_content', 'source_check'];
+  const browser = ['browser_goto', 'browser_read', 'browser_click', 'browser_screenshot', 'browser_close'];
+  const roles = ['scout', 'worker', 'reviewer', 'oracle', 'researcher', 'evidence-auditor', 'delegate', 'ui-verifier'];
+  const same = (a, b) => Array.isArray(a) && JSON.stringify(a.slice().sort()) === JSON.stringify(b.slice().sort());
+  const checked = roles.map(name => {
+    const agent = agents?.find(a => a.name === name);
+    const backed = ['researcher', 'evidence-auditor'].includes(name) ? research : name === 'ui-verifier' ? browser : [];
+    const tools = ['read', 'grep', 'find', 'ls', ...(['worker', 'delegate'].includes(name) ? ['bash', 'edit', 'write'] : []), ...backed];
+    require(agent?.extensionPolicy === 'scoped' && same(agent.subagentAgents, []), `${name} scoped leaf`);
+    require(same(agent.tools?.split(',').map(t => t.trim()), tools), `${name} profile tools`);
+    const caps = agent.capabilities;
+    require(caps?.restricted === true && caps.runtime === 'pi' && same(caps.tools, [...tools, 'ask_question']), `${name} effective tools and controls`);
+    require(same(caps.missingExtensions, []) && same(caps.extensionBackedTools, backed), `${name} provider registration`);
+    require(same(caps.skills, []) && same(caps.spawnable, []) && caps.skillCatalog?.length > 0 && same(caps.skillCatalog, agent.skillCatalog?.split(',').map(s => s.trim()) ?? []), `${name} selective catalog`);
+    if (name === 'ui-verifier') require(agent.model === 'openai/gpt-6.1-sol' && agent.thinking === 'medium'
+      && agent.maxTurns === 20 && same(caps.skillCatalog, ['smoke-test', 'grounded-citations']), 'ui-verifier defaults');
+    return { name, tools: agent.tools, model: agent.model, thinking: agent.thinking, maxTurns: agent.maxTurns,
+      extensionPolicy: agent.extensionPolicy, skillCatalog: agent.skillCatalog, subagentAgents: agent.subagentAgents, capabilities: caps };
+  });
+  return { version: 1, markers, agents: checked };
+}
+
+export function readCanonicalProfilePolicy(releasePath, required = false) {
+  const roles = {
+    scout: ['low', 20, false, 'diagnose-root'],
+    worker: ['high', 30, false, 'diagnose-root, enforce-first, edit-document, simple-english'],
+    reviewer: ['high', 30, false, 'security-review, enforce-first'],
+    oracle: ['high', 30, false, 'elaborate-spec'],
+    researcher: ['medium', 30, true, 'grounded-citations'],
+    'evidence-auditor': ['high', 30, true, 'grounded-citations'],
+    delegate: [undefined, 20, false, 'diagnose-root, enforce-first, edit-document, simple-english'],
+    'ui-verifier': ['medium', 20, false, 'smoke-test, grounded-citations'],
+  };
+  const folder = path.join(releasePath, 'agents');
+  const notice = path.join(folder, 'LICENSE.nicobailon');
+  if (!required && !fs.existsSync(notice)) return null;
+  const fail = message => { throw new Error(`Unsupported canonical profile policy: ${message}`); };
+  const profiles = {};
+  for (const [name, [thinking, turns, research, catalog]] of Object.entries(roles)) {
+    const file = path.join(folder, `${name}.md`);
+    if (!fs.existsSync(file)) fail(`${name} missing`);
+    const header = fs.readFileSync(file, 'utf8').match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1];
+    if (!header) fail(`${name} frontmatter`);
+    const fields = {};
+    for (const line of header.split(/\r?\n/)) {
+      const match = line.match(/^([a-z_-]+): (.+)$/);
+      if (!match || Object.hasOwn(fields, match[1])) fail(`${name} ambiguous frontmatter`);
+      fields[match[1]] = match[2];
+    }
+    const tools = ['read', 'grep', 'find', 'ls', ...(['worker', 'delegate'].includes(name) ? ['bash', 'edit', 'write'] : []),
+      ...(research ? ['web_search', 'fetch_content', 'get_search_content', 'source_check'] : []),
+      ...(name === 'ui-verifier' ? ['browser_goto', 'browser_read', 'browser_click', 'browser_screenshot', 'browser_close'] : [])];
+    const expected = { name, ...(thinking ? { model: 'openai/gpt-6.1-sol', thinking } : {}),
+      tools: tools.join(', '), extensions: 'scoped', skill_catalog: catalog, allowed_subagents: 'none',
+      max_turns: String(turns), 'auto-exit': 'true', prompt_mode: 'append', 'session-mode': 'standalone' };
+    if (!fields.description || fields.description.split(/\s+/).length > 25
+      || Object.keys(fields).some(key => key !== 'description' && !Object.hasOwn(expected, key))
+      || Object.entries(expected).some(([key, value]) => fields[key] !== value)) fail(`${name} grants or defaults`);
+    profiles[name] = fields;
+  }
+  if (!fs.existsSync(notice) || !fs.readFileSync(notice, 'utf8').includes('Copyright (c) 2026 Nico Bailon')) fail('MIT notice missing');
+  const configFile = path.join(releasePath, 'config/subagents.json');
+  if (!fs.existsSync(configFile)) fail('delegation configuration missing');
+  const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+  if (config.delegation?.maxDepth !== 2 || config.delegation?.maxConcurrentDescendants !== 6
+    || config.delegation?.maxConcurrentChildren !== 2 || config.delegation?.maxLaunchesPerLineage !== null
+    || config.includeBundledAgents !== false || config.allowProjectAgents !== false || config.requireProfile !== true) fail('delegation limits or discovery');
+  return profiles;
+}
+
 export function readSubagentSmokePolicy(releasePath) {
   const profiles = ['Explore', 'general-purpose', 'Plan', 'deep-implementation', 'deep-review'].map(name => {
     const file = path.join(releasePath, 'agents', `${name}.md`);
@@ -854,7 +929,7 @@ function interactiveIntegrationProvider(pi) {
     if (!role) {
       const installed = JSON.parse(fixtureFs.readFileSync(installedConfigPath, 'utf8'));
       const effective = loadRuntimeConfig();
-      require(Object.keys(effective).every(key => JSON.stringify(effective[key]) === JSON.stringify(installed[key]))
+      require(Object.keys(effective).every(key => isDeepStrictEqual(effective[key], installed[key]))
         && effective.surfaceBackend === 'herdr' && effective.herdrViewer.enabled === false, 'Installed interactive configuration not consumed');
       fixtureFs.writeFileSync(fixturePath.join(proofDir, 'config.json'), JSON.stringify(effective));
     }
@@ -883,9 +958,19 @@ function interactiveIntegrationProvider(pi) {
         const expected = [...contract.tools, 'ask_question'].sort();
         require(JSON.stringify(active) === JSON.stringify(expected), `Child active scope mismatch ${role}: ${active}`);
         const registered = pi.getAllTools().map(tool => tool.name).sort();
-        const allowed = ['ask_question', 'bash', 'edit', 'find', 'grep', 'ls', 'powershell', 'read', 'write'];
+        const allowed = ['ask_question', 'bash', 'edit', 'find', 'grep', 'ls', 'powershell', 'read', 'write', ...contract.tools];
         require(registered.every(name => allowed.includes(name)), `Child extension scope escaped ${role}: ${registered}`);
-        require(pi.getCommands().filter(command => command.source === 'skill').length === 0, `Child skills enabled: ${role}`);
+        if (contract.scoped) {
+          const saved = JSON.parse(fixtureFs.readFileSync(process.env.PI_SUBAGENT_SESSION + '.loadout.json', 'utf8'));
+          require(isDeepStrictEqual(saved.extensionBindings, contract.bindings) && isDeepStrictEqual(saved.extensionBindingProfiles, {}), `Child frozen bindings mismatch: ${role}`);
+          require(isDeepStrictEqual(saved.skillCatalogPaths, contract.catalogPaths), `Child frozen catalog mismatch: ${role}`);
+          const system = JSON.stringify(context.messages.filter(message => message.role === 'system'));
+          for (const file of contract.catalogPaths) require(system.includes(file), `Missing catalog prompt: ${role} ${file}`);
+          for (const name of fixtureFs.readdirSync(fixturePath.join(contract.agentDir, 'skills'))) {
+            if (!contract.catalog.includes(name)) require(!system.includes(fixturePath.join(contract.agentDir, 'skills', name, 'SKILL.md')), `Ambient catalog: ${role} ${name}`);
+          }
+          require(pi.getCommands().filter(command => command.source === 'skill').every(command => contract.catalog.some(name => command.name === name || command.name === 'skill:' + name)), `Ambient skill command: ${role}`);
+        } else require(pi.getCommands().filter(command => command.source === 'skill').length === 0, `Child skills enabled: ${role}`);
         require(mode?.mode === 'tui' && mode.stdin && mode.stdout, `Child is not TUI under PTY: ${role}`);
         let captured;
         const token = `fixture.${Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'offline-fixture' } })).toString('base64url')}.fixture`;
@@ -911,11 +996,24 @@ function interactiveIntegrationProvider(pi) {
         if (!listed) content = tool('subagents_list', {});
         else {
           const agents = listed.details?.agents;
-          require(Array.isArray(agents) && JSON.stringify(agents.map(agent => agent.name).sort()) === JSON.stringify([...roles].sort()), 'Installed profile discovery contract failed');
+          require(Array.isArray(agents) && JSON.stringify(agents.map(agent => agent.name).sort()) === JSON.stringify(discoveryNames.slice().sort()), 'Installed profile discovery contract failed');
+          if (requireScopedCapabilities) {
+            const evidence = assertScopedProfileCapabilities(agents, globalThis[Symbol.for('pi.subagents.tool-extension-registry')]?.capabilities);
+            fixtureFs.writeFileSync(fixturePath.join(proofDir, 'scoped-capabilities.json'), JSON.stringify(evidence));
+          }
+          for (const [name, expected] of Object.entries(canonicalProfiles)) {
+            const agent = agents.find(agent => agent.name === name);
+            require(agent?.source === 'global' && agent.model === expected.model && agent.thinking === expected.thinking
+              && agent.tools === expected.tools && agent.skillCatalog === expected.skill_catalog && agent.skills === undefined
+              && agent.extensionPolicy === 'scoped' && agent.maxTurns === Number(expected.max_turns)
+              && agent.sessionMode === 'standalone' && agent.autoExit === true && agent.subagentAgents?.length === 0,
+              `Listed canonical profile policy mismatch: ${name}`);
+          }
           for (const name of roles) {
             const agent = agents.find(agent => agent.name === name), contract = profileContracts[name];
             require(agent.model === contract.model && agent.thinking === contract.thinking && agent.source === 'global'
-              && agent.disableSkills === true && agent.disableExtensions === true && agent.maxTurns === contract.maxTurns
+              && (contract.scoped ? agent.skillCatalog === contract.catalog.join(', ') && agent.extensionPolicy === 'scoped' && agent.skills === undefined
+                : agent.disableSkills === true && agent.disableExtensions === true) && agent.maxTurns === contract.maxTurns
               && agent.systemPromptMode === 'append' && agent.subagentAgents?.length === 0, `Listed profile policy mismatch: ${name}`);
           }
           if (starts.length > stops.length) {
@@ -930,12 +1028,20 @@ function interactiveIntegrationProvider(pi) {
             require(!fixtureFs.existsSync(childFailure), fixtureFs.existsSync(childFailure) ? fixtureFs.readFileSync(childFailure, 'utf8') : '');
             const loadout = JSON.parse(fixtureFs.readFileSync(`${started.sessionFile}.loadout.json`, 'utf8'));
             const contract = profileContracts[name];
-            require(loadout.model === contract.model && loadout.thinking === contract.thinking && loadout.maxTurns === contract.maxTurns
-              && loadout.disableSkills === true && loadout.disableExtensions === true && loadout.spawnable?.length === 0
+            require(loadout.model === (contract.model ?? 'openai/gpt-6.1-sol') && loadout.thinking === (contract.thinking ?? 'medium') && loadout.maxTurns === contract.maxTurns
+              && loadout.disableSkills === true && loadout.disableExtensions === !contract.scoped && loadout.spawnable?.length === 0
               && loadout.systemPromptMode === 'append', `Persisted loadout mismatch: ${name}`);
+            if (contract.scoped) {
+              require(loadout.extensionPolicy === 'scoped' && loadout.skillPolicy === 'personal-named'
+                && isDeepStrictEqual(loadout.skillPaths, []) && isDeepStrictEqual(loadout.skillCatalogPaths, contract.catalogPaths)
+                && isDeepStrictEqual(loadout.extensionBindings, contract.bindings) && isDeepStrictEqual(loadout.extensionBindingProfiles, {})
+                && loadout.cwd === contract.cwd && loadout.agentDir === contract.agentDir && loadout.autoExit === true,
+                `Persisted scoped loadout mismatch: ${name}`);
+            }
             require(JSON.stringify(loadout.toolAllowlist.split(',').map(name => name.trim()).sort()) === JSON.stringify([...contract.tools, 'ask_question'].sort()), `Loadout tools mismatch: ${name}`);
             const script = fixtureFs.readFileSync(started.launchScriptFile, 'utf8');
             require(!/--mode\s+rpc/.test(script) && script.includes('--no-skills') && script.includes('--no-extensions'), `Child launch transport/scope mismatch: ${name}`);
+            if (contract.scoped) for (const file of [...contract.catalogPaths, ...Object.values(contract.bindings)]) require(script.includes(file), `Missing frozen launch path: ${name} ${file}`);
             fixtureFs.writeFileSync(fixturePath.join(proofDir, `${name}.loadout.json`), JSON.stringify(loadout));
             content = tool('subagent_cancel', { name });
           } else if (starts.length < roles.length) {
@@ -976,18 +1082,41 @@ function interactiveIntegrationProvider(pi) {
 
 export function runInteractiveIntegration({ releasePath, manifest, host, env, agentDir, cwd, temp }) {
   assert(process.platform !== 'win32', 'Interactive offline PTY fixture requires a POSIX host');
-  const policyProfiles = readSubagentSmokePolicy(releasePath);
-  assert(policyProfiles, 'Interactive profile policies missing');
+  const legacyProfiles = readSubagentSmokePolicy(releasePath);
+  const requireScopedCapabilities = manifest.files?.some(file => file.path === 'agents/LICENSE.nicobailon') === true;
+  const canonicalProfiles = readCanonicalProfilePolicy(releasePath, requireScopedCapabilities) ?? {};
+  const scopedOnly = !legacyProfiles;
+  const browserPackage = manifest.packages.find(pkg => pkg.name === 'pi-browser');
+  if (scopedOnly) assert(browserPackage, 'Candidate scoped capability check failed: browser package missing');
+  assert(legacyProfiles || Object.keys(canonicalProfiles).length === 8, 'Interactive profile policies missing');
+  const policyProfiles = legacyProfiles ?? Object.fromEntries(Object.entries(canonicalProfiles).map(([name, fields]) =>
+    [name, { provider: 'openai', model: 'gpt-6.1-sol', thinking: fields.thinking ?? 'medium' }]));
+  const discoveryNames = fs.readdirSync(path.join(releasePath, 'agents')).filter(name => name.endsWith('.md')).map(name => name.slice(0, -3));
+  if (scopedOnly) assert(isDeepStrictEqual(discoveryNames.slice().sort(), Object.keys(canonicalProfiles).sort()), 'Unexpected active scoped profiles');
   const profileContracts = Object.fromEntries(Object.keys(policyProfiles).map(name => {
     const source = fs.readFileSync(path.join(releasePath, 'agents', `${name}.md`), 'utf8');
     const header = source.match(/^---\r?\n([\s\S]*?)\r?\n---/)[1];
     const field = key => header.match(new RegExp(`^${key}: ([^\\r\\n]+)$`, 'm'))?.[1];
-    assert(field('skills') === 'false' && field('extensions') === 'false' && field('allowed_subagents') === 'none' && field('prompt_mode') === 'append', `Unsafe interactive profile: ${name}`);
+    assert((scopedOnly ? field('skills') === undefined && field('extensions') === 'scoped' : field('skills') === 'false' && field('extensions') === 'false') && field('allowed_subagents') === 'none' && field('prompt_mode') === 'append', `Unsafe interactive profile: ${name}`);
     const maxTurns = Number(field('max_turns'));
     assert(Number.isSafeInteger(maxTurns) && maxTurns > 0, `Missing turn bound: ${name}`);
-    return [name, { model: field('model'), thinking: field('thinking'), maxTurns,
+    const catalog = scopedOnly ? field('skill_catalog').split(', ') : [];
+    const catalogPaths = catalog.map(skill => path.join(agentDir, 'skills', skill, 'SKILL.md'));
+    assert(catalogPaths.every(file => fs.existsSync(file)), `Missing personal catalog: ${name}`);
+    const bindings = Object.fromEntries(field('tools').split(', ').filter(tool => /^(web_search|fetch_content|get_search_content|source_check|browser_)/.test(tool)).map(tool =>
+      [tool, tool.startsWith('browser_') ? path.join(releasePath, browserPackage.path, 'index.ts')
+        : path.join(agentDir, 'extensions/research-tools/provider.ts')]));
+    return [name, { scoped: scopedOnly, catalog, catalogPaths, bindings, agentDir, cwd, model: field('model'), thinking: field('thinking'), maxTurns,
       tools: field('tools').split(',').map(name => name.trim()), identity: source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n*/, '').trim() }];
   }));
+  if (scopedOnly) {
+    const prefix = path.join(agentDir, 'npm'), modules = path.join(prefix, 'node_modules');
+    const candidateModules = path.join(releasePath, 'native/node_modules');
+    fs.mkdirSync(prefix, { recursive: true });
+    fs.copyFileSync(path.join(releasePath, 'native/package.json'), path.join(prefix, 'package.json'));
+    if (!fs.existsSync(modules)) fs.symlinkSync(candidateModules, modules, 'dir');
+    assert(fs.realpathSync(modules) === fs.realpathSync(candidateModules), 'Scoped smoke dependencies must use the candidate native prefix');
+  }
   const proofDir = path.join(temp, 'interactive-proof');
   const bin = path.join(temp, 'interactive-bin');
   fs.mkdirSync(proofDir); fs.mkdirSync(bin);
@@ -995,16 +1124,16 @@ export function runInteractiveIntegration({ releasePath, manifest, host, env, ag
   const ai = resolvePiHostDependency(host, '@earendil-works/pi-ai');
   const runtimeConfig = path.join(releasePath, manifest.packages.find(pkg => pkg.name === 'pi-interactive-subagents').path, 'pi-extension/subagents/runtime-config.ts');
   assert(!env.PI_SUBAGENTS_CONFIG && !env.PI_SUBAGENT_SURFACE_BACKEND, 'Interactive fixture requires sanitized runtime environment');
-  fs.writeFileSync(fixture, `import { loadRuntimeConfig } from ${JSON.stringify(runtimeConfig)};\nconst installedConfigPath = ${JSON.stringify(path.join(agentDir, 'subagents.json'))};\nimport { createAssistantMessageEventStream } from '@earendil-works/pi-ai';\nimport { streamSimple as codexStreamSimple } from ${JSON.stringify(path.join(ai, 'dist/api/openai-codex-responses.js'))};\nimport { streamSimple as openaiStreamSimple } from ${JSON.stringify(path.join(ai, 'dist/api/openai-responses.js'))};\nimport * as zlib from 'node:zlib';\nimport fixtureFs from 'node:fs';\nimport fixturePath from 'node:path';\nconst policyProfiles = ${JSON.stringify(policyProfiles)};\nconst profileContracts = ${JSON.stringify(profileContracts)};\nconst proofDir = ${JSON.stringify(proofDir)};\nexport default ${interactiveIntegrationProvider.toString()}\n`);
+  fs.writeFileSync(fixture, `import { isDeepStrictEqual } from 'node:util';\nimport { loadRuntimeConfig } from ${JSON.stringify(runtimeConfig)};\nconst installedConfigPath = ${JSON.stringify(path.join(agentDir, 'subagents.json'))};\nimport { createAssistantMessageEventStream } from '@earendil-works/pi-ai';\nimport { streamSimple as codexStreamSimple } from ${JSON.stringify(path.join(ai, 'dist/api/openai-codex-responses.js'))};\nimport { streamSimple as openaiStreamSimple } from ${JSON.stringify(path.join(ai, 'dist/api/openai-responses.js'))};\nimport * as zlib from 'node:zlib';\nimport fixtureFs from 'node:fs';\nimport fixturePath from 'node:path';\nconst policyProfiles = ${JSON.stringify(policyProfiles)};\nconst profileContracts = ${JSON.stringify(profileContracts)};\nconst discoveryNames = ${JSON.stringify(discoveryNames)};\nconst canonicalProfiles = ${JSON.stringify(canonicalProfiles)};\nconst requireScopedCapabilities = ${JSON.stringify(requireScopedCapabilities)};\nconst assertScopedProfileCapabilities = ${assertScopedProfileCapabilities.toString()};\nconst proofDir = ${JSON.stringify(proofDir)};\nexport default ${interactiveIntegrationProvider.toString()}\n`);
   const quote = value => `'${value.replaceAll("'", "'\\''")}'`;
   fs.writeFileSync(path.join(bin, 'pi'), `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(host.cli)} "$@" --no-approve --extension ${quote(fixture)}\n`, { mode: 0o700 });
   const projectAgents = path.join(cwd, '.pi/agents');
   fs.mkdirSync(projectAgents, { recursive: true });
   fs.writeFileSync(path.join(projectAgents, 'shadow-only.md'), '---\nname: shadow-only\nmodel: forbidden/network\n---\nMust not load.\n');
-  fs.writeFileSync(path.join(projectAgents, 'Explore.md'), '---\nname: Explore\nmodel: forbidden/network\n---\nMust not override installed policy.\n');
+  fs.writeFileSync(path.join(projectAgents, scopedOnly ? 'scout.md' : 'Explore.md'), '---\nname: ' + (scopedOnly ? 'scout' : 'Explore') + '\nmodel: forbidden/network\n---\nMust not override installed policy.\n');
   // Only this subprocess exercises process-backed PTYs. Installed configuration remains Herdr;
   // the injected offline provider is a test-only explicit extension, not a profile grant.
-  const run = spawnSync(process.execPath, [host.cli, '--no-approve', '--mode', 'json', '--session-dir', path.join(temp, 'interactive-parent-sessions'), '--provider', 'agent-config-fixture', '--model', 'fixture',
+  const run = spawnSync(process.execPath, [host.cli, '--no-approve', '--mode', 'json', '--session-dir', path.join(temp, 'interactive-parent-sessions'), '--provider', scopedOnly ? 'openai' : 'agent-config-fixture', '--model', scopedOnly ? 'gpt-6.1-sol' : 'fixture', ...(scopedOnly ? ['--thinking', 'medium'] : []),
     '--extension', fixture, '--no-skills', '--no-prompt-templates', '--no-context-files', '--no-themes', '-p', 'Run the deterministic interactive integration fixture.'], {
     cwd, env: { ...env, PATH: `${bin}${path.delimiter}${env.PATH}`, PI_SUBAGENT_SURFACE_BACKEND: 'process' },
     encoding: 'utf8', shell: false, timeout: 150000, maxBuffer: 16 * 1024 * 1024,
@@ -1016,7 +1145,7 @@ export function runInteractiveIntegration({ releasePath, manifest, host, env, ag
   const messages = events.filter(event => event.type === 'message_end').map(event => event.message);
   assert(!messages.some(message => message.role === 'toolResult' && message.isError), `Interactive integration tool error: ${JSON.stringify(messages.filter(message => message.role === 'toolResult' && message.isError))}`);
   assert(messages.filter(message => message.role === 'assistant').at(-1)?.content?.some(block => block.text === 'INTERACTIVE_INTEGRATION_OK'), `Interactive integration incomplete: ${JSON.stringify(messages.filter(message => message.role === 'assistant').at(-1))}`);
-  for (const [name, count] of [['subagents_list', 1], ['subagent', 5], ['subagent_cancel', 5], ['start_supervision', 1]]) {
+  for (const [name, count] of [['subagents_list', 1], ['subagent', Object.keys(profileContracts).length], ['subagent_cancel', Object.keys(profileContracts).length], ['start_supervision', 1]]) {
     assert(messages.filter(message => message.role === 'toolResult' && message.toolName === name).length === count, `Missing real ${name} executions`);
   }
   const profiles = Object.keys(profileContracts).map(role => {
@@ -1026,7 +1155,8 @@ export function runInteractiveIntegration({ releasePath, manifest, host, env, ag
   });
   assert(new Set(profiles.map(profile => profile.pid)).size === profiles.length, 'Interactive children must be separate processes');
   const configuredBackend = JSON.parse(fs.readFileSync(path.join(proofDir, 'config.json'), 'utf8')).surfaceBackend;
-  return { mode: 'official-cli-faux-model-integration', networkModelCalls: 0, profileContracts: true, childExtensionScope: true, restrictedScope: true,
+  const scopedCapabilities = requireScopedCapabilities ? JSON.parse(fs.readFileSync(path.join(proofDir, 'scoped-capabilities.json'), 'utf8')) : undefined;
+  return { scopedCapabilities, mode: 'official-cli-faux-model-integration', networkModelCalls: 0, profileContracts: true, childExtensionScope: true, restrictedScope: true,
     processEvidence: { mode: 'official-cli-tui-pty-children', configuredBackend, exercisedBackend: 'process', herdrExercised: false,
       override: 'isolated supplemental subprocess only; not Herdr integration evidence', profiles }, diagnostics: run.stderr.trim().split('\n').filter(Boolean) };
 }
@@ -1063,14 +1193,15 @@ async function runModernSmoke({ releasePath, manifest, parentEnv }) {
           'Interactive installed configuration must select Herdr without opening a viewer');
         assert(config.includeBundledAgents === false && config.allowProjectAgents === false && config.requireProfile === true,
           'Interactive installed profile discovery policy is unsafe');
-        assert(readSubagentSmokePolicy(releasePath), 'Interactive candidate profile models and thinking policy missing');
+        assert(readSubagentSmokePolicy(releasePath) || readCanonicalProfilePolicy(releasePath), 'Interactive candidate profile models and thinking policy missing');
+        readCanonicalProfilePolicy(releasePath, manifest.files?.some(file => file.path === 'agents/LICENSE.nicobailon'));
       }
       rpcEvidence = runRpc({ releasePath, manifest, host, env, agentDir, sessionDir, cwd, temp });
       assertOfficialLoaderEvidence(rpcEvidence, releasePath, manifest, agentDir);
       if (modernInteractive(manifest)) {
         const installed = JSON.parse(fs.readFileSync(path.join(agentDir, 'subagents.json'), 'utf8'));
         const effective = rpcEvidence.inspection.interactiveConfig;
-        assert(effective && Object.keys(effective).every(key => JSON.stringify(effective[key]) === JSON.stringify(installed[key])),
+        assert(effective && Object.keys(effective).every(key => isDeepStrictEqual(effective[key], installed[key])),
           'Candidate runtime did not consume the installed personal subagents configuration');
         assert(effective.surfaceBackend === 'herdr', 'Candidate runtime backend is not Herdr');
       }

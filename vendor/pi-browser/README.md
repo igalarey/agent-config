@@ -12,7 +12,26 @@ At each new session runtime, these tools are active when the Pi/tool allowlist p
 - `browser_screenshot`: capture only the fixed 1280x720 viewport as a JPEG capped at 2 MiB;
 - `browser_close`: discard the current browser/context and sensitive-action grant while leaving public browsing available.
 
-The extension registers its backing file with `pi-interactive-subagents`. Restricted children still receive only browser tool names declared by their agent profile; the extension does not widen a child's `--tools` allowlist. Public browsing is available in subagent processes rather than being disabled by `PI_SUBAGENT_*` identity markers.
+The extension registers only the five public backing paths through `globalThis[Symbol.for('pi.subagents.tool-extension-registry')].registerToolExtension(name, absoluteFile)`.
+Registration occurs during extension initialization and retries on `session_start`; no runtime entrypoint is imported.
+Retired globals are ignored.
+
+A child requires absolute `PI_SUBAGENT_SESSION`, absolute `PI_CODING_AGENT_DIR`, and matching `PI_SUBAGENT_AGENT`.
+Its bounded `${PI_SUBAGENT_SESSION}.loadout.json` must contain matching `agent` and `agentDir` plus an explicit comma-separated `toolAllowlist`.
+Null, wildcard, duplicate, malformed, or empty public-browser scopes fail closed before registration.
+Only the saved subset of the five public tools registers and activates; scope is revalidated before tool execution and activation.
+Already-active non-browser tools survive only when named in the current saved allowlist; inactive tools are never added.
+A running instance cannot expand beyond its initial browser scope.
+
+Children never register `browser_fill` or `/browser`, and sensitive actions remain disabled even with a broader saved list.
+Parent registration, commands, persistence, and authorization behavior remain unchanged.
+The existing public DNS-pinned policy is unchanged; no second URL validator or runtime was introduced.
+Missing browser dependencies fail closed; missing executables identify the unavailable browser capability.
+
+Saved scope is a harness boundary, not an OS sandbox against forged same-user files or environment variables.
+Preflight does not guarantee immutability during concurrent hostile filesystem writes or cancel an already-running operation.
+`agents/ui-verifier.md` in the harness is a local optional specialization, not an upstream canonical role.
+It restricts use to user-authorized URL verification and honest DOM/screenshot evidence, without shell or write tools.
 
 `browser_fill` is inactive by default, and `browser_click` rejects buttons/controls while it has only the automatic grant. Public anchors are followed with direct navigation so their JavaScript click handlers do not run. An interactive parent user can separately permit control clicks and fill for the current runtime with `/browser sensitive on`; `browser_close`, internal context replacement after cancellation/timeout, `/browser sensitive off`, session replacement/reload/shutdown, and `/browser off` revoke that grant. Credentials remain forbidden even after this grant.
 
@@ -80,3 +99,16 @@ PI_RUN_BROWSER_TESTS=1 npm run test:live
 ```
 
 The separate root loader fixture uses Pi's official RPC loader without opening Chrome. It verifies automatic safe-tool activation (including direct link following), sensitive-tool gating, package provenance, and `/browser off` revocation.
+
+The root source fixture uses the official SDK and existing dependencies without installation:
+
+```sh
+PI_BROWSER_DEPENDENCIES=/existing/browser/node_modules \
+PI_BROWSER_TSC=/existing/node_modules/typescript/bin/tsc \
+node --test test/fixtures/browser-source.mjs test/browser-child.test.mjs
+```
+
+Run this from the harness root.
+The fixture checks subsets, scope denial, coordination-tool preservation, parent behavior, registry retry, and missing dependencies.
+Browser operations use synthetic DOM/screenshots; proxy tests use loopback fixtures only.
+The existing real-browser test stays opt-in and is not exercised by this fixture.

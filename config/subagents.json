@@ -3,9 +3,10 @@
     "enabled": true
   },
   "delegation": {
-    "maxDepth": 1,
+    "maxDepth": 2,
     "maxConcurrentDescendants": 6,
-    "maxLaunchesPerLineage": null
+    "maxLaunchesPerLineage": null,
+    "maxConcurrentChildren": 2
   },
   "herdrViewer": {
     "enabled": false

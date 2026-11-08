@@ -263,6 +263,7 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
   const interactive = modern && readJSON(path.join(source, 'config/subagents.json')).surfaceBackend === 'herdr';
   if (withRtk) throw new Error('RTK is retired from this base');
   const operations = [], conflicts = [], tracked = { ...previous.files }, retiredResources = [];
+  const legacyProfileRestorations = new Set();
   const predecessorHashes = legacyCompatibilityHashes(source);
   let priorRelease, recovery;
   if (release && typeof previous.release === 'string' && previous.release !== release) {
@@ -290,6 +291,26 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
         && changedSettings.length === 0
         && changedResources.every(relative => orcaSkills.has(relative));
       const settingsShapeUnchanged = changedSettings.length === 0;
+      const scopedResources = new Set([
+        ...['scout.md', 'worker.md', 'reviewer.md', 'oracle.md', 'researcher.md', 'evidence-auditor.md',
+          'delegate.md', 'ui-verifier.md', 'LICENSE.nicobailon'].map(name => `.pi/agent/agents/${name}`),
+        ...['index.ts', 'policy.mjs', 'provider.ts'].map(name => `.pi/agent/extensions/research-tools/${name}`),
+      ]);
+      const permittedScopedTransition = interactive && settingsShapeUnchanged && (removed.length === 0 || added.length === 0)
+        && changedResources.length === scopedResources.size && changedResources.every(relative => scopedResources.has(relative))
+        && [priorRelease, successor].every(candidate => candidate.manifest.packages.some(pkg => pkg.name === 'pi-interactive-subagents'))
+        && fs.existsSync(path.join(prior, 'config/subagents.json'))
+        && readJSON(path.join(prior, 'config/subagents.json')).surfaceBackend === 'herdr';
+      const retiredProfiles = new Set(['Explore', 'Plan', 'general-purpose', 'deep-implementation', 'deep-review']
+        .map(name => `.pi/agent/agents/${name}.md`));
+      const permittedLegacyProfileTransition = interactive && settingsShapeUnchanged
+        && (removed.length === 0 || added.length === 0)
+        && changedResources.length === retiredProfiles.size && changedResources.every(relative => retiredProfiles.has(relative))
+        && [...scopedResources].every(relative => beforeResources.has(relative) && nextResources.has(relative))
+        && [priorRelease, successor].every(candidate => candidate.manifest.packages.some(pkg => pkg.name === 'pi-interactive-subagents'))
+        && fs.existsSync(path.join(prior, 'config/subagents.json'))
+        && readJSON(path.join(prior, 'config/subagents.json')).surfaceBackend === 'herdr';
+      if (permittedLegacyProfileTransition) for (const relative of added) legacyProfileRestorations.add(relative);
       const permittedWorkflowGuideChange = settingsShapeUnchanged
         && changedResources.every(relative => relative === '.agents/guides/task-workflow.md');
       const permittedLearningHelpers = settingsShapeUnchanged && changedResources.every(relative =>
@@ -337,9 +358,10 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
           && readJSON(path.join(after, 'manifests/packages.json')).piVersion === '1.3.0'
           && readJSON(path.join(before, 'config/pi.settings.json')).extensions === undefined
           && isDeepStrictEqual(readJSON(path.join(after, 'config/pi.settings.json')).extensions, ['-builtin:mcp']));
-      if (permittedTasksRetirement || permittedLearningHelpers || permittedOrcaShapeChange || permittedWorkflowGuideChange || permittedPromptChange || permittedCarbonShapeChange
+      if (permittedLegacyProfileTransition || permittedScopedTransition || permittedTasksRetirement || permittedLearningHelpers || permittedOrcaShapeChange || permittedWorkflowGuideChange || permittedPromptChange || permittedCarbonShapeChange
           || permittedCompatibilityShapeChange || permittedMcpShapeChange || permittedCodemodeShapeChange || permittedKnowledgeIndexChange
-          || (modern && migrateBase && changedResources.every(relative => relative.startsWith('.pi/agent/agents/')))) {
+          || (modern && migrateBase && !(interactive && changedResources.some(relative => retiredProfiles.has(relative)))
+            && changedResources.every(relative => relative.startsWith('.pi/agent/agents/')))) {
         retiredResources.push(...removed);
       } else conflicts.push('incompatible release rollback/update: managed resource or settings key set changed');
     }
@@ -348,6 +370,10 @@ export function plan({ home, source = root, withRtk = false, migratePackages = f
     const target = path.join(home, relative);
     noSymlinks(target);
     const before = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : null;
+    if (legacyProfileRestorations.has(relative) && before !== null && previous.files[relative] !== digest(before)) {
+      conflicts.push(relative);
+      return;
+    }
     if (modern && before !== null && relative.replaceAll('\\', '/').startsWith('.agents/')) return;
     if (before !== content && managed && before !== null && previous.files[relative] !== digest(before)
         && !predecessorHashes.get(relative)?.has(digest(before))) {

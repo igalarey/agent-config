@@ -13,6 +13,15 @@ Copyright (c) 2026 Vercel, Inc.; MIT. The complete notice is retained inside the
 so it is also present in installed copies. Local changes limit discovery/installation
 suggestions to explicit user requests; this is not a byte-identical upstream snapshot.
 
+## Canonical specialist profiles
+
+The seven canonical profiles in `agents/` are adapted from
+[nicobailon/pi-subagents](https://github.com/nicobailon/pi-subagents/tree/52e68e9ef0e563d5c97b28519f9999f1b5fbbbea/agents)
+at commit `52e68e9ef0e563d5c97b28519f9999f1b5fbbbea`.
+Copyright (c) 2026 Nico Bailon; MIT. `agents/LICENSE.nicobailon` retains the complete notice beside projected profiles.
+[Adaptation notes](docs/canonical-profiles.md) identify native field translations, narrower tools, fresh context, and personal catalogs.
+No upstream runtime is installed or loaded by this adaptation.
+
 ## tintinweb packages
 
 `vendor/pi-supervisor/` contains an MIT-licensed source snapshot from

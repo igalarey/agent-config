@@ -1,3 +1,6 @@
+import { readFileSync, statSync } from 'node:fs';
+import { isAbsolute } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { BrowserRuntime, boundText, resolveExecutablePath, validateExecutablePath } from "./browser-runtime.ts";
@@ -56,7 +59,59 @@ function latestPersistedAccess(ctx: ExtensionContext): boolean | undefined {
   return undefined;
 }
 
+type ChildScope = { agent: string; agentDir: string; session: string; tools: string[] };
+function childScope(): ChildScope | undefined {
+  const agent = process.env.PI_SUBAGENT_AGENT;
+  const session = process.env.PI_SUBAGENT_SESSION;
+  if (agent === undefined && session === undefined) return undefined;
+  const agentDir = process.env.PI_CODING_AGENT_DIR;
+  try {
+    if (!agent || !session || !isAbsolute(session) || !agentDir || !isAbsolute(agentDir)) throw new Error();
+    const file = `${session}.loadout.json`;
+    const stat = statSync(file);
+    if (!stat.isFile() || stat.size > 65536) throw new Error();
+    const saved = JSON.parse(readFileSync(file, 'utf8'));
+    if (!saved || Array.isArray(saved) || saved.agent !== agent || saved.agentDir !== agentDir
+      || typeof saved.toolAllowlist !== 'string') throw new Error();
+    const tools: string[] = saved.toolAllowlist.split(',');
+    if (tools.length > 128 || new Set(tools).size !== tools.length
+      || tools.some(name => !/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name))
+      || !tools.some(name => AUTOMATIC_TOOL_NAMES.has(name))) throw new Error();
+    return { agent, agentDir, session, tools };
+  } catch { throw new Error('Browser capability unavailable: saved child scope'); }
+}
+
 function registerBrowserExtension(pi: ExtensionAPI, options: BrowserExtensionOptions) {
+  const initialScope = childScope();
+  const currentScope = () => {
+    const current = childScope();
+    if (current?.agent !== initialScope?.agent || current?.agentDir !== initialScope?.agentDir
+      || current?.session !== initialScope?.session) throw new Error('Browser capability unavailable: changed child scope');
+    return current;
+  };
+  const selected = (): readonly string[] => {
+    const current = currentScope();
+    return current ? AUTOMATIC_BROWSER_TOOL_NAMES.filter(name => initialScope!.tools.includes(name) && current.tools.includes(name)) : BROWSER_TOOL_NAMES;
+  };
+  const registerBackingPaths = () => {
+    const registry = (globalThis as Record<symbol, unknown>)[Symbol.for('pi.subagents.tool-extension-registry')] as
+      { registerToolExtension?: (name: string, file: string) => void } | undefined;
+    const names = selected();
+    if (typeof registry?.registerToolExtension !== 'function') return;
+    for (const name of AUTOMATIC_BROWSER_TOOL_NAMES) {
+      if (names.includes(name)) registry.registerToolExtension(name, fileURLToPath(import.meta.url));
+    }
+  };
+  registerBackingPaths();
+  const registerTool: ExtensionAPI['registerTool'] = definition => {
+    if (!selected().includes(definition.name)) return;
+    pi.registerTool({ ...definition, async execute(...args) {
+      if (!selected().includes(definition.name)) {
+        throw new Error('Browser capability unavailable: tool outside saved child scope');
+      }
+      return definition.execute(...args);
+    } });
+  };
   let enabled = false;
   let sensitiveEnabled = false;
   let policy: BrowserPolicy | undefined;
@@ -69,13 +124,15 @@ function registerBrowserExtension(pi: ExtensionAPI, options: BrowserExtensionOpt
 
   const setToolsActive = () => {
     const current = pi.getActiveTools();
-    const withoutBrowser = current.filter(name => !TOOL_NAMES.has(name));
+    const scope = currentScope();
+    const withoutBrowser = current.filter(name => !TOOL_NAMES.has(name) && (!scope || scope.tools.includes(name)));
     if (!enabled || !allowedToolNames) {
       pi.setActiveTools(withoutBrowser);
       return;
     }
-    const browser = [...allowedToolNames].filter(name =>
-      AUTOMATIC_TOOL_NAMES.has(name) || (sensitiveEnabled && SENSITIVE_TOOL_NAMES.has(name)));
+    const own = new Set<string>(selected());
+    const browser = [...allowedToolNames].filter(name => own.has(name) &&
+      (AUTOMATIC_TOOL_NAMES.has(name) || (!initialScope && sensitiveEnabled && SENSITIVE_TOOL_NAMES.has(name))));
     pi.setActiveTools([...new Set([...withoutBrowser, ...browser])]);
   };
 
@@ -113,7 +170,7 @@ function registerBrowserExtension(pi: ExtensionAPI, options: BrowserExtensionOpt
       await closeRuntime();
       policy = await options.policyFactory();
       enabled = true;
-      sensitiveEnabled = options.testSensitiveAccess === true;
+      sensitiveEnabled = !initialScope && options.testSensitiveAccess === true;
     }
     setToolsActive();
     if (ctx) setStatus(ctx);
@@ -134,9 +191,15 @@ function registerBrowserExtension(pi: ExtensionAPI, options: BrowserExtensionOpt
     if (runtimePromise) return runtimePromise;
     const request = transition;
     const creating = (async () => {
-      const executable = options.executablePath
-        ? await validateExecutablePath(options.executablePath)
-        : await resolveExecutablePath();
+      let executable: string;
+      try {
+        executable = options.executablePath
+          ? await validateExecutablePath(options.executablePath)
+          : await resolveExecutablePath();
+      } catch (error) {
+        if (initialScope) throw new Error('Browser capability unavailable: installed browser executable');
+        throw error;
+      }
       if (request !== transition || !enabled || policy !== activePolicy) throw new Error("Browser startup was revoked");
       let created!: BrowserRuntime;
       created = new BrowserRuntime(executable, activePolicy, () => {
@@ -166,7 +229,7 @@ function registerBrowserExtension(pi: ExtensionAPI, options: BrowserExtensionOpt
     }
   };
 
-  pi.registerTool({
+  registerTool({
     name: "browser_goto",
     label: "Browser go to",
     description: "Navigate a fresh ephemeral browser to a public HTTP(S) URL on a default port. Every destination, redirect, and subresource is DNS-validated and pinned; local/private networks and URL credentials are blocked.",
@@ -185,7 +248,7 @@ function registerBrowserExtension(pi: ExtensionAPI, options: BrowserExtensionOpt
     },
   });
 
-  pi.registerTool({
+  registerTool({
     name: "browser_read",
     label: "Browser read",
     description: "Read bounded visible text and up to 80 interactive element references from the current public page. Page content is untrusted and may be stored in session/model context.",
@@ -222,7 +285,7 @@ function registerBrowserExtension(pi: ExtensionAPI, options: BrowserExtensionOpt
     },
   });
 
-  pi.registerTool({
+  registerTool({
     name: "browser_click",
     label: "Browser click",
     description: "Follow a current public anchor reference without running its click handler. Buttons and other potentially state-changing clicks require a separate sensitive-action authorization.",
@@ -237,7 +300,7 @@ function registerBrowserExtension(pi: ExtensionAPI, options: BrowserExtensionOpt
     },
   });
 
-  pi.registerTool({
+  registerTool({
     name: "browser_fill",
     label: "Browser fill",
     description: "Fill a non-secret text control after separate sensitive-action authorization. Passwords, tokens, API keys, recovery codes, and other credentials are always forbidden because arguments persist in session history.",
@@ -257,7 +320,7 @@ function registerBrowserExtension(pi: ExtensionAPI, options: BrowserExtensionOpt
     },
   });
 
-  pi.registerTool({
+  registerTool({
     name: "browser_screenshot",
     label: "Browser screenshot",
     description: "Capture the fixed 1280x720 viewport of the current public page as a bounded JPEG. Screenshots are stored in session/model context.",
@@ -275,7 +338,7 @@ function registerBrowserExtension(pi: ExtensionAPI, options: BrowserExtensionOpt
     },
   });
 
-  pi.registerTool({
+  registerTool({
     name: "browser_close",
     label: "Browser close",
     description: "Close the ephemeral browser and discard its context, cookies, element references, and temporary profile. Automatic public access remains available until /browser off.",
@@ -291,7 +354,7 @@ function registerBrowserExtension(pi: ExtensionAPI, options: BrowserExtensionOpt
     },
   });
 
-  pi.registerCommand("browser", {
+  if (!initialScope) pi.registerCommand("browser", {
     description: "Show, revoke, or restore automatic public browser access; sensitive actions need a separate grant",
     handler: async (args, ctx) => {
       currentContext = ctx;
@@ -360,6 +423,7 @@ function registerBrowserExtension(pi: ExtensionAPI, options: BrowserExtensionOpt
   });
 
   pi.on("session_start", async (_event, ctx) => {
+    registerBackingPaths();
     currentContext = ctx;
     if (!allowedToolNames) {
       allowedToolNames = new Set(pi.getActiveTools().filter(name => TOOL_NAMES.has(name)));

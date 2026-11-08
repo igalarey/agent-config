@@ -8,12 +8,12 @@ import { args, plan, execute, readJSON, root } from '../scripts/install.mjs';
 import { dependencyInstalled, inspect, runtimeDependencyNames } from '../scripts/doctor.mjs';
 
 test('base profiles inherit instructions and disable nested delegation', () => {
-  for (const name of ['general-purpose', 'Explore', 'Plan']) {
+  for (const name of ['worker', 'scout', 'oracle']) {
     const profile = fs.readFileSync(path.join(root, `agents/${name}.md`), 'utf8');
     assert.match(profile, /prompt_mode: append/);
     assert.match(profile, /allowed_subagents: none/);
     assert.doesNotMatch(profile, /subagent_agents:/);
-    if (name === 'Plan') assert.match(profile, /extensions: false/);
+    assert.match(profile, /extensions: scoped/);
   }
 });
 
@@ -214,11 +214,11 @@ test('legacy planner fixture is idempotent and preserves profiles and source', t
   ]) {
     assert.equal(fs.readFileSync(path.join(home, '.pi/agent', relative), 'utf8'), fs.readFileSync(path.join(root, relative), 'utf8'));
   }
-  const generalPurpose = fs.readFileSync(path.join(home, '.pi/agent/agents/general-purpose.md'), 'utf8');
-  const explore = fs.readFileSync(path.join(home, '.pi/agent/agents/Explore.md'), 'utf8');
-  assert.match(generalPurpose, /prompt_mode: append/);
-  assert.match(generalPurpose, /thinking: high/);
-  assert.match(explore, /thinking: low/);
+  const worker = fs.readFileSync(path.join(home, '.pi/agent/agents/worker.md'), 'utf8');
+  const scout = fs.readFileSync(path.join(home, '.pi/agent/agents/scout.md'), 'utf8');
+  assert.match(worker, /prompt_mode: append/);
+  assert.match(worker, /thinking: high/);
+  assert.match(scout, /thinking: low/);
   assert.equal(fs.readFileSync(path.join(home, '.agents/SYSTEM.md'), 'utf8'), fs.readFileSync(path.join(root, 'SYSTEM.md'), 'utf8'));
   assert.ok(!installedSettings.packages.some(entry => (typeof entry === 'string' ? entry : entry.source).startsWith('npm:bigpowers')));
   for (const skill of ['pdf-reader', 'youtube-transcript', 'analyze-sessions']) {
@@ -252,6 +252,9 @@ test('historical tintinweb migration backs up legacy package, profiles and RTK',
   const home = sandbox(t), source = sandbox(t);
   for (const entry of ['SYSTEM.md', 'guides', 'skills', 'agents', 'config', 'manifests']) {
     fs.cpSync(path.join(root, entry), path.join(source, entry), { recursive: true });
+  }
+  for (const name of ['scout.md', 'worker.md', 'reviewer.md', 'oracle.md', 'researcher.md', 'evidence-auditor.md', 'delegate.md', 'LICENSE.nicobailon']) {
+    fs.rmSync(path.join(source, 'agents', name));
   }
   put(source, 'config/subagents.json', JSON.stringify({ maxSubagentDepth: 1, worktreeIsolation: false }));
   put(home, rtkHook, 'legacy hook');
@@ -352,7 +355,7 @@ test('existing shared SYSTEM is preserved rather than silently replaced', t => {
 test('modified managed files conflict on reinstall', t => {
   const home = sandbox(t);
   execute(plan({ home }));
-  put(home, '.pi/agent/agents/general-purpose.md', 'local changes');
+  put(home, '.pi/agent/agents/worker.md', 'local changes');
   assert.ok(plan({ home }).conflicts.length > 0);
 });
 test('unmanaged prompt templates conflict instead of being overwritten', t => {
@@ -373,11 +376,11 @@ test('a new source version updates tracked files and backs them up', t => {
   const manifest = readJSON(path.join(source, 'manifests/packages.json'));
   for (const pkg of manifest.packages) pkg.path = path.join(root, pkg.path);
   fs.writeFileSync(path.join(source, 'manifests/packages.json'), JSON.stringify(manifest));
-  fs.appendFileSync(path.join(source, 'agents/general-purpose.md'), '\nUpdated source\n');
+  fs.appendFileSync(path.join(source, 'agents/worker.md'), '\nUpdated source\n');
   const result = plan({ home, source });
   assert.equal(result.conflicts.length, 0);
   execute(result);
-  assert.match(fs.readFileSync(path.join(home, '.pi/agent/agents/general-purpose.md'), 'utf8'), /Updated source/);
+  assert.match(fs.readFileSync(path.join(home, '.pi/agent/agents/worker.md'), 'utf8'), /Updated source/);
   assert.equal(plan({ home, source }).operations.length, 0);
 });
 test('malformed settings and incorrect package types fail without writes', t => {
@@ -517,11 +520,11 @@ test('broken destination junctions are refused too', t => {
   assert.equal(fs.existsSync(missing), false);
 });
 test('implementation profile grants only explicit local tools', () => {
-  const profile = fs.readFileSync(path.join(root, 'agents/general-purpose.md'), 'utf8');
+  const profile = fs.readFileSync(path.join(root, 'agents/worker.md'), 'utf8');
   assert.match(profile, /tools: read, grep, find, ls, bash, edit, write\n/);
   assert.doesNotMatch(profile, /ext:|tools: "\*"/);
   assert.match(profile, /model: openai\/gpt-6\.1-sol\nthinking: high\n/);
-  assert.match(profile, /extensions: false\n/);
+  assert.match(profile, /extensions: scoped\n/);
 });
 
 test('retired Orca skills are absent while find-skills remains independent', () => {

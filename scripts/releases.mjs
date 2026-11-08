@@ -5,7 +5,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { verificationEnvironment } from './verify-env.mjs';
-import { modernInteractive, runRuntimeSmoke } from './runtime-smoke.mjs';
+import { assertScopedProfileCapabilities, modernInteractive, runRuntimeSmoke } from './runtime-smoke.mjs';
 import { validateCuratedAdaptations } from './harness-compatibility.mjs';
 
 const SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i;
@@ -701,6 +701,13 @@ function expectedVerificationIds(manifest) {
 const LEGACY_RUNTIME_VERIFICATION_IDS = ['runtime:host', 'runtime:loader', 'runtime:tools', 'runtime:process-only', 'runtime:rpc'];
 function modernBase(manifest) { return manifest.packages.some(pkg => pkg.name === '@tintinweb/pi-subagents'); }
 function supplementalMode(manifest) { return modernBase(manifest) || modernInteractive(manifest) ? 'official-cli-faux-model-integration' : 'mock-host-api-direct-tool-execution'; }
+function requireScopedEvidence(manifest, checks) {
+  if (!manifest.files.some(file => file.path === 'agents/LICENSE.nicobailon')) return;
+  const evidence = checks?.find(check => check.id === 'runtime:supplemental-tool-execution')?.details?.scopedCapabilities;
+  if (evidence?.version !== 1) throw new Error('Missing mandatory scoped capability evidence');
+  assertScopedProfileCapabilities(evidence.agents, evidence.markers);
+}
+
 function expectedRuntimeVerificationIds() {
   return ['runtime:host', 'runtime:loader', 'runtime:supplemental-tool-execution', 'runtime:process-only', 'runtime:rpc'];
 }
@@ -827,6 +834,7 @@ export function validateRelease({ home, id, requireDependencies = false, require
     } else {
       const host = verification.host;
       const loader = verification.loader;
+      requireScopedEvidence(manifest, verification.runtimeChecks);
       const runner = verification.runner;
       const runnerFiles = runner?.files;
       const runtimeCheckIds = verification.runtimeChecks?.map(item => item.id);
@@ -1074,6 +1082,8 @@ export function verifyRelease({ home, id, apply = false, runChecks, runRuntimeCh
   const invalidateRuntimeCheck = (checkId, reason) => {
     runtimeChecks = runtimeChecks.map(item => item.id === checkId ? { ...item, ok: false, reason } : item);
   };
+  try { requireScopedEvidence(candidate.manifest, runtimeChecks); }
+  catch (error) { invalidateRuntimeCheck('runtime:supplemental-tool-execution', error.message); }
   const host = smoke?.host;
   if (host?.package !== '@earendil-works/pi-coding-agent' || host?.version !== candidate.manifest.piVersion
       || !validContentHash(host?.packageSha256) || !validContentHash(host?.executableSha256) || !validContentHash(host?.cliSha256)) {

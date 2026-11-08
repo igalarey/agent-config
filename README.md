@@ -1,9 +1,18 @@
 # agent-config
 
-Reproducible global configuration and installer for [Pi](https://pi.dev).
+Global configuration and installer for [Pi](https://pi.dev).
 This repository is the installation entry point. Native npm packages use Pi's normal
-package manager and settings syntax, with locked dependencies for reproducible bootstrap.
+package manager and settings syntax, with locked dependencies for release preparation.
 Do not register a second copy of the same package.
+
+## Public snapshot status
+
+This sanitized branch preserves the locally verified source and recipe without the private development commit history.
+The current recipe retains verified local source commits that are **not all published**.
+A fresh public clone cannot reproduce that recipe yet. The source hashes remain unchanged as evidence, not as new public release pins.
+A **new reproducible release** requires published source commits, candidate preparation, full verification, and an explicit recipe update.
+That release work remains pending. This snapshot does not change the existing installation or certify a new candidate.
+The installation commands describe the workflow once all required source commits are available.
 
 ## Base
 
@@ -30,7 +39,9 @@ Carbon, Learning, prompt templates, and skills are separate resources, not extra
 **Tasks, RTK and the tintinweb subagent runtime are retired.**
 Each interactive child runs Pi in a native Herdr pane, with a separate coordination mailbox.
 Bundled worker/scout/researcher profiles and the external viewer are disabled.
-The five existing local profiles remain active. Nicobailon profile migration is separate work.
+The activated installation contains nine active profiles: eight scoped specialists plus the separately owned project-worker profile.
+The five legacy profiles are retired. See the [retirement receipt](docs/scoped-source-verification.md#five-profile-retirement-activation-receipt).
+The [current activation receipt](docs/scoped-source-verification.md#sqlite-lineage-mutex-activation-receipt) records the verified SQLite release, preservation checks, and evidence limits.
 
 Shared instructions, guides and skills are projected into `~/.agents`. Curated skills
 from `pi-skills/` go to `~/.pi/agent/skills`. The nine active curated skills are
@@ -75,7 +86,7 @@ inside this repository. Its revision is in `manifests/tintinweb.json`.
 `manifests/active-release.json` pins the harness, subagents and memory commits.
 Bootstrap fetches Subagents from `igalarey/pi-interactive-subagents` and memory from `igalarey/pi-observational-memory`.
 Unpublished local revisions require the local source map described below.
-Publish the pinned commits to those repositories before publishing a recipe that uses them.
+For a new reproducible release, publish its reviewed source commits before publishing the recipe that uses them.
 
 No extra development clones are needed. Sources are cached under
 `~/.agent-config/sources`; verified runtime packages live in `~/.agent-config/releases`.
@@ -91,7 +102,7 @@ npm run doctor
 ```
 
 For the Herdr migration, `--migrate-base` removes tintinweb package registrations and the Pi RTK hook.
-It preserves private agent profiles, including files outside the five managed profiles.
+It preserves private agent profiles, including files outside the managed profile set.
 It backs up exact originals before replacement/removal. It does not delete sessions,
 memories, credentials, unrelated extensions, or a shared RTK executable/configuration.
 Backups are private under `~/.agent-config/backups`.
@@ -166,7 +177,7 @@ Do not delete pending proposals or ownership markers to bypass a refusal.
 | `archive/` | Source-only retired skills, exact provenance snapshot and restoration instructions; not released or installed |
 | `config/HARNESS-AUTHORITY.md` | Component responsibilities and configuration authority |
 | `scripts/verify-compatibility.mjs` | Check the generated inventory against the active release |
-| `agents/` | Five model/tool profiles and an inactive historical Luna priority hook |
+| `agents/` | Seven canonical specialists, local UI verifier, and an inactive historical Luna priority hook |
 | `prompts/` | Five global Pi prompt templates installed by filename |
 | `SYSTEM.md`, `guides/`, `skills/` | Defaults for new shared instruction/skill resources |
 
@@ -197,22 +208,32 @@ See the [footer options](vendor/pi-subscription-usage/README.md) for layout deta
 
 ### Subagent profiles
 
-Astra remains the parent default. Profiles inherit instructions, not the parent's model:
+The activated managed release includes seven [canonical specialists](docs/canonical-profiles.md) and the local `ui-verifier`.
+They use scoped extensions, explicit tool lists, selective personal skill catalogs, and no nested delegation.
+Research roles receive four bounded research tools; `ui-verifier` receives five public browser tools without filling or sensitive actions.
+Delegate inherits the parent model; the other seven use Sol with profile-specific reasoning.
+See the [activation receipt and verification limits](docs/scoped-source-verification.md).
+The existing parent Pi session needs a restart to load the new runtime.
+Live auth, browser, and quota behavior remain unverified.
+
+The verified activation removed `Explore`, `Plan`, `general-purpose`, `deep-implementation`, and `deep-review` from managed installation.
+Their historical test fixtures and prior session histories are not renamed or migrated to different models.
 
 | Profile | Model / reasoning | Local tools | Turn default |
 | --- | --- | --- | --- |
-| Explore | `gpt-6.1-sol` low | read, grep, find, ls | 20 |
-| general-purpose | `gpt-6.1-sol` high | Above plus bash, edit, write | 30 |
-| Plan | `gpt-6-astra` low | Read/search only | 30 |
-| deep-implementation | `gpt-6-astra` medium | Read/search plus bash, edit, write | 40 |
-| deep-review | `gpt-6.1-sol` medium | Read/search only | 30 |
+| scout | `openai/gpt-6.1-sol` low | Read/search | 20 |
+| worker | `openai/gpt-6.1-sol` high | Read/search, bash, edit, write | 30 |
+| reviewer, oracle | `openai/gpt-6.1-sol` high | Read/search | 30 |
+| researcher | `openai/gpt-6.1-sol` medium | Read/search, bounded research tools | 30 |
+| evidence-auditor | `openai/gpt-6.1-sol` high | Read/search, bounded research tools | 30 |
+| ui-verifier | `openai/gpt-6.1-sol` medium | Read/search, public browser tools | 20 |
+| delegate | Inherits caller model and reasoning | Read/search, bash, edit, write | 20 |
 
-All profiles use the `openai` provider. The parent default is `gpt-6-astra`.
-Memory workers also use `openai`, with `gpt-6-luna` and high reasoning.
-The legacy `openai-codex` connection is not used by these defaults.
+Astra remains the parent default, not an implicit specialist upgrade. Delegate explicitly inherits its caller's model and reasoning without widening tools.
+Memory workers remain `openai/gpt-6-luna` with high reasoning.
 Read-only profiles cannot run `git diff`; include the diff in a review prompt.
+The separately installed project-worker profile and symlinks remain coordinator-owned.
 
-All five profiles set `extensions: false`. They request no priority service tier.
 `agents/luna-fast.mjs` remains unchanged and inactive for compatibility with historical resources.
 
 Historical Luna profiles explicitly load that hook to request `service_tier: priority` only for Codex Luna.
@@ -223,8 +244,7 @@ Local token-price estimates are not subscription usage.
 The runtime smoke selects policy from profile content, not the hook's presence.
 It verifies each profile's configured reasoning level and retains historical policy checks.
 
-Children do not load MCP, browser, web, task, supervisor or memory tools. Skill discovery
-is off, but inherited parent instructions can still contain skill descriptions. Fresh
+Scoped children receive only their explicit tools and selective personal catalogs, not ambient MCP, task, supervisor, or memory extensions. Fresh
 conversation context is the upstream default; send only the task's necessary context.
 External operations and decisions belong to the parent. A child can return a `capability_request`
 for a skill, prompt, extension, delegation or turn budget. The coordinator checks the evidence and decides.
@@ -232,16 +252,29 @@ This is a result convention, not a live parent-call tool. It does not remove con
 The coordinator supplies relevant procedures when it delegates and can resume a blocked child.
 Bash remains capable of external access. These tool scopes and prompt instructions are not an OS sandbox.
 
-The installed policy requires a named global profile and disables project and bundled profiles.
-It limits delegation to one level and six concurrent descendants per lineage.
+The managed policy requires a named global profile and disables project and bundled profiles.
+The activated managed policy permits depth two, six concurrent descendants per lineage, and two children per parent.
+Canonical specialists and the UI verifier remain non-delegating leaves.
 All children are separate interactive processes. There is no separate foreground pool.
 Profiles use `auto-exit: true` to return completed tasks automatically and close their panes.
 Direct user interaction can keep a child open. A follow-up resumes its saved session in a new process.
 Turn limits stop incomplete work and remain in the saved resume policy.
 A resumed process receives a new turn budget. These limits are not spending quotas.
 
+The [verified SQLite lineage mutex release](docs/scoped-source-verification.md#sqlite-lineage-mutex-activation-receipt) is activated.
+It fixes the demonstrated crash-held mutex mechanism. The exact historical cancellation incident remains unattributed.
+SQLite provides the mutex, not the accounting store. The JSON ledger remains authoritative after process death.
+Only the root can initialize the permanent protocol fence. Interrupted initialization fails closed, without automatic repair.
+The fence prevents older runtimes from entering the same ledger. Transparent in-flight rollback is unsupported.
+Do not delete the fence or database to force a downgrade. After all owning processes stop, back up the ledger and complete fence together.
+The mutex requires a local filesystem with SQLite locking support. Windows, network filesystems, and power-loss durability remain unverified.
+
 `config/subagents.json` is installed as `~/.pi/agent/subagents.json`.
 `surfaceBackend: "herdr"` selects native panels without a shell startup change.
+The current runtime retains [Herdr widget suppression](docs/scoped-source-verification.md#historical-widget-successor-activation-receipt) only for the redundant subagent-status widget under the native pane backend.
+The process backend retains its widget; coordination controls remain available.
+Current Pi processes need a restart; unit/runtime checks passed, but a fresh visual Herdr-widget screenshot is still pending.
+Herdr's personal sidebar and native app grid are separate from this change.
 `PI_SUBAGENT_SURFACE_BACKEND=process` explicitly selects the process backend for isolated tests.
 Project configuration cannot enable this backend or expand the installed policy.
 
@@ -374,11 +407,9 @@ from exact commits, then `deps`, `verify`, `plan` and `apply` with `--release <i
 Commit source changes before preparing, update the recipe after verification, and publish
 only reviewed commits. Do not update Pi or floating package branches blindly.
 
-The published history starts from the current harness baseline. Each release pin commit
-follows the harness commit that its recipe references by exact hash, so both are required. Earlier Git history is retained in a private external recovery bundle, not
-in published `main`. Existing clones must not merge the previous history back into this
-branch; use a fresh clone and preserve any local work separately. Historical commit links
-in migration notes refer to that archive.
+This public branch extends the existing published history with a sanitized source snapshot, not the intervening private development commits.
+Historical source and recipe hashes record local verification. Their presence in documentation does not make those Git objects publicly available.
+Do not merge private development history into the public branch. Publish only reviewed snapshots and independently verified release recipes.
 
 Sealed releases are never modified. Releases other than the active one may be deleted
 to reclaim disk space; recovery then requires rebuilding the old commit. This migration is not a promise of automatic reverse

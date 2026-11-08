@@ -349,9 +349,7 @@ test('browser_read preserves runtime truncation under an explicit source-fixture
 test('browser ignores retired subagent globals and preserves public-only activation', async () => {
   const registered = [];
   const previousRegistry = globalThis.__pi_interactive_subagents;
-  const previousIdentity = process.env.PI_SUBAGENT_AGENT;
   globalThis.__pi_interactive_subagents = { registerToolExtension: (name, extensionPath) => registered.push([name, extensionPath]) };
-  process.env.PI_SUBAGENT_AGENT = 'researcher';
   try {
     const fixture = fakeApi();
     browserExtension(fixture.api);
@@ -363,7 +361,104 @@ test('browser ignores retired subagent globals and preserves public-only activat
   } finally {
     if (previousRegistry === undefined) delete globalThis.__pi_interactive_subagents;
     else globalThis.__pi_interactive_subagents = previousRegistry;
-    if (previousIdentity === undefined) delete process.env.PI_SUBAGENT_AGENT;
-    else process.env.PI_SUBAGENT_AGENT = previousIdentity;
   }
+});
+
+function childScope(t, tools) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-child-'));
+  const previous = { ...process.env };
+  process.env.PI_CODING_AGENT_DIR = path.join(directory, 'agent');
+  process.env.PI_SUBAGENT_AGENT = 'ui-verifier';
+  process.env.PI_SUBAGENT_SESSION = path.join(directory, 'session.jsonl');
+  const file = process.env.PI_SUBAGENT_SESSION + '.loadout.json';
+  const saved = { agent: 'ui-verifier', agentDir: process.env.PI_CODING_AGENT_DIR, toolAllowlist: tools.join(',') };
+  fs.writeFileSync(file, JSON.stringify(saved));
+  t.after(() => {
+    for (const key of ['PI_CODING_AGENT_DIR', 'PI_SUBAGENT_AGENT', 'PI_SUBAGENT_SESSION']) {
+      if (previous[key] === undefined) delete process.env[key]; else process.env[key] = previous[key];
+    }
+    fs.rmSync(directory, { recursive: true, force: true });
+  });
+  return { file, saved };
+}
+
+test('native Symbol registry receives only public backing paths, including late runtime loading', async t => {
+  const key = Symbol.for('pi.subagents.tool-extension-registry');
+  const previous = globalThis[key];
+  t.after(() => { if (previous === undefined) delete globalThis[key]; else globalThis[key] = previous; });
+  delete globalThis[key];
+  const fixture = fakeApi(); browserExtension(fixture.api);
+  const bindings = new Map();
+  globalThis[key] = { registerToolExtension: (name, file) => bindings.set(name, file) };
+  await fixture.events.get('session_start')({}, fakeContext(fixture).ctx);
+  assert.deepEqual([...bindings.keys()], [...AUTOMATIC_BROWSER_TOOL_NAMES]);
+  assert.ok([...bindings.values()].every(file => file === path.join(root, 'index.ts')));
+  bindings.clear(); browserExtension(fakeApi().api);
+  assert.deepEqual([...bindings.keys()], [...AUTOMATIC_BROWSER_TOOL_NAMES]);
+});
+
+test('restricted browser executes only its saved subset without sensitive actions or activation widening', async t => {
+  const names = ['browser_read', 'browser_click', 'browser_screenshot', 'browser_close'];
+  const { file, saved } = childScope(t, ['read', 'ask_question', 'subagent_done', 'independent', 'inactive', ...names, 'browser_fill']);
+  const executable = await withExecutable(t);
+  const originals = Object.fromEntries(['read', 'click', 'screenshot'].map(name => [name, BrowserRuntime.prototype[name]]));
+  t.after(() => { Object.assign(BrowserRuntime.prototype, originals); });
+  let executions = 0;
+  BrowserRuntime.prototype.read = async () => { executions++; return { url: 'https://example.org', title: 'Fixture', text: 'Synthetic DOM evidence', elements: ['e1 anchor'], truncated: false }; };
+  BrowserRuntime.prototype.click = async (_ref, sensitive) => { assert.equal(sensitive, false); executions++; return { url: 'https://example.org/next', title: 'Fixture' }; };
+  BrowserRuntime.prototype.screenshot = async () => { executions++; return { summary: { url: 'https://example.org', title: 'Fixture' }, data: Buffer.from('synthetic screenshot') }; };
+  const fixture = fakeApi();
+  fixture.api.setActiveTools(['read', 'ask_question', 'subagent_done', 'independent', 'ambient', ...BROWSER_TOOL_NAMES]);
+  testExtension(executable)(fixture.api);
+  assert.deepEqual([...fixture.tools.keys()].sort(), names.slice().sort());
+  assert.equal(fixture.commands.size, 0);
+  const ui = fakeContext(fixture);
+  await fixture.events.get('session_start')({}, ui.ctx);
+  assert.deepEqual(fixture.active().sort(), ['read', 'ask_question', 'subagent_done', 'independent', ...names].sort());
+  const invoke = (name, args = {}) => fixture.tools.get(name).execute('child', args, undefined, undefined, ui.ctx);
+  assert.match((await invoke('browser_read')).content[0].text, /Synthetic DOM evidence/);
+  await invoke('browser_click', { ref: 'e1' });
+  assert.equal((await invoke('browser_screenshot')).content[1].data, Buffer.from('synthetic screenshot').toString('base64'));
+  await invoke('browser_close');
+  assert.equal(executions, 3);
+  fs.writeFileSync(file, JSON.stringify({ ...saved, toolAllowlist: 'read,browser_close,browser_goto' }));
+  await assert.rejects(() => invoke('browser_read'), /scope/i);
+  await invoke('browser_close');
+  assert.deepEqual(fixture.active(), ['read', 'browser_close']);
+  assert.equal(fixture.tools.has('browser_goto'), false);
+});
+
+test('restricted browser rejects malformed scope before registration and fails closed on missing executable', async t => {
+  const { file, saved } = childScope(t, ['browser_read']);
+  for (const value of [null, [], { ...saved, agent: 'other' }, { ...saved, agentDir: '/' },
+    { ...saved, toolAllowlist: null }, { ...saved, toolAllowlist: '*' }, { ...saved, toolAllowlist: 'browser_fill' },
+    { ...saved, toolAllowlist: 'browser_read,,read' }, { ...saved, padding: 'x'.repeat(65536) }]) {
+    fs.writeFileSync(file, JSON.stringify(value));
+    const fixture = fakeApi();
+    assert.throws(() => browserExtension(fixture.api), /scope/i);
+    assert.equal(fixture.tools.size, 0);
+  }
+  fs.writeFileSync(file, JSON.stringify(saved));
+  const fixture = fakeApi();
+  createTestBrowserExtension({ executablePath: path.join(path.dirname(file), 'absent-browser'), origins: ['http://localhost:3456'] })(fixture.api);
+  const ctx = fakeContext(fixture).ctx;
+  await fixture.events.get('session_start')({}, ctx);
+  await assert.rejects(() => fixture.tools.get('browser_read').execute('missing', {}, undefined, undefined, ctx), /browser.*executable/i);
+});
+
+test('official SDK loads exact child subset and executes browser_close without browser startup', async t => {
+  const { file } = childScope(t, ['read', 'ask_question', 'browser_close']);
+  const loaded = await discoverAndLoadExtensions([path.join(root, 'index.ts')], path.dirname(file), process.env.PI_CODING_AGENT_DIR);
+  assert.deepEqual(loaded.errors, []);
+  const ext = loaded.extensions[0];
+  assert.deepEqual([...ext.tools.keys()], ['browser_close']);
+  assert.equal(ext.commands.size, 0);
+  let active = ['read', 'ask_question', 'browser_close', 'browser_fill'];
+  loaded.runtime.getActiveTools = () => active;
+  loaded.runtime.setActiveTools = names => { active = names; };
+  const ctx = fakeContext(fakeApi()).ctx;
+  for (const handler of ext.handlers.get('session_start') ?? []) await handler({}, ctx);
+  const result = await ext.tools.get('browser_close').definition.execute('sdk', {}, undefined, undefined, ctx);
+  assert.match(result.content[0].text, /Closed the ephemeral/);
+  assert.deepEqual(active, ['read', 'ask_question', 'browser_close']);
 });

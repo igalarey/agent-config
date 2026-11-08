@@ -1346,6 +1346,238 @@ test('Orca skill retirement requires explicit opt-in, unchanged hashes, and crea
   for (const name of names) assert.equal(fs.readFileSync(path.join(home, `.agents/skills/${name}/SKILL.md`), 'utf8'), `retire ${name}\n`);
 });
 
+function scopedFixtureVerifier(home, harness, roles) {
+  return candidate => {
+    dependencies(home, candidate.id);
+    const runtime = runtimeSmoke('1.5.0');
+    runtime.supplemental.mode = 'official-cli-faux-model-integration';
+    if (fs.existsSync(path.join(harness, 'agents/LICENSE.nicobailon'))) {
+      const agents = roles.map(name => {
+        const fields = Object.fromEntries(fs.readFileSync(path.join(harness, `agents/${name}.md`), 'utf8').split('---')[1].trim().split('\n').map(line => {
+          const i = line.indexOf(':'); return [line.slice(0, i), line.slice(i + 1).trim()];
+        }));
+        const tools = fields.tools.split(', ');
+        return { name, model: fields.model, thinking: fields.thinking, maxTurns: Number(fields.max_turns),
+          tools: fields.tools, skillCatalog: fields.skill_catalog, extensionPolicy: 'scoped', subagentAgents: [],
+          capabilities: { restricted: true, runtime: 'pi', tools: [...tools, 'ask_question'], missingExtensions: [],
+            extensionBackedTools: tools.filter(tool => /^(?:web_search|fetch_content|get_search_content|source_check|browser_)/.test(tool)),
+            skills: [], spawnable: [], skillCatalog: fields.skill_catalog.split(', ') } };
+      });
+      runtime.results.find(item => item.id === 'runtime:supplemental-tool-execution').details = { scopedCapabilities: {
+        version: 1, agents, markers: { version: 1, personalSkillCatalog: true, perParentChildLimit: true,
+          persistedExtensionBindings: true, scopedExtensionProfiles: true } } };
+    }
+    assert.equal(verifyRelease({ home, id: candidate.id, apply: true, runChecks: () => ({ ok: true }),
+      runRuntimeChecks: () => runtime, runCompositionChecks: () => ({ ok: true }) }).passed, true);
+  };
+}
+
+test('verified scoped profile and research migration accepts only the exact forward and inverse resource transitions', t => {
+  const home = temporary(t), source = fixture(t), harness = source.repositories.harness;
+  const root = path.resolve(import.meta.dirname, '..');
+  const roles = ['scout', 'worker', 'reviewer', 'oracle', 'researcher', 'evidence-auditor', 'delegate', 'ui-verifier'];
+  const additions = [...roles.map(name => `agents/${name}.md`), 'agents/LICENSE.nicobailon',
+    ...['index.ts', 'policy.mjs', 'provider.ts'].map(name => `extensions/research-tools/${name}`)];
+  fs.rmSync(path.join(harness, 'agents/worker.md'));
+  for (const name of ['Explore', 'general-purpose', 'Plan', 'deep-implementation', 'deep-review']) {
+    put(harness, `agents/${name}.md`, fs.readFileSync(path.join(root, 'test/fixtures/legacy-profiles', `${name}.md`)));
+  }
+  put(harness, 'config/pi.settings.json', JSON.stringify({ theme: 'release-theme', nested: { managed: true } }));
+  put(harness, 'manifests/packages.json', JSON.stringify({ piVersion: '1.5.0', packages: [] }));
+  put(harness, 'config/subagents.json', JSON.stringify({ surfaceBackend: 'herdr', includeBundledAgents: false,
+    allowProjectAgents: false, requireProfile: true, delegation: { maxDepth: 1, maxConcurrentDescendants: 6, maxLaunchesPerLineage: null } }));
+  put(harness, 'config/SUPERVISOR.md', 'fixture supervisor');
+  const verifyFixture = scopedFixtureVerifier(home, harness, roles);
+  source.commits.harness = commit(harness, 'interactive predecessor with five legacy profiles');
+  const before = prepare(t, home, source); verifyFixture(before);
+  const preserved = { '.agents/SYSTEM.md': 'Private shared policy.\n', '.pi/agent/agents/private.md': 'Private profile.\n',
+    '.pi/agent/sessions/private.jsonl': 'Synthetic session history.\n', '.pi/agent/memories/private.md': 'Synthetic private memory.\n' };
+  for (const [file, content] of Object.entries(preserved)) put(home, file, content);
+  const external = path.join(home, 'coordinator-owned.md'); put(home, 'coordinator-owned.md', 'Coordinator owned.');
+  fs.symlinkSync(external, path.join(home, '.pi/agent/agents/project-worker.md'));
+  put(home, '.pi/agent/settings.json', JSON.stringify({ privateSetting: { keep: true } }));
+  execute(plan({ home, release: before.id }));
+  for (const file of additions) put(harness, file, fs.readFileSync(path.join(root, file)));
+  put(harness, 'config/subagents.json', fs.readFileSync(path.join(root, 'config/subagents.json')));
+  source.commits.harness = commit(harness, 'exact scoped profile and research additions');
+  const after = prepare(t, home, source);
+  assert.throws(() => plan({ home, release: after.id }), /dependencies|verification/);
+  verifyFixture(after);
+  const pending = plan({ home, release: after.id });
+  assert.deepEqual(pending.conflicts, [], 'exact verified forward migration must not need broad migration flags');
+  assert.deepEqual(pending.operations.filter(op => op.before === null).map(op => op.relative).sort(),
+    additions.map(file => `.pi/agent/${file}`).sort());
+  for (const file of ['agents/worker.md', 'extensions/research-tools/provider.ts']) {
+    const relative = `.pi/agent/${file}`; put(home, relative, 'Private conflicting bytes.');
+    const denied = plan({ home, release: after.id, migrateBase: true });
+    assert(denied.conflicts.includes(relative));
+    assert.throws(() => execute(denied), /nothing written/);
+    assert.equal(fs.readFileSync(path.join(home, relative), 'utf8'), 'Private conflicting bytes.');
+    fs.rmSync(path.join(home, relative));
+  }
+  for (const extra of ['extensions/research-tools/unapproved.mjs', 'agents/unapproved.md']) {
+    put(harness, extra, 'Unapproved additional resource.');
+    source.commits.harness = commit(harness, 'unapproved resource shape');
+    const changed = prepare(t, home, source); verifyFixture(changed);
+    const denied = plan({ home, release: changed.id, migrateBase: true });
+    assert(denied.conflicts.some(message => message.includes('managed resource or settings key set changed')));
+    assert.throws(() => execute(denied), /nothing written/);
+    fs.rmSync(path.join(harness, extra));
+  }
+  put(harness, 'config/pi.settings.json', JSON.stringify({ theme: 'release-theme', nested: { managed: true }, unexpected: true }));
+  source.commits.harness = commit(harness, 'unapproved settings shape');
+  const changed = prepare(t, home, source); verifyFixture(changed);
+  assert(plan({ home, release: changed.id, migrateBase: true }).conflicts.some(message => message.includes('managed resource or settings key set changed')));
+  execute(plan({ home, release: after.id }));
+  for (const [file, content] of Object.entries(preserved)) assert.equal(fs.readFileSync(path.join(home, file), 'utf8'), content);
+  assert.equal(fs.readlinkSync(path.join(home, '.pi/agent/agents/project-worker.md')), external);
+  assert.deepEqual(readJSON(path.join(home, '.pi/agent/settings.json')).privateSetting, { keep: true });
+  assert.deepEqual(plan({ home, release: after.id }).operations, []);
+
+  const rollback = plan({ home, release: before.id });
+  assert.deepEqual(rollback.conflicts, [], 'exact verified inverse must be available without broad migration flags');
+  assert.deepEqual(rollback.operations.filter(op => op.content === null).map(op => op.relative).sort(),
+    additions.map(file => `.pi/agent/${file}`).sort());
+  const snapshotPaths = ['.agent-config/state.json', '.pi/agent/settings.json', '.pi/agent/subagents.json',
+    '.pi/agent/agents/Explore.md', ...Object.keys(preserved), ...additions.map(file => `.pi/agent/${file}`)];
+  const snapshot = () => Object.fromEntries(snapshotPaths.map(file => [file, fs.readFileSync(path.join(home, file), 'utf8')]));
+  const refuseWithoutWrites = (candidate, pattern) => {
+    const saved = snapshot();
+    const denied = plan({ home, release: candidate.id, migrateBase: true });
+    assert(denied.conflicts.some(message => pattern.test(message)), JSON.stringify(denied.conflicts));
+    assert.throws(() => execute(denied), /nothing written/);
+    assert.deepEqual(snapshot(), saved);
+  };
+  for (const file of ['agents/worker.md', 'extensions/research-tools/provider.ts', 'agents/Explore.md']) {
+    const relative = `.pi/agent/${file}`, original = fs.readFileSync(path.join(home, relative));
+    put(home, relative, 'Private modified managed content.');
+    refuseWithoutWrites(before, new RegExp(file.replaceAll('.', '\\.')));
+    put(home, relative, original);
+  }
+  const stateFile = path.join(home, '.agent-config/state.json'), owned = fs.readFileSync(stateFile);
+  const unowned = JSON.parse(owned);
+  delete unowned.files['.pi/agent/extensions/research-tools/provider.ts'];
+  fs.writeFileSync(stateFile, JSON.stringify(unowned));
+  refuseWithoutWrites(before, /retired resource is not tracked/);
+  fs.writeFileSync(stateFile, owned);
+
+  for (const file of additions) fs.rmSync(path.join(harness, file));
+  put(harness, 'config/subagents.json', fs.readFileSync(path.join(before.releasePath, 'config/subagents.json')));
+  put(harness, 'config/pi.settings.json', JSON.stringify({ theme: 'release-theme', nested: { managed: true } }));
+  const legacyProfile = fs.readFileSync(path.join(harness, 'agents/Explore.md'));
+  fs.rmSync(path.join(harness, 'agents/Explore.md'));
+  source.commits.harness = commit(harness, 'rollback with unauthorized extra removal');
+  const extraRemoval = prepare(t, home, source); verifyFixture(extraRemoval);
+  refuseWithoutWrites(extraRemoval, /managed resource or settings key set changed/);
+  put(harness, 'agents/Explore.md', legacyProfile);
+  put(harness, 'prompts/unapproved.md', 'Unapproved rollback addition.');
+  source.commits.harness = commit(harness, 'rollback with unauthorized addition');
+  const extraAddition = prepare(t, home, source); verifyFixture(extraAddition);
+  refuseWithoutWrites(extraAddition, /managed resource or settings key set changed/);
+  fs.rmSync(path.join(harness, 'prompts/unapproved.md'));
+  put(harness, 'config/pi.settings.json', JSON.stringify({ theme: 'release-theme', nested: { managed: true }, unexpected: true }));
+  source.commits.harness = commit(harness, 'rollback with unauthorized settings shape');
+  const extraSettings = prepare(t, home, source); verifyFixture(extraSettings);
+  refuseWithoutWrites(extraSettings, /managed resource or settings key set changed/);
+
+  const pristine = snapshot();
+  const backup = execute(plan({ home, release: before.id }));
+  for (const file of additions) {
+    const relative = `.pi/agent/${file}`;
+    assert.equal(fs.existsSync(path.join(home, relative)), false);
+    assert.equal(fs.readFileSync(path.join(backup, relative), 'utf8'), pristine[relative]);
+    assert.equal(readJSON(stateFile).files[relative], undefined);
+  }
+  for (const [file, content] of Object.entries(preserved)) assert.equal(fs.readFileSync(path.join(home, file), 'utf8'), content);
+  assert.equal(fs.readlinkSync(path.join(home, '.pi/agent/agents/project-worker.md')), external);
+  assert.deepEqual(readJSON(path.join(home, '.pi/agent/settings.json')).privateSetting, { keep: true });
+  assert.equal(readJSON(stateFile).release, before.id);
+  assert.equal(readJSON(path.join(home, '.pi/agent/subagents.json')).delegation.maxDepth, 1);
+  assert.deepEqual(plan({ home, release: before.id }).operations, []);
+});
+
+test('exact five-profile retirement and inverse rollback preserve private state and refuse unsafe transitions', t => {
+  const home = temporary(t), source = fixture(t), harness = source.repositories.harness;
+  const root = path.resolve(import.meta.dirname, '..');
+  const roles = ['scout', 'worker', 'reviewer', 'oracle', 'researcher', 'evidence-auditor', 'delegate', 'ui-verifier'];
+  const retired = ['Explore', 'Plan', 'general-purpose', 'deep-implementation', 'deep-review'];
+  for (const name of [...roles, ...retired, 'LICENSE.nicobailon', 'luna-fast.mjs']) {
+    const file = name.includes('.') ? name : name + '.md';
+    put(harness, `agents/${file}`, fs.readFileSync(path.join(root, retired.includes(name) ? 'test/fixtures/legacy-profiles' : 'agents', file)));
+  }
+  for (const file of ['index.ts', 'policy.mjs', 'provider.ts']) put(harness, `extensions/research-tools/${file}`, fs.readFileSync(path.join(root, 'extensions/research-tools', file)));
+  put(harness, 'config/subagents.json', fs.readFileSync(path.join(root, 'config/subagents.json')));
+  put(harness, 'config/SUPERVISOR.md', 'Fixture supervisor');
+  put(harness, 'manifests/packages.json', JSON.stringify({ piVersion: '1.5.0', packages: [] }));
+  const verify = scopedFixtureVerifier(home, harness, roles);
+  const candidate = message => {
+    source.commits.harness = commit(harness, message);
+    const result = prepare(t, home, source); verify(result); return result;
+  };
+  const before = candidate('scoped release with legacy aliases');
+  const privateFiles = { '.agents/SYSTEM.md': 'Private policy', '.pi/agent/auth.json': '{"synthetic":true}',
+    '.pi/agent/sessions/private.jsonl': 'History', '.pi/agent/extensions/private.mjs': 'Private extension',
+    '.pi/agent/learning/private.json': 'Private learning', '.pi/agent/agents/private.md': 'Private role' };
+  for (const [file, bytes] of Object.entries(privateFiles)) put(home, file, bytes);
+  put(home, 'coordinator-owned.md', 'Separate coordinator');
+  const link = path.join(home, '.pi/agent/agents/project-worker.md');
+  fs.symlinkSync(path.join(home, 'coordinator-owned.md'), link);
+  put(home, '.pi/agent/settings.json', JSON.stringify({ privateSetting: { keep: true } }));
+  execute(plan({ home, release: before.id }));
+  const preserved = { ...privateFiles, '.pi/agent/agents/luna-fast.mjs': fs.readFileSync(path.join(home, '.pi/agent/agents/luna-fast.mjs'), 'utf8'),
+    ...Object.fromEntries(roles.map(name => [`.pi/agent/agents/${name}.md`, fs.readFileSync(path.join(home, `.pi/agent/agents/${name}.md`), 'utf8')])) };
+  const stateFile = path.join(home, '.agent-config/state.json');
+  const snapshot = () => Object.fromEntries(['.agent-config/state.json', '.pi/agent/settings.json', ...Object.keys(preserved),
+    ...retired.map(name => `.pi/agent/agents/${name}.md`)].map(file => [file, fs.existsSync(path.join(home, file)) ? fs.readFileSync(path.join(home, file), 'utf8') : null]));
+  const refuse = (target, pattern) => {
+    const original = snapshot();
+    for (const migrateBase of [false, true]) {
+      const pending = plan({ home, release: target.id, migrateBase });
+      assert(pending.conflicts.some(item => pattern.test(item)), JSON.stringify(pending.conflicts));
+      assert.throws(() => execute(pending), /nothing written/); assert.deepEqual(snapshot(), original);
+    }
+  };
+  for (const name of retired) fs.rmSync(path.join(harness, `agents/${name}.md`));
+  const after = candidate('remove exactly five legacy aliases');
+  const pending = plan({ home, release: after.id });
+  assert.deepEqual(pending.conflicts, [], 'exact five-profile retirement must be supported');
+  assert.deepEqual(pending.operations.filter(op => op.content === null).map(op => op.relative).sort(), retired.map(name => `.pi/agent/agents/${name}.md`).sort());
+  for (const name of retired) {
+    const file = `.pi/agent/agents/${name}.md`, original = fs.readFileSync(path.join(home, file));
+    put(home, file, 'Private modified profile'); refuse(after, new RegExp(name)); put(home, file, original);
+    const state = fs.readFileSync(stateFile), changed = JSON.parse(state); delete changed.files[file];
+    fs.writeFileSync(stateFile, JSON.stringify(changed)); refuse(after, /retired resource is not tracked/); fs.writeFileSync(stateFile, state);
+  }
+  const originals = snapshot(), backup = execute(plan({ home, release: after.id }));
+  for (const name of retired) {
+    const file = `.pi/agent/agents/${name}.md`;
+    assert.equal(fs.existsSync(path.join(home, file)), false);
+    assert.equal(fs.readFileSync(path.join(backup, file), 'utf8'), originals[file]);
+    assert.equal(readJSON(stateFile).files[file], undefined);
+  }
+  assert.deepEqual(plan({ home, release: after.id }).operations, []);
+  for (const name of retired) {
+    const file = `.pi/agent/agents/${name}.md`;
+    for (const bytes of ['Private replacement', originals[file]]) {
+      put(home, file, bytes); refuse(before, new RegExp(name)); fs.rmSync(path.join(home, file));
+    }
+  }
+  const reverse = plan({ home, release: before.id }); assert.deepEqual(reverse.conflicts, []); execute(reverse);
+  assert.deepEqual(plan({ home, release: before.id }).operations, []);
+  for (const name of retired) assert.equal(fs.readFileSync(path.join(home, `.pi/agent/agents/${name}.md`), 'utf8'), originals[`.pi/agent/agents/${name}.md`]);
+  for (const [file, bytes] of Object.entries(preserved)) assert.equal(fs.readFileSync(path.join(home, file), 'utf8'), bytes);
+  assert.equal(fs.readlinkSync(link), path.join(home, 'coordinator-owned.md'));
+  assert.deepEqual(readJSON(path.join(home, '.pi/agent/settings.json')).privateSetting, { keep: true });
+  put(harness, 'agents/unapproved.md', 'Extra resource');
+  refuse(candidate('mixed addition and legacy removal'), /managed resource or settings key set changed/);
+  fs.rmSync(path.join(harness, 'agents/unapproved.md'));
+  put(harness, 'agents/Explore.md', originals['.pi/agent/agents/Explore.md']);
+  refuse(candidate('only four removals'), /managed resource or settings key set changed/);
+  fs.rmSync(path.join(harness, 'agents/Explore.md'));
+  put(harness, 'config/pi.settings.json', JSON.stringify({ theme: 'release-theme', nested: { managed: true }, unauthorized: true }));
+  refuse(candidate('changed settings keys'), /managed resource or settings key set changed/);
+});
+
 test('release switches with a different managed key or resource set are blocked', t => {
   const home = temporary(t);
   const source = fixture(t);
@@ -1369,17 +1601,17 @@ test('bootstrap fetches audited source pins from user-owned repositories', () =>
   assert.equal(Object.isFrozen(sourceRepositories), true);
 });
 
-test('versioned bootstrap recipe pins the active release without local source paths', () => {
+test('versioned bootstrap recipe pins the reviewed verified candidate rather than tooling HEAD', () => {
   const recipe = validateRecipe(readJSON(path.resolve('manifests/active-release.json')));
   assert.equal(spawnSync('git', ['cat-file', '-t', recipe.sources.harness], { encoding: 'utf8' }).stdout.trim(), 'commit');
   assert.deepEqual(recipe, {
     schemaVersion: 1,
-    release: `h-${recipe.sources.harness.slice(0, 12)}-s-f049ad72cbc8-m-35275b8ce08a`,
+    release: 'h-8388fb58ea11-s-21628a941dbc-m-35275b8ce08a',
     piVersion: '1.5.0',
     runtime: { node: 'v22.23.2' },
     sources: {
-      harness: recipe.sources.harness,
-      subagents: 'f049ad72cbc88003f59f5033a5d60a235f62eae5',
+      harness: '8388fb58ea115811ef164ece79282d5f89cbe03d',
+      subagents: '21628a941dbcca3678d659e722b5a8fd10f18105',
       memory: '35275b8ce08a54d3056b1ada578bacb085d53819',
     },
   });

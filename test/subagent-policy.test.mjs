@@ -28,12 +28,12 @@ test('priority does not affect Astra, Sol, other providers or unknown models', (
   }
 });
 
-test('profiles pin models with explicit local tools and bounded turns', () => {
+test('historical fixture profiles pin models with explicit local tools and bounded turns', () => {
   for (const [name, modelId, thinking, writable] of [
     ['Explore', 'gpt-6.1-sol', 'low', false], ['general-purpose', 'gpt-6.1-sol', 'high', true],
     ['Plan', 'gpt-6-astra', 'low', false], ['deep-implementation', 'gpt-6-astra', 'medium', true], ['deep-review', 'gpt-6.1-sol', 'medium', false],
   ]) {
-    const text = fs.readFileSync(new URL(`../agents/${name}.md`, import.meta.url), 'utf8');
+    const text = fs.readFileSync(new URL(`./fixtures/legacy-profiles/${name}.md`, import.meta.url), 'utf8');
     assert.ok(text.includes(`model: openai/${modelId}\n`), name);
     assert.ok(text.includes(`thinking: ${thinking}\n`), name);
     assert.ok(text.includes(`tools: ${writable ? 'read, grep, find, ls, bash, edit, write' : 'read, grep, find, ls'}\n`), name);
@@ -51,8 +51,9 @@ test('profiles pin models with explicit local tools and bounded turns', () => {
     assert.match(text, /skill\|prompt\|extension\|delegation\|budget/);
   }
   const settings = JSON.parse(fs.readFileSync(new URL('../config/subagents.json', import.meta.url)));
-  assert.equal(settings.delegation.maxDepth, 1);
+  assert.equal(settings.delegation.maxDepth, 2);
   assert.equal(settings.delegation.maxConcurrentDescendants, 6);
+  assert.equal(settings.delegation.maxConcurrentChildren, 2);
   assert.equal(settings.surfaceBackend, 'herdr');
   assert.equal(settings.includeBundledAgents, false);
   assert.equal(settings.allowProjectAgents, false);
@@ -93,7 +94,7 @@ test('runtime smoke reads profile policy, retains historical effort and priority
     fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('openai-codex/', 'openai/'));
   }
   assert.deepEqual(readSubagentSmokePolicy(release), migrated);
-  assert.deepEqual(readSubagentSmokePolicy(path.resolve(import.meta.dirname, '..')), migrated);
+  assert.equal(readSubagentSmokePolicy(path.resolve(import.meta.dirname, '..')), null, 'retired profiles must not be read from active source');
   for (const hook of [false, true]) {
     const expected = writeProfiles(['gpt-6.1-sol', 'gpt-6-astra'], ['high', 'low'], hook);
     assert.deepEqual(readSubagentSmokePolicy(release), expected);
