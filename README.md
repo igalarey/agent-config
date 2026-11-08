@@ -7,12 +7,16 @@ Do not register a second copy of the same package.
 
 ## Public snapshot status
 
-This sanitized branch preserves the locally verified source and recipe without the private development commit history.
-The current recipe retains verified local source commits that are **not all published**.
-A fresh public clone cannot reproduce that recipe yet. The source hashes remain unchanged as evidence, not as new public release pins.
-A **new reproducible release** requires published source commits, candidate preparation, full verification, and an explicit recipe update.
-That release work remains pending. This snapshot does not change the existing installation or certify a new candidate.
-The installation commands describe the workflow once all required source commits are available.
+The recipe on `publish/sanitized-harness` pins published sources, without importing private development history.
+The coordinator verified and activated release `h-dbb8b4927427-s-21628a941dbc-m-35275b8ce08a`.
+Recipe commit `18cddcc` selects verified harness source `dbb8b492`, not the later documentation HEAD.
+
+A fresh GitHub clone reproduced bootstrap in an empty HOME without a source map, using an existing npm cache.
+Locked cache-only dependency preparation disabled lifecycle scripts. Installed doctor and repeat bootstrap reported no conflicts or pending changes.
+See the [public release receipt](docs/scoped-source-verification.md#public-release-activation-receipt) for candidate evidence and reproduction limits.
+
+This reproduction does not establish installation with an empty npm cache or new platform, browser, live-authentication, or visual UI behavior.
+Existing Pi processes were not restarted.
 
 ## Base
 
@@ -40,8 +44,8 @@ Carbon, Learning, prompt templates, and skills are separate resources, not extra
 Each interactive child runs Pi in a native Herdr pane, with a separate coordination mailbox.
 Bundled worker/scout/researcher profiles and the external viewer are disabled.
 The activated installation contains nine active profiles: eight scoped specialists plus the separately owned project-worker profile.
-The five legacy profiles are retired. See the [retirement receipt](docs/scoped-source-verification.md#five-profile-retirement-activation-receipt).
-The [current activation receipt](docs/scoped-source-verification.md#sqlite-lineage-mutex-activation-receipt) records the verified SQLite release, preservation checks, and evidence limits.
+The five legacy profiles are retired. See the [retirement receipt](docs/scoped-source-verification.md#historical-five-profile-retirement-activation-receipt).
+The [current activation receipt](docs/scoped-source-verification.md#public-release-activation-receipt) records the verified SQLite release, preservation checks, and evidence limits.
 
 Shared instructions, guides and skills are projected into `~/.agents`. Curated skills
 from `pi-skills/` go to `~/.pi/agent/skills`. The nine active curated skills are
@@ -261,7 +265,7 @@ Direct user interaction can keep a child open. A follow-up resumes its saved ses
 Turn limits stop incomplete work and remain in the saved resume policy.
 A resumed process receives a new turn budget. These limits are not spending quotas.
 
-The [verified SQLite lineage mutex release](docs/scoped-source-verification.md#sqlite-lineage-mutex-activation-receipt) is activated.
+The [verified SQLite lineage mutex release](docs/scoped-source-verification.md#public-release-activation-receipt) is activated.
 It fixes the demonstrated crash-held mutex mechanism. The exact historical cancellation incident remains unattributed.
 SQLite provides the mutex, not the accounting store. The JSON ledger remains authoritative after process death.
 Only the root can initialize the permanent protocol fence. Interrupted initialization fails closed, without automatic repair.
@@ -288,7 +292,7 @@ It uses owned status, restrictive resume, and completion receipts to preserve on
 The adapter verifies worker identity and refuses to interrupt a busy worker. Each resumed process has a new 30-turn budget.
 Historical tintinweb bindings remain intact but cannot resume through the interactive backend.
 Install the compatible adapter before migrating an older installation. Do not load both runtimes.
-This private extension is separate from the harness release and is not installed by bootstrap.
+This separately owned extension has public source and is not installed by bootstrap.
 
 Use ordinary Git worktrees with hooks. The tintinweb workflow tool is not installed.
 Delegation and supervision can incur model usage. Model availability and account quota require your own authentication.

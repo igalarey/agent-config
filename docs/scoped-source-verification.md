@@ -1,12 +1,57 @@
 # Scoped source, candidate, and activation verification
 
-This public document records local verification and activation, not a reproducible release from a fresh public clone.
-Private backup identifiers and preservation-baseline paths are omitted. Technical source hashes remain unchanged.
-See the [public snapshot limits](../README.md#public-snapshot-status) before attempting reproduction.
+The coordinator verified and activated `h-dbb8b4927427-s-21628a941dbc-m-35275b8ce08a` from published sources.
+Verified harness payload: `dbb8b4927427b48473431d77aae9f7f97ea06a5a`.
+Native source: `21628a941dbcca3678d659e722b5a8fd10f18105`. Memory source: `35275b8ce08a54d3056b1ada578bacb085d53819`.
+Recipe commit `18cddcced20826f6f03f844393d5f7d3227846e3` selects that payload, not the later documentation HEAD.
+Private backup identifiers, process identifiers, and personal paths are omitted. This receipt changes no recipe, runtime, or sealed release.
 
-The coordinator activated `h-8388fb58ea11-s-21628a941dbc-m-35275b8ce08a` after verification and review of the three-write plan.
-Verified payload: harness `8388fb58ea115811ef164ece79282d5f89cbe03d`, native `21628a941dbcca3678d659e722b5a8fd10f18105`.
-Recipe commit `7ae5e7f` selects that payload, not the later recipe or documentation HEAD. This receipt requires no rebuild or reseal.
+## Public release activation receipt
+
+The coordinator downloaded the three source commits from GitHub by SHA, without private local Git objects.
+Official candidate preparation used locked, cache-only dependencies with lifecycle scripts disabled.
+
+| Check | Observed result | Local diagnostic log |
+| --- | --- | --- |
+| Preparation and dependencies | Passed from public sources | `.git/public-candidate-prepare.log`, `.git/public-candidate-deps.log` |
+| Official verification | 14 package, 5 runtime, 1 composition gates passed | `.git/public-candidate-verify.log` |
+| Candidate-bound combined fixture | 1 passed, coordinator 37 passed with 1 historical skip, `officialVerification: true` | `.git/public-candidate-combined.log` |
+| Existing-HOME activation | Exactly 3 writes: settings package paths, harness inventory, managed state | `.git/public-activation.log` |
+| Installed doctor | Integrity, verification, and compatibility valid. 0 conflicts, 0 pending writes | `.git/public-installed-doctor.log` |
+| Repeat bootstrap | 0 changes. Dependency and verification stages skipped for the valid active release | `.git/public-installed-repeat.log` |
+
+The coordinator reports all 18 protected hashes matched. Settings excluding `packages` and the nine installed profiles remained unchanged.
+The installer created a private backup. Its identifier and location are not part of this public receipt.
+
+Both coordinator symlinks now select the public checkout at `58b02fa776fe4bc0d9aca6ad0b3b3f5a6b9320c4`.
+The coordinator reports exact runtime and profile bytes preserved. This separate change is not part of the three managed writes.
+Managed release rollback does not reverse independently owned coordinator symlinks.
+
+Source digest: `2c508f8d8d18e8af810ae3cb01c6f28947f5978df3c2b858553465921804d000`.
+Runtime digest: `e8946ac3d4fe0dc9b1575dc66c15353a11f0176427b355d841dc883d3792033e`, unchanged from the preceding SQLite release.
+Existing Pi processes were not restarted. The [SQLite protocol compatibility limits](#protocol-compatibility) still apply.
+
+### Fresh public bootstrap
+
+The coordinator cloned published recipe commit `18cddcc` from GitHub and ran bootstrap in an empty HOME without `--source-map`.
+Bootstrap fetched native and memory commits from GitHub by SHA. It did not use private source checkouts.
+Dependency preparation used an existing npm cache, exact locks, and disabled lifecycle scripts.
+The combined check used a separate fresh GitHub checkout of public coordinator commit `58b02fa`.
+
+| Check | Observed result | Local diagnostic log |
+| --- | --- | --- |
+| Fresh bootstrap | Preparation, verification, and activation passed. 78 configuration writes | `.git/public-cold-bootstrap.log` |
+| Official fresh verification | 14 package, 5 runtime, 1 composition gates passed. Source and runtime digests match the installed candidate | `.git/public-cold-verification.json` |
+| Candidate-bound combined fixture | 1 passed, coordinator 37 passed with 1 historical skip, `officialVerification: true` | `.git/public-cold-combined.log` |
+| Fresh-HOME doctor | Integrity, verification, and compatibility valid. 0 conflicts, 0 pending writes | `.git/public-cold-doctor.log` |
+| Repeat bootstrap | 0 changes | `.git/public-cold-repeat.log` |
+
+This establishes public-source reproduction with an existing npm cache on the tested Linux host, Node 22.23.2, and Pi 1.5.0.
+It does not establish installation with an empty npm cache, npm network downloads, or behavior on another platform.
+Synthetic providers and process-backed children do not establish live authentication, browser operation, quota behavior, or fresh visual Herdr UI behavior.
+The commands in [Install](../README.md#install) explicitly select the public branch.
+
+Local diagnostic logs are not distributed release assets. Historical paths identify evidence inspected at the time, not a guarantee of retained files.
 
 ## Public-source verification prerequisite
 
@@ -19,9 +64,13 @@ The existing input regression first rejected the public coordinator, then passed
 All three focused tests passed. The root suite passed 213 tests with seven skips.
 The source-export combined fixture passed with 82 native files validated. The coordinator suite passed 37 tests with one historical skip.
 These are source checks, not verification or activation of a new candidate.
-The recipe still selects the earlier local harness until a new candidate passes verification and receives an explicit source-commit pin.
+The coordinator subsequently verified the public-source candidate and pinned its harness commit explicitly, as recorded in the current receipt.
 
-## SQLite lineage mutex activation receipt
+## Historical SQLite lineage mutex activation receipt
+
+The preceding installed release was `h-8388fb58ea11-s-21628a941dbc-m-35275b8ce08a`.
+Its recipe commit `7ae5e7f` selected harness source `8388fb58ea115811ef164ece79282d5f89cbe03d`.
+The following evidence belongs to that predecessor, not the current public-source release.
 
 The coordinator completed official verification and candidate acceptance before activation:
 
@@ -51,7 +100,7 @@ The earlier candidate `h-215b137db10b-s-21628a941dbc-m-35275b8ce08a` passed 14 p
 Its combined fixture correctly refused the native provenance mismatch, recorded in `.git/sqlite-candidate-combined.log`.
 That candidate remains bound to its original harness. It is not evidence for this updated fixture and must not receive a patched runner.
 Exact source bytes, executable modes, provider paths, and candidate runner bindings remain mandatory.
-The coordinator and memory pins are unchanged. The final candidate passed verification before the recipe pin and activation.
+The coordinator and memory pins stayed unchanged during that historical SQLite transition. That candidate passed verification before its recipe pin and activation.
 
 ### Protocol compatibility
 
@@ -84,7 +133,7 @@ The exact-Git-export combined fixture passed with 82 files validated. Its coordi
 Logs: `.git/sqlite-source-{red,green,host,full,combined}.log`.
 These are source results, not activation evidence or a fresh visual UI/authentication test.
 
-## Five-profile retirement activation receipt
+## Historical five-profile retirement activation receipt
 
 The coordinator completed verification and reviewed the exact eight-change plan before activation.
 The receipt records these local logs:
@@ -108,7 +157,7 @@ Both coordinator symlinks and settings excluding `packages` remain unchanged. Th
 
 Existing Pi processes were not restarted. They still need a restart to load the current configuration.
 This receipt establishes no fresh UI, live authentication, browser, or quota evidence.
-That historical release used the older lock protocol. The current SQLite activation receipt records its replacement and compatibility limits.
+That historical release used the older lock protocol. The historical SQLite receipt records its replacement and compatibility limits.
 
 ## Historical verified widget successor
 
@@ -259,7 +308,7 @@ No provenance allowlist, parser refusal, or exact-provider assertion is relaxed.
 Source checks passed: three focused input/export tests and the root suite (211 passed, seven existing skips).
 The first combined run passed the scoped-provider scenario but failed the coordinator cancellation case with a lineage-lock timeout.
 An unchanged repeat passed the combined test and coordinator suite (37 passed, one historical skip).
-Both logs are retained as `.git/scoped-successor-combined.log` and `.git/scoped-successor-combined-repeat.log`.
+Those runs were recorded in `.git/scoped-successor-combined.log` and `.git/scoped-successor-combined-repeat.log`.
 The subsequent widget candidate and original-coordinator combined checks passed. Those reruns did not identify or fix the intermittent failure.
 The native diagnosis found consistency with forced-kill interruption leaving an ownerless lineage lock. The exact historical interruption remains unproven.
 Lock/cancellation code was unchanged in that widget successor. The later SQLite revision fixes the separately demonstrated crash-held mutex mechanism.
